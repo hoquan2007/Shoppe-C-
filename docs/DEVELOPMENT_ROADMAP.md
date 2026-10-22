@@ -1,6 +1,8 @@
 # Kế hoạch phát triển Shoppe sau audit 22/10/2026
 
-Điểm xuất phát: Production hoạt động, 28/28 kịch bản HTTP Local qua, 36 probe Production qua; còn 2 ca biên không đạt, độ trễ cao, chưa nghiệm thu payment/email thật. Chi tiết [audit](AUDIT_2026-10-22.md), [API hiện có](API_CURRENT.md). Giữ C++ cho nghiệp vụ server, HTML/CSS/JS cho giao diện, tất cả frontend/backend trên Vercel; Supabase làm database/storage.
+Đã sửa hai ca biên moderation/method và triển khai tối ưu C++: pool libpq, read-only transaction, batch dashboard/đơn/export, vùng Singapore. Hiện 15/15 nhóm API trên mỗi adapter và 6/6 lỗi biên đều qua. Xem [kết quả sửa/đo](PERFORMANCE_FIX_2026-10-22.md), [chuẩn bị key và Shopee](KEYS_AND_SHOPEE_GUIDE.md), [API hiện có](API_CURRENT.md). Giữ C++ cho nghiệp vụ server, HTML/CSS/JS cho giao diện, frontend/backend trên Vercel; Supabase làm database/storage. Payment/email thật vẫn cần nghiệm thu.
+
+**Ưu tiên tiếp theo:** nghiệm thu payOS/webhook và email ở giai đoạn 3 → hoàn thiện phân trang/SQL/index và UI/E2E → hồ sơ bài tập. API Shopee chỉ triển khai sau khi đủ quyền và chọn mô hình dữ liệu phù hợp. Các giai đoạn dưới đây giữ các đầu việc còn lại; không phải mọi mục trong giai đoạn 1–2 còn chưa làm.
 
 ## Giai đoạn 1 — Sửa lỗi kiểm duyệt và chốt contract (P1, khoảng 1–2 ngày công)
 

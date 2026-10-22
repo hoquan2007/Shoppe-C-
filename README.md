@@ -2,6 +2,8 @@
 
 Website tiếng Việt cho bài tập lớn OOP, frontend HTML/CSS/JavaScript và nghiệp vụ chạy ở backend C++20. Có giao diện khách hàng, người bán và admin; COD và adapter payOS; database PostgreSQL khi deploy, SQLite để phát triển tại máy.
 
+Bản sửa mới: [lỗi và hiệu năng C++](docs/PERFORMANCE_FIX_2026-10-22.md), [chuẩn bị key và đăng ký API Shopee](docs/KEYS_AND_SHOPEE_GUIDE.md), [API hiện tại](docs/API_CURRENT.md).
+
 ## Chạy nhanh trên Windows
 
 Máy cần Node.js 24+, CMake 3.24+, compiler C++20, OpenSSL và SQLite development libraries. Script nhận diện toolchain MSYS2 UCRT64 ở `C:\msys64\ucrt64` (có thể đổi `-MsysRoot`).

@@ -122,7 +122,7 @@ sequenceDiagram
     App-->>UI: Kết quả tạo đơn
 ```
 
-Không giữ transaction SQL mở khi gọi payOS, Storage hoặc dịch vụ email. PostgreSQL dùng transaction-level advisory lock chung cho bản demo; SQLite dùng mutex/BEGIN IMMEDIATE. Khóa này giới hạn throughput nhưng bảo đảm logic C++ dùng chuỗi đọc/sửa/ghi không bán vượt kho trên các instance.
+Không giữ transaction SQL mở khi gọi payOS, Storage hoặc dịch vụ email. PostgreSQL tái sử dụng pool libpq C++ tối đa 4 kết nối/container; commit/rollback trả kết nối ngay. Mutation dùng transaction-level advisory lock chung để chuỗi đọc/sửa/ghi không bán vượt kho trên các instance. GET thuần đọc dùng read-only/repeatable-read; khi phát hiện checkout hết hạn, bỏ snapshot đọc và kiểm tra/giải phóng kho dưới khóa ghi. Route xem trạng thái thanh toán/đơn và đọc chat vẫn dùng transaction ghi khi cần. SQLite dùng mutex/BEGIN IMMEDIATE.
 
 ## Sequence: xác nhận thanh toán
 
