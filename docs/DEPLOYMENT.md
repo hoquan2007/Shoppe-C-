@@ -7,8 +7,8 @@ Bản cập nhật và hướng dẫn cho người chưa có tài khoản: [báo
 - Build C++ và frontend chạy được tại máy phát triển.
 - Bộ kiểm thử API chạy qua SQLite và PostgreSQL cục bộ.
 - Đã kiểm chứng build Linux, kiểm thử SQLite/PostgreSQL và Dockerfile triển khai qua GitHub Actions; xem liên kết bằng chứng trong báo cáo 22/10.
-- Chưa deploy lên Vercel: kiểm tra ngày 22/10 cho thấy CLI đang đăng xuất.
-- Chưa có Supabase project, kênh payOS và cấu hình email thật của chủ dự án. Không coi các integration test là giao dịch ngân hàng thật.
+- Vercel đã kết nối qua connector với team HNQUAN (Hobby). Project `shoppe-c` liên kết repository `hoquan2007/Shoppe-C-`; tên miền được cấp là `https://shoppec.vercel.app`. CLI trên máy vẫn đăng xuất và không được dùng cho lần triển khai này.
+- Supabase và khóa kênh payOS đã được cấu hình; admin, shop demo và 30 sản phẩm đã nằm trong database thật. Email thật vẫn chưa cấu hình. Không coi các integration test là giao dịch ngân hàng thật.
 
 ## 1. Supabase
 
@@ -24,12 +24,16 @@ Migration có phiên bản và checksum trong bảng `schema_migrations`. `schem
 
 Repository có `Dockerfile.vercel`, frontend được build bằng Node và backend bằng CMake trên Debian. HTTP server C++ phục vụ cả frontend và `/api`, nên session/CSRF dùng cùng origin.
 
-1. Đăng nhập lại bằng `vercel login` trên máy của bạn.
+1. Dùng connector Vercel đã kết nối hoặc đăng nhập CLI bằng `vercel login` nếu muốn triển khai bằng terminal.
 2. Import Git repository hoặc chạy `vercel` tại thư mục gốc. Không chọn preset framework frontend để thay thế Dockerfile.
 3. Theo tài liệu Vercel được kiểm tra khi lập dự án, Container Runtime đang Beta trên mọi gói. Kiểm tra khả năng sử dụng trên tài khoản Hobby trước; nếu Vercel từ chối runtime, giữ lại thông báo lỗi để đánh giá phương án, không chuyển nghiệp vụ sang JavaScript một cách âm thầm.
 4. Đặt các biến môi trường dưới đây. `APP_URL` phải đúng origin HTTPS của deployment, không có dấu `/` cuối. Đặt `PORT=8080` để khớp cổng server/container.
 5. Deploy và kiểm tra `/api/health` trả `engine=C++20`, `database=postgresql`.
 6. Tạo người dùng/shop/sản phẩm; khởi động lại hoặc deploy lại rồi kiểm tra dữ liệu vẫn còn.
+
+`vercel.json` khai báo rõ service `shoppe` với `runtime=container`, `root=.` và `entrypoint=Dockerfile.vercel`, rồi route toàn bộ request vào service này. Cấu hình này cần thiết vì bản triển khai chỉ có Dockerfile ở root đã bị build thành frontend tĩnh: trang chủ HTTP 200 nhưng `/api/health` HTTP 404. Chỉ coi triển khai đầy đủ thành công sau khi health trả C++20/PostgreSQL và danh mục tải từ database.
+
+Source hiện nằm ở nhánh `codex/deployment-payment-readiness`; không deploy nhánh `main` đang chỉ có README. Production đã được tạo tường minh từ nhánh này. Push lên nhánh tính năng có thể tạo Preview tự động; khóa Production không được cấp cho Preview.
 
 | Biến                 | Ý nghĩa                                    |
 | -------------------- | ------------------------------------------ |

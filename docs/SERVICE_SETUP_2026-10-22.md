@@ -58,7 +58,7 @@ Tham khảo [Shopee Open Platform](https://open.shopee.com/), [hướng dẫn g�
 
 1. Dùng nhánh `codex/deployment-payment-readiness`, thư mục gốc và `Dockerfile.vercel`. Không chọn chỉ xuất `dist`, vì backend C++ phải được chạy.
 2. Thêm các biến trong file riêng `.env.vercel` vào Environment Variables của project Vercel. Khóa phải ở server, không đặt tiền tố `VITE_` hoặc đưa vào frontend.
-3. Thêm `APP_URL` bằng **origin HTTPS thật** của project, không có dấu `/` cuối. File xuất cố ý chưa điền vì bạn chưa cung cấp domain. Kiểm tra production hiện còn thiếu mục này.
+3. `APP_URL` hiện là `https://shoppec.vercel.app`, đúng **origin HTTPS thật** của project, không có dấu `/` cuối. File riêng `.env.vercel` đã cập nhật giá trị này; kiểm tra production/online đã qua (email vẫn tùy chọn).
 4. Giữ `APP_ENV=production`, `PORT=8080`, `SEED_DEMO=false`. Admin và dữ liệu đã nằm trong Supabase nên không cần đưa bootstrap password lên Vercel.
 5. Deploy và kiểm tra `/api/health` có C++20/PostgreSQL, đăng nhập admin và xem 30 sản phẩm. Kiểm tra lại dữ liệu sau redeploy.
 6. Nếu Vercel không kết nối được host database direct IPv6, lấy **Session pooler URI chính xác** từ Supabase Connect, thay DATABASE_URL và giữ TLS. Kết nối direct hiện đã xác minh được từ máy này; chưa xác minh từ Vercel.
