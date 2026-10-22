@@ -80,7 +80,15 @@ const icon = (name, size = 20) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.box}</svg>`;
 const logo = () =>
   `<a class="brand" href="/" aria-label="Shoppe trang chủ">${icon("bag", 38)}<div>shoppe<small>NIỀM VUI MỖI NGÀY</small></div></a>`;
-const categoryIcons = ["shirt", "device", "home", "beauty", "watch", "sport"];
+const categoryIcons = {
+  "Thời trang": "shirt",
+  "Điện tử": "device",
+  "Nhà cửa & Đời sống": "home",
+  "Sức khỏe & Làm đẹp": "beauty",
+  "Phụ kiện": "watch",
+  "Thể thao": "sport",
+  "Bách hóa": "bag",
+};
 const labels = {
   new: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
@@ -202,7 +210,7 @@ async function home() {
     )
     .join(
       "",
-    )}</div><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục ${icon("arrow", 15)}</a></div><div class="categories">${categories.map((c, i) => `<a class="category" href="/search?category=${encodeURIComponent(c)}"><div class="category-icon">${icon(categoryIcons[i], 21)}</div><span>${esc(c)}</span></a>`).join("")}</div><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="row" style="justify-content:center;margin:26px"><a class="btn outline" href="/search">Khám phá thêm ${icon("arrow", 15)}</a></div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng ${icon("arrow", 15)}</a></section>`;
+    )}</div><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục ${icon("arrow", 15)}</a></div><div class="categories">${categories.map((c) => `<a class="category" href="/search?category=${encodeURIComponent(c)}"><div class="category-icon">${icon(categoryIcons[c] || "grid", 21)}</div><span>${esc(c)}</span></a>`).join("")}</div><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="row" style="justify-content:center;margin:26px"><a class="btn outline" href="/search">Khám phá thêm ${icon("arrow", 15)}</a></div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng ${icon("arrow", 15)}</a></section>`;
 }
 async function searchPage() {
   const params = new URLSearchParams(location.search);
