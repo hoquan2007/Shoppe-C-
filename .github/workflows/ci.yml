@@ -1,0 +1,55 @@
+name: Build and test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: shoppe
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: shoppe_tests
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shoppe -d shoppe_tests"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev libsqlite3-dev libpq-dev
+      - run: npm ci
+      - run: npm run check && npm run build
+      - run: cmake -S . -B build -DSHOPPE_POSTGRES=ON -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake --build build -j2
+      - run: ctest --test-dir build --output-on-failure
+      - run: npm test
+        env:
+          SHOPPE_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://shoppe:test-only-password@127.0.0.1:5432/shoppe_tests' || '' }}
+      - name: Build exact deployment container
+        if: matrix.database == 'postgres'
+        run: docker build -f Dockerfile.vercel -t shoppe-ci .
+      - name: Check container API and frontend
+        if: matrix.database == 'postgres'
+        run: |
+          docker run -d --name shoppe-smoke --network host \
+            -e APP_ENV=test -e APP_URL=http://127.0.0.1:18083 -e PORT=18083 \
+            -e DATABASE_URL=postgresql://shoppe:test-only-password@127.0.0.1:5432/shoppe_tests \
+            -e SEED_DEMO=false shoppe-ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18083/api/health > /tmp/shoppe-health.json; then break; fi
+            sleep 1
+          done
+          node -e 'const h=JSON.parse(require("fs").readFileSync("/tmp/shoppe-health.json")); if(h.engine!=="C++20" || h.database!=="postgresql") process.exit(1)'
+          curl --fail --silent http://127.0.0.1:18083/product/product-1 | grep 'lang="vi"'
+      - name: Container diagnostics
+        if: always() && matrix.database == 'postgres'
+        run: docker logs shoppe-smoke 2>/dev/null || true

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "env": { "PORT": "8080" },
+  "crons": [{ "path": "/api/jobs/maintenance", "schedule": "0 0 * * *" }]
+}

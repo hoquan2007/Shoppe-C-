@@ -1,0 +1,27 @@
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /src
+COPY package*.json vite.config.js ./
+RUN npm ci
+COPY frontend/ frontend/
+RUN npm run build
+
+FROM debian:bookworm-slim AS cpp
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libssl-dev libsqlite3-dev libpq-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY CMakeLists.txt ./
+COPY backend/ backend/
+COPY tests/ tests/
+COPY database/ database/
+RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSHOPPE_POSTGRES=ON && cmake --build build -j2 && ctest --test-dir build --output-on-failure
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 libsqlite3-0 libpq5 ca-certificates && rm -rf /var/lib/apt/lists/* && useradd -m app
+WORKDIR /app
+COPY --from=cpp /src/build/shoppe /app/shoppe
+COPY --from=frontend /src/dist /app/dist
+COPY database/ /app/database/
+COPY THIRD_PARTY_NOTICES.md /app/THIRD_PARTY_NOTICES.md
+ENV PORT=8080 STATIC_DIR=/app/dist SCHEMA_PATH=/app/database/schema.sql APP_ENV=production
+USER app
+EXPOSE 8080
+CMD ["/app/shoppe"]

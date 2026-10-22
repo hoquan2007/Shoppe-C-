@@ -1,0 +1,12 @@
+.git
+.cache
+.env*
+.vercel
+node_modules
+dist
+build
+build-pg
+artifacts
+test-results
+*.db*
+*.log
