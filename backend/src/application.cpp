@@ -706,6 +706,17 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             req.path == "/api/admin/payments" ||
             (req.path.rfind("/api/conversations/", 0) == 0 && req.path.ends_with("/messages"));
         auto tx = db_.begin(!writing && !statefulRead);
+        if (!writing && !statefulRead &&
+            !tx->query("SELECT id FROM checkouts WHERE status = ? AND expires_at < ? LIMIT 1",
+                       {"pending", std::to_string(now())})
+                 .empty()) {
+            // Keep expiry/restock visible on public catalog reads without locking every reader.
+            // Drop the read snapshot before taking the write lock and re-check under that lock.
+            tx->rollback();
+            tx = db_.begin();
+            Repository expired(*tx);
+            expire(expired);
+        }
         Repository r(*tx);
         if (writing || statefulRead)
             expire(r);

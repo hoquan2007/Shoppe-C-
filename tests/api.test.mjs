@@ -543,6 +543,16 @@ test("signed webhook: bad signatures, duplicate events, expiry and late-payment 
       ).status,
       400,
     );
+    await ok(publicClient, "/products");
+    assert.equal(
+      JSON.parse(
+        db
+          .prepare("SELECT payload FROM checkouts WHERE id=?")
+          .get("fixture-expired").payload,
+      ).status,
+      "expired",
+      "public catalog reads still expire pending reservations",
+    );
     await ok(publicClient, "/payments/webhook", "POST", signed(100001));
     await ok(publicClient, "/payments/webhook", "POST", signed(100001));
     const reader = client(url);
