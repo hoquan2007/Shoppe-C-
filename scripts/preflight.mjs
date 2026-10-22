@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
 
 // Print readiness only. Never print environment values or connection strings.
-if (existsSync(".env")) process.loadEnvFile(".env");
+const envFile =
+  process.argv.find((arg) => arg.startsWith("--env-file="))?.slice(11) ||
+  ".env";
+if (existsSync(envFile)) process.loadEnvFile(envFile);
 const production = process.argv.includes("--production");
 const online = process.argv.includes("--online");
 const email = process.argv.includes("--email");
@@ -14,6 +17,8 @@ function check(name, passed, required = true) {
 }
 const has = (key) => !!process.env[key]?.trim();
 check("Node.js >= 24", Number(process.versions.node.split(".")[0]) >= 24);
+if (process.env.DEMO_CATALOG_AUTO_IMPORT === "true")
+  check("Bundled demo catalog", existsSync("database/demo-catalog.json"));
 for (const file of [
   "Dockerfile.vercel",
   "vercel.json",

@@ -28,3 +28,6 @@ SOFTWARE.
 The application also links OpenSSL (Apache-2.0), SQLite (public domain), and optionally PostgreSQL libpq (PostgreSQL License). Node development/build dependencies and their licenses are recorded in package-lock.json and their installed packages. Runtime distributions should retain the applicable library licenses.
 
 The product and hero SVG illustrations in frontend/public/assets were authored for this project and are illustrative catalog data.
+# Dữ liệu danh mục demo
+
+`database/demo-catalog.json` chứa bản chụp 30 sản phẩm minh họa từ [DummyJSON Products API](https://dummyjson.com/docs/products). Tên và mô tả có thể bằng tiếng Anh theo nguồn; danh mục giao diện, giá VNĐ minh họa và tồn mô phỏng do backend C++ tạo. Ảnh được tham chiếu qua CDN của nguồn. Dữ liệu không phải hàng tồn thực tế, không phải danh mục Shopee và không thể hiện quan hệ đối tác với các thương hiệu xuất hiện.

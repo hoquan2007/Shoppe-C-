@@ -1,8 +1,10 @@
 #include "application.h"
+#include "catalog.h"
 #include "domain.h"
 #include "payments.h"
 #include "security.h"
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -1582,6 +1584,14 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             audit(r, u, "user_updated", p[3]);
             return {{"user", safeUser(user)}};
         }
+        if (path == "/api/admin/catalog/import" && method == "POST") {
+            auto file = (std::filesystem::path(env("SCHEMA_PATH", "database/schema.sql")).parent_path() /
+                         "demo-catalog.json")
+                            .string();
+            auto result = importDemoCatalog(r, u, file);
+            audit(r, u, "demo_catalog_imported", result.at("shop_id"));
+            return result;
+        }
         if (path == "/api/admin/payments" && method == "GET")
             return {{"checkouts", r.list("checkouts")}, {"events", r.list("payment_events")}};
         if (p.size() == 5 && p[2] == "payments" && p[4] == "refund" && method == "POST") {
@@ -1920,6 +1930,18 @@ void Application::seed() {
                {{"id", "site"},
                 {"banner_title", "Một chút mới. Thêm nhiều vui."},
                 {"banner_subtitle", "Khám phá những món đồ bạn yêu, từ những shop bạn tin."}});
+    }
+    if (env("DEMO_CATALOG_AUTO_IMPORT") == "true" &&
+        r.get("settings", "demo_catalog_bootstrap").is_null()) {
+        auto user = r.one("users", "role = ?", {"admin"});
+        if (!user.is_null()) {
+            auto file = (std::filesystem::path(env("SCHEMA_PATH", "database/schema.sql")).parent_path() /
+                         "demo-catalog.json")
+                            .string();
+            auto result = importDemoCatalog(r, user, file);
+            r.save("settings",
+                   {{"id", "demo_catalog_bootstrap"}, {"result", result}, {"created_at", now()}});
+        }
     }
     tx->commit();
 }

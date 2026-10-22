@@ -649,7 +649,7 @@ async function managementProducts(scope) {
         icon("plus", 16) +
         " Thêm sản phẩm</button>",
     ) +
-    `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : ""}</div>` +
+    `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : '<button class="btn secondary small" data-action="load-demo-catalog">Nạp sản phẩm demo tự động</button>'}</div>` +
     table(
       ["Sản phẩm", "Giá từ", "Tồn kho", "Trạng thái", "Thao tác"],
       products.map(
@@ -1215,6 +1215,13 @@ document.addEventListener("click", async (e) => {
     } else if (action === "user-role") {
       await post("/admin/users/" + id, { role: value });
       await renderRoute();
+    } else if (action === "load-demo-catalog") {
+      const result = await post("/admin/catalog/import");
+      await refreshUser();
+      await renderRoute();
+      toast(
+        `Đã nạp ${result.imported} sản phẩm demo; giữ nguyên ${result.skipped} sản phẩm đã có.`,
+      );
     } else if (action === "retry-email") {
       await post("/admin/outbox/retry");
       toast("Đã đưa email lỗi về hàng đợi.");

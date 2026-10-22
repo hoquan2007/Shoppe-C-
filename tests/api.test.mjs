@@ -39,6 +39,7 @@ function startServer(port, db, payment = false) {
     SCHEMA_PATH: path.join(root, "database/schema.sql"),
     STATIC_DIR: path.join(root, "dist"),
     SEED_DEMO: "true",
+    DEMO_CATALOG_AUTO_IMPORT: "false",
     DEMO_PASSWORD: password,
     BOOTSTRAP_ADMIN_EMAIL: "",
     BOOTSTRAP_ADMIN_PASSWORD: "",
@@ -740,4 +741,37 @@ test("failed logins remain rate-limited and data/sessions survive backend restar
   await ready(base);
   assert.equal((await ok(buyer, "/auth/me")).user.email, "buyer@shoppe.local");
   assert.equal((await ok(buyer, "/orders")).orders.length, count);
+});
+
+test("admin imports public demo catalog without duplicate stock or overwriting edits", async () => {
+  assert.equal(
+    (await buyer.request("/admin/catalog/import", "POST", {})).status,
+    403,
+  );
+  assert.equal(
+    (await seller.request("/admin/catalog/import", "POST", {})).status,
+    403,
+  );
+  const first = await ok(admin, "/admin/catalog/import", "POST", {});
+  assert.equal(first.imported, 30);
+  assert.equal(first.source, "DummyJSON");
+  const products = (await ok(admin, "/admin/products")).products.filter(
+    (p) => p.source === "DummyJSON",
+  );
+  assert.equal(products.length, 30);
+  const product = products[0];
+  assert.equal(product.shop_id, first.shop_id);
+  assert.ok(product.is_demo);
+  assert.match(product.image, /^https:\/\/cdn\.dummyjson\.com\//);
+  product.name = "Tên demo đã được admin sửa";
+  product.variants[0].stock = 7;
+  await ok(admin, "/admin/products/" + product.id, "PUT", product);
+  const again = await ok(admin, "/admin/catalog/import", "POST", {});
+  assert.equal(again.imported, 0);
+  assert.equal(again.skipped, 30);
+  const saved = (await ok(admin, "/admin/products")).products.find(
+    (p) => p.id === product.id,
+  );
+  assert.equal(saved.name, product.name);
+  assert.equal(saved.variants[0].stock, 7);
 });

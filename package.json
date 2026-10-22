@@ -9,7 +9,11 @@
     "build": "vite build",
     "test": "node --test tests/api.test.mjs",
     "check": "node --check frontend/app.js",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "services:check": "node scripts/check-services.mjs",
+    "catalog:refresh": "node scripts/refresh-demo-catalog.mjs",
+    "env:vercel": "node scripts/export-vercel-env.mjs",
+    "secrets:check": "node scripts/check-secrets.mjs"
   },
   "devDependencies": {
     "prettier": "3.6.2",

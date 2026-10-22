@@ -29,7 +29,7 @@ if(NOT HTTPLIB_SHA STREQUAL "bc77114769db3b3c97e4a6d753dab797c3cadaaa48beead3806
    NOT JSON_SHA STREQUAL "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63")
   message(FATAL_ERROR "Cached dependency checksum mismatch; restore the pinned vendor headers.")
 endif()
-add_library(shoppe_core backend/src/domain.cpp backend/src/database.cpp backend/src/security.cpp backend/src/payments.cpp backend/src/application.cpp)
+add_library(shoppe_core backend/src/domain.cpp backend/src/database.cpp backend/src/security.cpp backend/src/payments.cpp backend/src/catalog.cpp backend/src/application.cpp)
 target_include_directories(shoppe_core PUBLIC backend/include "${DEPS}")
 target_compile_definitions(shoppe_core PUBLIC CPPHTTPLIB_OPENSSL_SUPPORT)
 if(TARGET SQLite3::SQLite3)

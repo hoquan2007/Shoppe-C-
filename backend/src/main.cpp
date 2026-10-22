@@ -29,7 +29,7 @@ void loadEnv() {
     }
 }
 } // namespace
-int main() {
+int main(int argc, char **argv) {
     using namespace shoppe;
     try {
         loadEnv();
@@ -49,6 +49,10 @@ int main() {
                     env("SCHEMA_PATH", "database/schema.sql"));
         Application app(db);
         app.seed();
+        if (argc == 2 && std::string(argv[1]) == "--initialize") {
+            std::cout << "Database initialized; no HTTP server or payment request started." << std::endl;
+            return 0;
+        }
         httplib::Server server;
         server.set_payload_max_length(5 * 1024 * 1024);
         server.set_read_timeout(15);

@@ -95,6 +95,19 @@ Xem [hướng dẫn cấu hình Vercel, Supabase, payOS và email](docs/DEPLOYME
 
 [Báo cáo thực hiện 22/10/2026](docs/REPORT_2026-10-22.md) ghi các thay đổi, bằng chứng kiểm thử và phần còn phụ thuộc tài khoản. Nếu chưa có Supabase/payOS, làm theo [hướng dẫn thiết lập dịch vụ từng bước](docs/SETUP_SERVICES.md). Kiểm tra biến môi trường bằng `npm run preflight -- --production --online --email`; lệnh không hiển thị giá trị khóa.
 
+[Kết quả cấu hình dịch vụ và danh mục tự động](docs/SERVICE_SETUP_2026-10-22.md) ghi trạng thái Supabase/payOS thực tế và các bước còn phải đặt trên Vercel. Admin có nút **Nạp sản phẩm demo tự động** tại `/admin/products`; hoặc đặt `DEMO_CATALOG_AUTO_IMPORT=true` để nạp một lần sau khi có admin. Nạp lại không ghi đè các sản phẩm đã tồn tại. Bộ demo chứa ảnh/tên từ DummyJSON, không cần Shopee API hoặc thêm từng sản phẩm bằng tay.
+
+Các công cụ hỗ trợ:
+
+```powershell
+npm run services:check
+npm run secrets:check
+npm run env:vercel
+npm run preflight -- --env-file=.env.vercel --production --online
+```
+
+`services:check` mặc định chỉ đọc; `--prepare-storage --test-upload` chỉ dùng khi chủ project cho phép tạo bucket công khai và thử ảnh. `env:vercel` tạo file riêng `.env.vercel` bị Git bỏ qua; bạn cần thêm APP_URL đúng domain Vercel. `catalog:refresh` cập nhật snapshot sản phẩm từ nguồn demo công khai khi cần; không chạy mỗi lần người dùng mở trang. Giá VNĐ dùng quy tắc minh họa cố định, không phải tỷ giá trực tiếp.
+
 Đã kiểm thử build native và API tại máy với SQLite/PostgreSQL. **Chưa xác minh deploy Vercel/container Linux, gửi email thật, upload Supabase thật hoặc giao dịch ngân hàng thật** khi chưa có cấu hình tài khoản. Vercel CLI hiện cần đăng nhập lại. Tài khoản Cas ID cần được bổ sung kênh payOS theo hướng dẫn.
 
 Thiết kế hướng đến quy mô demo bài tập lớn: transaction được tuần tự hóa bằng mutex SQLite hoặc PostgreSQL advisory lock để bảo toàn tồn kho/voucher trên nhiều instance. Danh sách và dashboard dùng cách đọc đơn giản phù hợp tập dữ liệu nhỏ; cần pagination/aggregation ở database, connection pool và worker chuyên dụng trước khi phục vụ tải thương mại lớn.
