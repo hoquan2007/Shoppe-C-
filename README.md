@@ -4,6 +4,8 @@ Website tiếng Việt cho bài tập lớn OOP, frontend HTML/CSS/JavaScript v�
 
 Bản sửa mới: [lỗi và hiệu năng C++](docs/PERFORMANCE_FIX_2026-10-22.md), [chuẩn bị key và đăng ký API Shopee](docs/KEYS_AND_SHOPEE_GUIDE.md), [API hiện tại](docs/API_CURRENT.md).
 
+Catalog API: [bảng chọn API Shopee và luồng demo phù hợp](docs/SHOPEE_API_SELECTION.md). Admin có thể tải/xem trước/nhập 1–100 sản phẩm demo bằng C++ từ DummyJSON, giữ checkout payOS/COD của dự án.
+
 ## Chạy nhanh trên Windows
 
 Máy cần Node.js 24+, CMake 3.24+, compiler C++20, OpenSSL và SQLite development libraries. Script nhận diện toolchain MSYS2 UCRT64 ở `C:\msys64\ucrt64` (có thể đổi `-MsysRoot`).

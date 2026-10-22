@@ -798,6 +798,75 @@ test("failed logins remain rate-limited and data/sessions survive backend restar
   assert.equal((await ok(buyer, "/orders")).orders.length, count);
 });
 
+test("live demo catalog requires admin, CSRF and bounded input before network access", async () => {
+  for (const user of [client(), buyer, seller]) {
+    const expected = user === buyer || user === seller ? 403 : 401;
+    assert.equal(
+      (await user.request("/admin/catalog/status")).status,
+      expected,
+    );
+    assert.equal(
+      (await user.request("/admin/catalog/preview", "POST", { limit: 60 }))
+        .status,
+      expected,
+    );
+    assert.equal(
+      (
+        await user.request("/admin/catalog/commit", "POST", {
+          preview_token: "invalid",
+        })
+      ).status,
+      expected,
+    );
+  }
+  const status = await ok(admin, "/admin/catalog/status");
+  assert.equal(status.provider, "DummyJSON");
+  assert.equal(status.requires_key, false);
+  assert.equal(status.payment_provider, "payos");
+  assert.equal(status.shopee.enabled, false);
+  assert.equal(
+    (
+      await admin.request(
+        "/admin/catalog/preview",
+        "POST",
+        { limit: 60 },
+        { "X-CSRF-Token": "" },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await admin.request(
+        "/admin/catalog/preview",
+        "POST",
+        { limit: 60 },
+        { Origin: "https://other.example" },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await admin.request("/admin/catalog/preview", "POST", { limit: 101 }))
+      .status,
+    422,
+  );
+  assert.equal(
+    (await admin.request("/admin/catalog/preview", "POST", { limit: "60" }))
+      .status,
+    422,
+  );
+  assert.equal(
+    (
+      await admin.request("/admin/catalog/commit", "POST", {
+        preview_token: "not-a-preview",
+      })
+    ).status,
+    409,
+  );
+  assert.equal((await admin.request("/admin/catalog/preview")).status, 405);
+});
+
 test("admin imports public demo catalog without duplicate stock or overwriting edits", async () => {
   assert.equal(
     (await buyer.request("/admin/catalog/import", "POST", {})).status,

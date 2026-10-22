@@ -4,7 +4,7 @@ Kiểm tra ngày 22/10/2026. Website: https://shoppec.vercel.app. Đây là hư�
 
 ## 1. Hệ thống hiện gọi API nào?
 
-**Hiện có 0 API Shopee được tích hợp.** Có 30 sản phẩm demo được đóng gói từ DummyJSON trong `database/demo-catalog.json`, nhập vào database một lần. Trang chủ đọc database qua C++; không gọi Shopee hoặc DummyJSON mỗi lần mở trang. Giá VNĐ và tồn kho demo phục vụ kiểm thử bài tập.
+**Hiện có 0 API Shopee được tích hợp.** Có snapshot 30 sản phẩm từ DummyJSON trong `database/demo-catalog.json` và luồng C++ mới để admin xem trước/nhập 1–100 sản phẩm từ API. Trang chủ đọc database qua C++; không gọi Shopee hoặc DummyJSON mỗi lần mở trang. Giá VNĐ và tồn kho demo phục vụ kiểm thử bài tập.
 
 | Nhóm                   | Đường đi hiện tại                                                                       | Nhiệm vụ                                                     |
 | ---------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
@@ -109,3 +109,5 @@ Luồng dự kiến: admin yêu cầu đồng bộ → connector C++ gọi API S
 - Cron một lần/ngày của Hobby không đáp ứng đồng bộ tồn kho vài phút hoặc refresh token liên tục. Cần lựa chọn lịch/push/refresh theo nhu cầu thực tế và quyền được Shopee cấp. Hướng dẫn auth hiện ghi access_token 4 giờ, refresh_token 30 ngày; server phải dùng thời hạn trả về thay vì frontend tự đoán.
 
 Thứ tự đề xuất: hoàn tất email và thanh toán demo → kiểm tra đủ điều kiện Shopee → chọn đồng bộ shop của mình hoặc Affiliate → triển khai connector C++ tương ứng → kiểm thử sandbox → xin live và kiểm thử dữ liệu thật được cho phép.
+
+Cập nhật catalog API: xem [bảng chọn API và quy trình mới](SHOPEE_API_SELECTION.md). Chế độ demo không cần key mới; không có API Shopee được kích hoạt.

@@ -642,7 +642,10 @@ function ordersTable(orders, scope) {
   );
 }
 async function managementProducts(scope) {
-  const { products } = await api("/" + scope + "/products");
+  const [{ products }, catalog] = await Promise.all([
+    api("/" + scope + "/products"),
+    scope === "admin" ? api("/admin/catalog/status") : Promise.resolve(null),
+  ]);
   state.managementProducts = products;
   state.managementScope = scope;
   if (scope === "admin")
@@ -657,7 +660,10 @@ async function managementProducts(scope) {
         icon("plus", 16) +
         " Thêm sản phẩm</button>",
     ) +
-    `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : '<button class="btn secondary small" data-action="load-demo-catalog">Nạp sản phẩm demo tự động</button>'}</div>` +
+    `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : '<button class="btn secondary small" data-action="catalog-api">Lấy sản phẩm demo từ API</button><button class="btn outline small" data-action="load-demo-catalog">Dùng demo đóng gói</button>'}</div>` +
+    (catalog
+      ? `<p class="small-text muted">Nguồn demo: DummyJSON · Thanh toán: payOS/COD. ${catalog.last_sync ? "Đã nhập qua API: " + catalog.last_sync.imported + " sản phẩm mới trong lần gần nhất." : "Chưa nhập qua API trực tiếp."}</p>`
+      : "") +
     table(
       ["Sản phẩm", "Giá từ", "Tồn kho", "Trạng thái", "Thao tác"],
       products.map(
@@ -1223,6 +1229,33 @@ document.addEventListener("click", async (e) => {
     } else if (action === "user-role") {
       await post("/admin/users/" + id, { role: value });
       await renderRoute();
+    } else if (action === "catalog-api") {
+      state.catalogPreviewToken = null;
+      dialog(
+        "Nạp dữ liệu demo qua API",
+        '<div class="notice">Sản phẩm minh họa từ DummyJSON, không phải hàng thật hoặc dữ liệu Shopee. Nếu chọn payOS, thanh toán vẫn sử dụng tiền thật. Giá và tồn kho là dữ liệu mô phỏng; không ghi đè hàng đã có.</div>' +
+          '<form data-form="catalog-preview">' +
+          field(
+            "Số sản phẩm muốn xem trước",
+            "limit",
+            60,
+            "number",
+            'min="1" max="100" required',
+          ) +
+          '<div class="form-error" hidden></div><button class="btn full">Tải bản xem trước</button></form><div id="catalog-preview-result" aria-live="polite"></div>',
+      );
+    } else if (action === "catalog-commit") {
+      if (!state.catalogPreviewToken) return;
+      const result = await post("/admin/catalog/commit", {
+        preview_token: state.catalogPreviewToken,
+      });
+      state.catalogPreviewToken = null;
+      $("#dialog").close();
+      state.meta = await api("/meta");
+      await renderRoute();
+      toast(
+        `Đã nhập ${result.imported} sản phẩm demo mới; giữ nguyên ${result.skipped} sản phẩm đã có.`,
+      );
     } else if (action === "load-demo-catalog") {
       const result = await post("/admin/catalog/import");
       await refreshUser();
@@ -1300,6 +1333,10 @@ document.addEventListener("change", async (e) => {
   }
 });
 document.addEventListener("input", (e) => {
+  if (e.target.closest('[data-form="catalog-preview"]')) {
+    state.catalogPreviewToken = null;
+    $("#catalog-preview-result").innerHTML = "";
+  }
   if (e.target.closest("#checkout-form") && e.target.name.includes("voucher")) {
     state.quote = null;
     $("#place-order").disabled = true;
@@ -1477,6 +1514,25 @@ document.addEventListener("submit", async (e) => {
         $("#import-commit").disabled =
           !!result.errors.length || !result.preview.length;
       }
+    } else if (kind === "catalog-preview") {
+      state.catalogPreviewToken = null;
+      $("#catalog-preview-result").innerHTML =
+        '<p class="small-text muted">Đang tải dữ liệu demo…</p>';
+      const result = await post("/admin/catalog/preview", {
+        limit: Number(data.limit),
+      });
+      if (!form.isConnected || form.elements.limit.value !== data.limit) return;
+      state.catalogPreviewToken = result.preview_token;
+      $("#catalog-preview-result").innerHTML =
+        `<div class="notice success">${result.products.length} sản phẩm · ${result.new_products} mới · ${result.existing} đã có. Bản xem trước có hiệu lực 15 phút.</div>` +
+        table(
+          ["Tên sản phẩm", "Danh mục", "Giá demo", "Trạng thái"],
+          result.products.map(
+            (p) =>
+              `<tr><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${p.exists ? "Giữ nguyên" : "Sẽ thêm"}</td></tr>`,
+          ),
+        ) +
+        '<button type="button" class="btn full" data-action="catalog-commit">Nhập bản xem trước vào shop</button>';
     } else if (kind === "admin-settings") {
       await post("/admin/settings", {
         ...data,

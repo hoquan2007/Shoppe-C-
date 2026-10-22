@@ -56,6 +56,9 @@ void validateMethod(const httplib::Request &req, httplib::Response &res) {
         {std::regex(R"(^/api/admin/shops$)"), "GET"},
         {std::regex(R"(^/api/admin/users$)"), "GET"},
         {std::regex(R"(^/api/admin/catalog/import$)"), "POST"},
+        {std::regex(R"(^/api/admin/catalog/status$)"), "GET"},
+        {std::regex(R"(^/api/admin/catalog/preview$)"), "POST"},
+        {std::regex(R"(^/api/admin/catalog/commit$)"), "POST"},
         {std::regex(R"(^/api/admin/payments$)"), "GET"},
         {std::regex(R"(^/api/admin/reviews$)"), "GET"},
         {std::regex(R"(^/api/admin/outbox$)"), "GET"},
@@ -736,7 +739,12 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             !constantEqual(session.value("csrf", ""), req.get_header_value("X-CSRF-Token")))
             throw Error(403, "csrf", "Phiên thao tác đã hết hạn. Vui lòng tải lại trang.");
         Json result;
-        if (req.path == "/api/storage/images" && req.method == "POST") {
+        if (req.path == "/api/admin/catalog/preview" && req.method == "POST") {
+            adminRequired(user);
+            numberField(body, "limit", 1, 100);
+            rateLimit(r, "catalog-preview:" + user.at("id").get<std::string>(), 3, 60);
+            result = Json::object();
+        } else if (req.path == "/api/storage/images" && req.method == "POST") {
             loginRequired(user);
             if (!admin(user)) {
                 auto shop = required(userShop(r, user));
@@ -750,6 +758,17 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             tx->rollback();
         else
             tx->commit();
+        if (req.path == "/api/admin/catalog/preview" && req.method == "POST") {
+            auto document = fetchDemoCatalog(static_cast<int>(numberField(body, "limit", 1, 100)));
+            auto write = db_.begin();
+            Repository repo(*write);
+            // Recheck privileges after network I/O, before storing a server-owned snapshot.
+            auto current = required(repo.get("users", user.at("id")));
+            activeUser(current);
+            adminRequired(current);
+            result = stageDemoCatalog(repo, current, document);
+            write->commit();
+        }
         if (req.path == "/api/storage/images" && req.method == "POST")
             result = uploadImage(body);
         if (req.path == "/api/checkout" && result.contains("checkout") &&
@@ -1738,6 +1757,13 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     }
     if (path.rfind("/api/admin/", 0) == 0) {
         adminRequired(u);
+        if (path == "/api/admin/catalog/status" && method == "GET")
+            return demoCatalogStatus(r, u);
+        if (path == "/api/admin/catalog/commit" && method == "POST") {
+            auto result = commitDemoCatalog(r, u, textField(b, "preview_token", 100));
+            audit(r, u, "catalog_api_import", result.at("shop_id"));
+            return result;
+        }
         if (path == "/api/admin/products" && method == "POST")
             return {{"product", saveProduct(r, u, b, "")}};
         if (p.size() == 4 && p[2] == "products" && method == "PUT")

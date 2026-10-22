@@ -7,36 +7,31 @@
 #include <set>
 
 namespace shoppe {
-Json importDemoCatalog(Repository &r, const Json &user, const std::string &file) {
+namespace {
+void catalogAdmin(const Json &user) {
     if (user.is_null() || user.value("role", "") != "admin")
         throw Error(403, "forbidden", "Chỉ admin được nạp danh mục demo.");
-    std::ifstream source(file);
-    if (!source)
-        throw Error(503, "demo_catalog_unavailable", "Chưa có dữ liệu demo trong bản triển khai.");
-    Json document;
-    try {
-        source >> document;
-    } catch (...) {
-        throw Error(503, "invalid_demo_catalog", "File demo không hợp lệ.");
+}
+std::set<std::string> existingCatalogIds(Repository &r, const Json &products) {
+    Params ids;
+    std::string placeholders;
+    for (const auto &product : products) {
+        if (!ids.empty())
+            placeholders += ",";
+        ids.push_back(product.at("id"));
+        placeholders += "?";
     }
-    if (document.value("source", "") != "DummyJSON" || !document.contains("products") ||
-        !document["products"].is_array() || document["products"].empty() ||
-        document["products"].size() > 100)
-        throw Error(503, "invalid_demo_catalog", "Danh mục demo không hợp lệ.");
-    auto shop = r.one("shops", "owner_id = ?", {user.at("id")});
-    if (shop.is_null()) {
-        shop = {
-            {"id", randomId()},
-            {"owner_id", user.at("id")},
-            {"name", "Cửa hàng demo"},
-            {"description", "Sản phẩm mô phỏng từ DummyJSON phục vụ bài tập; không cung cấp hàng thật."},
-            {"region", "Miền Nam"},
-            {"status", "approved"},
-            {"created_at", now()}};
-        r.save("shops", shop);
-    }
-    if (shop.value("status", "") != "approved")
-        throw Error(409, "shop_not_approved", "Shop của admin phải được duyệt trước khi nạp demo.");
+    std::set<std::string> existing;
+    for (const auto &product : r.list("products", "id IN (" + placeholders + ")", ids))
+        existing.insert(product.at("id").get<std::string>());
+    return existing;
+}
+} // namespace
+Json normalizeDemoCatalog(const Json &document) {
+    if (!document.is_object() || document.value("source", "") != "DummyJSON" ||
+        !document.contains("products") || !document["products"].is_array() ||
+        document["products"].empty() || document["products"].size() > 100)
+        throw Error(422, "invalid_demo_catalog", "Danh mục demo không hợp lệ.");
     const std::map<std::string, std::string> categories{{"beauty", "Sức khỏe & Làm đẹp"},
                                                         {"fragrances", "Sức khỏe & Làm đẹp"},
                                                         {"skin-care", "Sức khỏe & Làm đẹp"},
@@ -54,6 +49,70 @@ Json importDemoCatalog(Repository &r, const Json &user, const std::string &file)
                                                         {"womens-dresses", "Thời trang"},
                                                         {"womens-shoes", "Thời trang"},
                                                         {"tops", "Thời trang"}};
+
+    Json normalized = Json::array();
+    std::set<std::int64_t> ids;
+    for (const auto &item : document["products"]) {
+        auto externalId = numberField(item, "id", 1, 1000000);
+        if (!ids.insert(externalId).second)
+            throw Error(422, "duplicate_demo_id", "Mã demo bị trùng.");
+        auto image = textField(item, "thumbnail", 2048);
+        if (image.rfind("https://cdn.dummyjson.com/", 0) != 0)
+            throw Error(422, "invalid_demo_image", "Ảnh demo không thuộc nguồn được hỗ trợ.");
+        if (!item.contains("price") || !item["price"].is_number())
+            throw Error(422, "invalid_demo_price", "Giá demo không hợp lệ.");
+        auto originalPrice = item["price"].get<double>();
+        if (!std::isfinite(originalPrice) || originalPrice <= 0 || originalPrice > 4000)
+            throw Error(422, "invalid_demo_price", "Giá demo ngoài giới hạn.");
+        auto price = Money(std::max<std::int64_t>(
+                               1000, static_cast<std::int64_t>(std::round(originalPrice * 25.0)) * 1000))
+                         .value();
+        auto categoryKey = textField(item, "category", 100);
+        normalized.push_back(
+            {{"id", "demo-dummyjson-" + std::to_string(externalId)},
+             {"source_id", externalId},
+             {"name", textField(item, "title", 200)},
+             {"description", "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
+                             "giao dịch sử dụng tiền thật.\n\n" +
+                                 textField(item, "description", 8000)},
+             {"category", categories.contains(categoryKey) ? categories.at(categoryKey) : "Phụ kiện"},
+             {"image", image},
+             {"price", price},
+             {"is_demo", true},
+             {"source", "DummyJSON"}});
+    }
+    return normalized;
+}
+Json importDemoCatalog(Repository &r, const Json &user, const std::string &file) {
+    catalogAdmin(user);
+    std::ifstream source(file);
+    if (!source)
+        throw Error(503, "demo_catalog_unavailable", "Chưa có dữ liệu demo trong bản triển khai.");
+    Json document;
+    try {
+        source >> document;
+    } catch (...) {
+        throw Error(503, "invalid_demo_catalog", "File demo không hợp lệ.");
+    }
+    return importDemoCatalog(r, user, document);
+}
+Json importDemoCatalog(Repository &r, const Json &user, const Json &document) {
+    catalogAdmin(user);
+    auto products = normalizeDemoCatalog(document);
+    auto shop = r.one("shops", "owner_id = ?", {user.at("id")});
+    if (shop.is_null()) {
+        shop = {
+            {"id", randomId()},
+            {"owner_id", user.at("id")},
+            {"name", "Cửa hàng demo"},
+            {"description", "Sản phẩm mô phỏng từ DummyJSON phục vụ bài tập; không cung cấp hàng thật."},
+            {"region", "Miền Nam"},
+            {"status", "approved"},
+            {"created_at", now()}};
+        r.save("shops", shop);
+    }
+    if (shop.value("status", "") != "approved")
+        throw Error(409, "shop_not_approved", "Shop của admin phải được duyệt trước khi nạp demo.");
     auto settings = r.get("settings", "site");
     if (settings.is_null())
         settings = {{"id", "site"}};
@@ -63,45 +122,22 @@ Json importDemoCatalog(Repository &r, const Json &user, const std::string &file)
                                                    "Sức khỏe & Làm đẹp", "Phụ kiện", "Thể thao"})))
         names.insert(name.get<std::string>());
     int imported = 0, skipped = 0;
-    std::set<std::int64_t> ids;
-    for (const auto &item : document["products"]) {
-        auto externalId = numberField(item, "id", 1, 1000000);
-        if (!ids.insert(externalId).second)
-            throw Error(422, "duplicate_demo_id", "Mã demo bị trùng.");
-        auto id = "demo-dummyjson-" + std::to_string(externalId);
-        if (!r.get("products", id).is_null()) {
+    auto existing = existingCatalogIds(r, products);
+    for (auto product : products) {
+        auto id = product.at("id").get<std::string>();
+        if (existing.contains(id)) {
             ++skipped;
             continue;
         }
-        auto image = textField(item, "thumbnail", 2048);
-        if (image.rfind("https://cdn.dummyjson.com/", 0) != 0)
-            throw Error(422, "invalid_demo_image", "Ảnh demo không thuộc nguồn được hỗ trợ.");
-        auto originalPrice = item.at("price").get<double>();
-        if (!std::isfinite(originalPrice) || originalPrice <= 0 || originalPrice > 4000)
-            throw Error(422, "invalid_demo_price", "Giá demo ngoài giới hạn.");
-        // Fixed illustrative pricing policy, never a live currency quotation.
-        auto price = Money(std::max<std::int64_t>(
-                               1000, static_cast<std::int64_t>(std::round(originalPrice * 25.0)) * 1000))
-                         .value();
-        auto categoryKey = textField(item, "category", 100);
-        auto category = categories.contains(categoryKey) ? categories.at(categoryKey) : "Phụ kiện";
-        names.insert(category);
-        auto description = "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
-                           "giao dịch sử dụng tiền thật.\n\n" +
-                           textField(item, "description", 8000);
-        r.save("products", {{"id", id},
-                            {"shop_id", shop.at("id")},
-                            {"name", textField(item, "title", 200)},
-                            {"description", description},
-                            {"category", category},
-                            {"image", image},
-                            {"weight", 300},
-                            {"active", true},
-                            {"sold", 0},
-                            {"is_demo", true},
-                            {"source", "DummyJSON"},
-                            {"source_id", externalId},
-                            {"created_at", now() - imported}});
+        auto price = product.at("price");
+        product.erase("price");
+        names.insert(product.at("category").get<std::string>());
+        product["shop_id"] = shop.at("id");
+        product["weight"] = 300;
+        product["active"] = true;
+        product["sold"] = 0;
+        product["created_at"] = now() - imported;
+        r.save("products", product);
         r.save("variants", {{"id", id + "-default"},
                             {"product_id", id},
                             {"shop_id", shop.at("id")},
@@ -119,5 +155,54 @@ Json importDemoCatalog(Repository &r, const Json &user, const std::string &file)
             {"skipped", skipped},
             {"shop_id", shop.at("id")},
             {"source", "DummyJSON"}};
+}
+Json stageDemoCatalog(Repository &r, const Json &user, const Json &document) {
+    catalogAdmin(user);
+    auto products = normalizeDemoCatalog(document);
+    auto token = randomId(32);
+    r.save("settings", {{"id", "catalog-preview:" + user.at("id").get<std::string>()},
+                        {"token_hash", sha256(token)},
+                        {"expires_at", now() + 900},
+                        {"document", document}});
+    int existing = 0;
+    auto existingIds = existingCatalogIds(r, products);
+    for (auto &product : products) {
+        product["exists"] = existingIds.contains(product.at("id").get<std::string>());
+        if (product["exists"].get<bool>())
+            ++existing;
+    }
+    return {{"source", "DummyJSON"}, {"preview_token", token},
+            {"expires_in", 900},     {"products", products},
+            {"existing", existing},  {"new_products", products.size() - existing},
+            {"currency", "VND"},     {"payment_provider", "payos"},
+            {"is_demo", true}};
+}
+Json commitDemoCatalog(Repository &r, const Json &user, const std::string &token) {
+    catalogAdmin(user);
+    auto id = "catalog-preview:" + user.at("id").get<std::string>();
+    auto preview = r.get("settings", id);
+    if (preview.is_null() || preview.value("expires_at", 0LL) <= now() ||
+        !constantEqual(preview.value("token_hash", ""), sha256(token)))
+        throw Error(409, "catalog_preview_expired",
+                    "Bản xem trước đã hết hạn hoặc đã được dùng. Vui lòng tải lại.");
+    auto result = importDemoCatalog(r, user, preview.at("document"));
+    result["synced_at"] = now();
+    result["payment_provider"] = "payos";
+    result["is_demo"] = true;
+    Json history = result;
+    history["id"] = "catalog-api-sync";
+    r.save("settings", history);
+    r.erase("settings", id);
+    return result;
+}
+Json demoCatalogStatus(Repository &r, const Json &user) {
+    catalogAdmin(user);
+    return {{"provider", "DummyJSON"},
+            {"mode", "demo"},
+            {"requires_key", false},
+            {"max_products", 100},
+            {"payment_provider", "payos"},
+            {"last_sync", r.get("settings", "catalog-api-sync")},
+            {"shopee", {{"enabled", false}, {"reason", "demo_source_selected"}}}};
 }
 } // namespace shoppe
