@@ -6,6 +6,10 @@ Frontend chỉ hiển thị và gửi lựa chọn của người dùng. `Applic
 
 Các bảng có khóa chính/khóa ngoại/unique và cột chỉ mục cho dữ liệu quan trọng. Payload JSON chứa thuộc tính mở rộng và snapshot lịch sử. PostgreSQL dùng schema riêng `shoppe`; SQLite là file phát triển. Cấu hình production không cho phép fallback sang SQLite.
 
+Ngày 22/10 bổ sung `payments.h/.cpp` cho sổ giao dịch dùng chung giữa webhook và truy vấn provider. Mã tham chiếu ngân hàng xác định một khoản thu; số tiền khác trên cùng tham chiếu bị từ chối. Sync xác thực orderCode, amount và tổng transactions/amountPaid trước khi cập nhật. Khoản thu thêm sau paid được theo dõi riêng để hoàn phần thừa; không hủy các đơn đã thanh toán hợp lệ.
+
+Database có bảng schema_migrations với version/checksum, baseline schema.sql và thư mục migrations. Migration chạy trong transaction dưới khóa database, từ chối chỉnh sửa lịch sử hoặc chạy mã nguồn cũ hơn database. Checksum chuẩn hóa CRLF để nhất quán giữa Windows và Linux.
+
 ## Lớp và các nguyên lý OOP
 
 ```mermaid

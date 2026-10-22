@@ -93,6 +93,8 @@ Backend phục vụ `dist/` sau `npm run build`. Nếu dùng Vite hot reload ở
 
 Xem [hướng dẫn cấu hình Vercel, Supabase, payOS và email](docs/DEPLOYMENT.md), [kiến trúc OOP](docs/ARCHITECTURE.md), [kế hoạch phạm vi](docs/PROJECT_PLAN.md) và [kế hoạch công việc tiếp theo ngày 22/10/2026](docs/NEXT_STEPS.md).
 
+[Báo cáo thực hiện 22/10/2026](docs/REPORT_2026-10-22.md) ghi các thay đổi, bằng chứng kiểm thử và phần còn phụ thuộc tài khoản. Nếu chưa có Supabase/payOS, làm theo [hướng dẫn thiết lập dịch vụ từng bước](docs/SETUP_SERVICES.md). Kiểm tra biến môi trường bằng `npm run preflight -- --production --online --email`; lệnh không hiển thị giá trị khóa.
+
 Đã kiểm thử build native và API tại máy với SQLite/PostgreSQL. **Chưa xác minh deploy Vercel/container Linux, gửi email thật, upload Supabase thật hoặc giao dịch ngân hàng thật** khi chưa có cấu hình tài khoản. Vercel CLI hiện cần đăng nhập lại. Tài khoản Cas ID cần được bổ sung kênh payOS theo hướng dẫn.
 
 Thiết kế hướng đến quy mô demo bài tập lớn: transaction được tuần tự hóa bằng mutex SQLite hoặc PostgreSQL advisory lock để bảo toàn tồn kho/voucher trên nhiều instance. Danh sách và dashboard dùng cách đọc đơn giản phù hợp tập dữ liệu nhỏ; cần pagination/aggregation ở database, connection pool và worker chuyên dụng trước khi phục vụ tải thương mại lớn.

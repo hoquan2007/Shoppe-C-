@@ -2,10 +2,12 @@
 
 ## Trạng thái kiểm chứng
 
+Bản cập nhật và hướng dẫn cho người chưa có tài khoản: [báo cáo 22/10](REPORT_2026-10-22.md), [thiết lập dịch vụ từng bước](SETUP_SERVICES.md). Các kết quả mới thay thế những giới hạn build/CI của báo cáo 17/10.
+
 - Build C++ và frontend chạy được tại máy phát triển.
 - Bộ kiểm thử API chạy qua SQLite và PostgreSQL cục bộ.
-- Chưa kiểm chứng build container Linux trên máy này vì chưa có Docker.
-- Chưa deploy lên Vercel: `vercel whoami` báo token đăng nhập không hợp lệ.
+- Đã kiểm chứng build Linux, kiểm thử SQLite/PostgreSQL và Dockerfile triển khai qua GitHub Actions; xem liên kết bằng chứng trong báo cáo 22/10.
+- Chưa deploy lên Vercel: kiểm tra ngày 22/10 cho thấy CLI đang đăng xuất.
 - Chưa có Supabase project, kênh payOS và cấu hình email thật của chủ dự án. Không coi các integration test là giao dịch ngân hàng thật.
 
 ## 1. Supabase
@@ -16,7 +18,7 @@
 4. Tạo bucket công khai `product-images` để đọc ảnh sản phẩm. Đặt giới hạn 2MB và MIME PNG/JPEG/WebP. Không tạo policy cho phép khách ẩn danh ghi/xóa ảnh.
 5. Lấy Project URL và service-role/secret key tương thích Storage API, chỉ cấu hình cho backend. Quyền tải ảnh được kiểm tra lại trong C++.
 
-Đây là schema khởi tạo phiên bản đầu. Trước khi thay đổi schema của database đang có dữ liệu, cần thêm migration tương ứng; không xóa database để cập nhật phiên bản.
+Migration có phiên bản và checksum trong bảng `schema_migrations`. `schema.sql` là baseline 1; các file `database/migrations/0002_*.sql`, `0003_*.sql`... được áp dụng tuần tự trong transaction và dưới khóa database. Không sửa file đã áp dụng; thêm migration mới. Khi checksum không khớp hoặc database mới hơn mã nguồn, server từ chối khởi động. Đã kiểm thử rollback khi migration lỗi; không xóa database để cập nhật phiên bản.
 
 ## 2. Vercel
 
@@ -65,6 +67,9 @@ Cas ID hiện có chưa đủ để tạo link thanh toán qua API. Chủ dự �
 5. Đối chiếu mã đơn/số tiền trong website, payOS và ngân hàng; kiểm tra đơn chỉ được xử lý sau khi server xác nhận thanh toán.
 6. Nếu callback chậm, dùng nút kiểm tra thanh toán. URL `returnUrl` không tự chứng minh giao dịch thành công.
 7. Nếu tiền về muộn hoặc không khớp, giao dịch chuyển đối soát; admin hoàn tiền bên ngoài và nhập tham chiếu sau khi thực hiện. Khi đơn đã giải phóng tồn kho, thanh toán muộn không khôi phục đơn.
+8. Webhook và sync dùng cùng mã tham chiếu ngân hàng. Sync đối chiếu chi tiết transactions với amountPaid, không cộng amountPaid như một khoản thu mới. Khoản chuyển bổ sung sau paid được ghi vào excess_amount; admin chỉ ghi hoàn phần thừa qua đối soát, không làm mất trạng thái paid của đơn.
+
+Dữ liệu payment_events từ bản thử cũ thiếu transaction_reference sẽ bị từ chối cập nhật tự động với legacy_payment_review. Không tự cộng lại hoặc đoán mã tham chiếu. Dữ liệu đó cần đối soát riêng; không áp dụng thay đổi này lên database đã có tiền thật khi chưa rà soát lịch sử.
 
 ## 4. Email và maintenance
 

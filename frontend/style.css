@@ -1094,11 +1094,12 @@ textarea:focus {
 }
 .content-with-aside {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 24px;
   margin: 28px 0;
 }
 .aside {
+  min-width: 0;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -1133,8 +1134,13 @@ textarea:focus {
   width: 17px;
   height: 17px;
 }
+.workspace {
+  min-width: 0;
+}
 .workspace .page-title {
   margin-top: 0;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .stat-grid {
   display: grid;
@@ -1197,8 +1203,10 @@ tr:last-child td {
   align-items: center;
   gap: 10px;
   max-width: 300px;
+  min-width: 220px;
 }
 .table-image img {
+  flex-shrink: 0;
   width: 44px;
   height: 44px;
   border-radius: 5px;
@@ -2062,7 +2070,7 @@ dialog .close {
     max-height: 450px;
   }
   .content-with-aside {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
   }
   .aside {
@@ -2076,6 +2084,7 @@ dialog .close {
     display: none;
   }
   .aside a {
+    flex-shrink: 0;
     padding: 9px;
     font-size: 10px;
     margin: 0;
