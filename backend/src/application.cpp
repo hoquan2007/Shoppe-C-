@@ -366,7 +366,7 @@ std::int64_t discountFor(Repository &r, const std::string &code, const std::stri
         throw Error(409, "voucher_used_up", "Voucher đã hết lượt sử dụng.");
     auto d = v.value("type", "") == "percent" ? subtotal * v.value("value", 0LL) / 100
                                               : v.value("value", 0LL);
-    d = std::min({d, subtotal, v.value("max_discount", subtotal)});
+    d = std::min<std::int64_t>({d, subtotal, v.value("max_discount", subtotal)});
     r.save("redemptions",
            {{"id", randomId()}, {"voucher_id", v.at("id")}, {"checkout_id", group}, {"amount", d}});
     return d;
