@@ -80,6 +80,8 @@ npm run preflight -- --env-file=.env.vercel --production --online
 
 ## Kiểm thử và giới hạn
 
+Danh sách sản phẩm đã được đổi sang đọc các bảng liên quan theo lô, thay vì truy vấn shop/biến thể/đánh giá riêng cho từng thẻ. Một lần đo cùng 30 sản phẩm trên Supabase từ máy phát triển giảm từ khoảng 7.369ms xuống 1.241ms. Đây là số đo quan sát của một lượt trước/sau, không phải cam kết độ trễ ở Vercel hoặc kết quả kiểm thử tải. Bộ API có đối chiếu dữ liệu shop/biến thể/đánh giá giữa danh sách và chi tiết.
+
 - Build frontend và C++ PostgreSQL adapter: qua tại máy.
 - CTest: 3/3 qua.
 - API SQLite: 14/14 qua, thêm kiểm thử nạp catalog chỉ dành admin, chống trùng và giữ chỉnh sửa/tồn kho.

@@ -84,6 +84,37 @@ Json productView(Repository &r, Json p) {
     p["review_count"] = count;
     return p;
 }
+Json productViews(Repository &r, Json products) {
+    // Batch related rows: database round trips must not grow with card count.
+    std::map<std::string, Json> variants, shops;
+    std::map<std::string, std::pair<double, int>> ratings;
+    for (auto variant : r.list("variants")) {
+        auto id = variant.at("product_id").get<std::string>();
+        if (!variants.contains(id))
+            variants[id] = Json::array();
+        variants[id].push_back(std::move(variant));
+    }
+    for (auto shop : r.list("shops")) {
+        auto id = shop.at("id").get<std::string>();
+        shops.emplace(id, std::move(shop));
+    }
+    for (const auto &review : r.list("reviews"))
+        if (!review.value("hidden", false)) {
+            auto &rating = ratings[review.at("product_id").get<std::string>()];
+            rating.first += review.value("rating", 0);
+            ++rating.second;
+        }
+    for (auto &product : products) {
+        auto id = product.at("id").get<std::string>();
+        auto shop = product.at("shop_id").get<std::string>();
+        product["variants"] = variants.contains(id) ? variants.at(id) : Json::array();
+        product["shop"] = shops.contains(shop) ? shops.at(shop) : Json();
+        auto [sum, count] = ratings[id];
+        product["rating"] = count ? sum / count : 0;
+        product["review_count"] = count;
+    }
+    return products;
+}
 Json orderView(Repository &r, Json o) {
     o["items"] = r.list("order_items", "order_id = ?", {o.at("id")});
     auto g = required(r.get("checkouts", o.at("checkout_id")));
@@ -742,8 +773,8 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
              shop = req.get_param_value("shop");
         if (q.size() > 200)
             throw Error(422, "search_too_long", "Từ khóa tìm kiếm quá dài.");
-        for (auto product : r.list("products", "active = ?", {"1"})) {
-            auto s = r.get("shops", product.at("shop_id"));
+        for (auto product : productViews(r, r.list("products", "active = ?", {"1"}))) {
+            auto s = product["shop"];
             if (s.is_null() || s.value("status", "") != "approved")
                 continue;
             if (!q.empty() &&
@@ -753,7 +784,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                 continue;
             if (!shop.empty() && product["shop_id"] != shop)
                 continue;
-            result.push_back(productView(r, product));
+            result.push_back(product);
         }
         return {{"products", result}};
     }
@@ -895,9 +926,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     }
     if (path == "/api/seller/products" && method == "GET") {
         auto shop = required(userShop(r, u));
-        Json list = Json::array();
-        for (auto product : r.list("products", "shop_id = ?", {shop.at("id")}))
-            list.push_back(productView(r, product));
+        auto list = productViews(r, r.list("products", "shop_id = ?", {shop.at("id")}));
         return {{"products", list}, {"shop", shop}};
     }
     if (path == "/api/seller/products" && method == "POST")
@@ -1684,9 +1713,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             }
         }
         if (path == "/api/admin/products" && method == "GET") {
-            Json list = Json::array();
-            for (auto product : r.list("products"))
-                list.push_back(productView(r, product));
+            auto list = productViews(r, r.list("products"));
             return {{"products", list}};
         }
         if (p.size() == 4 && p[2] == "products" && method == "POST") {

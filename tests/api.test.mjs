@@ -141,6 +141,12 @@ test("C++ server serves catalog, frontend and explicit integration readiness", a
   const { products } = await ok(publicClient, "/products");
   assert.equal(products.length, 12);
   assert.ok(products[0].variants.length);
+  const detail = (await ok(publicClient, "/products/" + products[0].id))
+    .product;
+  assert.deepEqual(products[0].variants, detail.variants);
+  assert.deepEqual(products[0].shop, detail.shop);
+  assert.equal(products[0].rating, detail.rating);
+  assert.equal(products[0].review_count, detail.review_count);
   const meta = await ok(publicClient, "/meta");
   assert.equal(meta.payment_configured, false);
   assert.equal(meta.storage_configured, false);
