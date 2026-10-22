@@ -119,3 +119,14 @@ Các kết quả dưới đây là mốc triển khai 60 sản phẩm trước k
 - Không tìm thấy log mức error/fatal của deployment trong cửa sổ 15 phút kiểm tra; đây là kết quả tại thời điểm kiểm tra, không phải cam kết không có lỗi về sau.
 
 Biên bản chi tiết riêng tại máy: `artifacts/catalog-api-production-20261022.json` (không chứa mật khẩu, cookie, CSRF hoặc preview token). Tệp artifact không đưa vào Git.
+
+## Nâng cấp lên 300 sản phẩm — 23/10/2026 (giờ Việt Nam)
+
+- C++ CTest 4/4, có kiểm tra nhập 300, ID không trùng, nguồn mô phỏng được gắn nhãn, nhập lại bỏ qua đủ 300 và giữ giá/tồn kho/chỉnh sửa cũ. HTTP SQLite 16/16, frontend build và quét key đạt.
+- [CI Linux của ứng dụng 169ab93](https://github.com/hoquan2007/Shoppe-C-/actions/runs/39819202252) đạt cả SQLite/PostgreSQL và container.
+- Production lúc 00:08 ngày 23/10/2026: **60 → 300**, nhập mới **240**, bỏ qua **60**. Đối chiếu nội dung/giá/tồn kho của toàn bộ 60 sản phẩm trước đó giữ nguyên.
+- Catalog gồm **177 listing DummyJSON hợp lệ và 123 mẫu mô phỏng Shoppe**. Không gọi đây là 300 listing gốc khác nhau của DummyJSON hoặc Shopee. Phần mở rộng dùng cùng ảnh minh họa với sản phẩm gốc và có nhãn “Mẫu demo”.
+- Kiểm tra Production: preview 300 thành công, thiếu CSRF trả 403, commit 200, replay 409, catalog công khai có đúng 300. Không tạo đơn hoặc chuyển tiền trong lần nhập này. Biên bản riêng tại `artifacts/catalog-300-production-20261023.json`.
+- Bản cuối `d266057ca7116188917dc7dd109006d8332e42f4` đã READY tại [shoppec.vercel.app](https://shoppec.vercel.app/search), deployment `dpl_7LXB86MM2mE7b4xwaD7y59bD8Dri`, vùng `sin1`. [CI đúng commit cuối](https://github.com/hoquan2007/Shoppe-C-/actions/runs/39820181707) đạt.
+- Trình duyệt Production xác nhận: 300 sản phẩm/25 trang; trang 25 có 12 thẻ; tìm “Mẫu demo” trả 123 sản phẩm có nhãn. Bản CSS cuối cho các nút phân trang xuống dòng. Kiểm tra ở viewport 390px: document width 375px (phần còn lại là thanh cuộn), không tràn ngang, 12 thẻ/trang và 25 liên kết phân trang; không có lỗi JavaScript được ghi nhận. Ảnh tại máy: `artifacts/catalog-300-mobile-20261023.png`.
+- Không tìm thấy log error/fatal của deployment cuối trong cửa sổ 10 phút kiểm tra. Key và cấu hình payOS được giữ nguyên; không cần thêm credential cho catalog 300.
