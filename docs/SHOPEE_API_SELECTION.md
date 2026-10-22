@@ -73,6 +73,16 @@ Provider được gọi: `GET https://dummyjson.com/products/category-list` và 
 
 Chữ ký nguồn Shopee/AppId/Partner Key không được yêu cầu hoặc sử dụng trong chế độ demo này. Không có biến môi trường mới cần bạn chuẩn bị.
 
+```mermaid
+flowchart LR
+    Admin[Admin: xem trước và nhập] --> CPP[Backend C++ trên Vercel]
+    CPP -->|chỉ khi admin tải preview| Demo[DummyJSON API]
+    CPP --> DB[(Database của dự án)]
+    Buyer[Người mua: HTML/CSS/JS] -->|sản phẩm, giỏ, báo giá, đặt đơn| CPP
+    CPP -->|tạo link và đối soát| Pay[payOS]
+    Pay -->|webhook có chữ ký| CPP
+```
+
 ## Quy trình admin và bảo toàn dữ liệu
 
 1. Admin → Sản phẩm → **Lấy sản phẩm demo từ API**.
@@ -85,3 +95,23 @@ Chữ ký nguồn Shopee/AppId/Partner Key không được yêu cầu hoặc s�
 Server chỉ gọi HTTPS tới hostname cố định, không theo redirect, giới hạn phản hồi 2MiB, giới hạn thời gian và không giữ transaction SQL trong lúc chờ mạng. Preview bị giới hạn tần suất, gắn với admin và lưu token dạng hash. Không nhập review, danh tính reviewer, số bán, tồn kho hoặc chính sách trả hàng của provider thành sự thật của shop.
 
 Giá minh họa và tồn kho ban đầu 20 là quy tắc C++ của dữ liệu demo; không phải tỷ giá trực tiếp hoặc stock của Shopee/DummyJSON. Ngày giờ, snapshot và token đều được kiểm tra ở server; frontend chỉ hiển thị/gửi thao tác.
+
+## Kiểm thử triển khai
+
+- C++ CTest: 4/4, gồm catalog validation, preview/commit, token hết hạn/replay và giữ hàng đã sửa.
+- HTTP: 16/16 trên SQLite và 16/16 trên PostgreSQL thử nghiệm riêng; có chặn user thường, CSRF/Origin, limit sai, token giả và method sai trước khi gọi provider.
+- Live C++ HTTPS: lấy/kiểm tra 60 sản phẩm từ hai endpoint công khai, không dùng credential.
+- UI fixture: admin tải preview 60 → nhập 60 → storefront có 72 sản phẩm (12 seed riêng + 60 nhập); dữ liệu demo được gắn nhãn, không lỗi JavaScript.
+- Frontend syntax/build, secret scan và diff check đạt.
+
+## Kết quả Production đã xác nhận
+
+- Bản ứng dụng `97bdcfda70ae9bdfddfcf35491203e7d19eeae51` đã triển khai READY tại [shoppec.vercel.app](https://shoppec.vercel.app), deployment `dpl_CtHaWHu8nWryGjvKTsYpPNDrAP1F`, vùng Singapore (`sin1`).
+- [GitHub Actions của đúng commit](https://github.com/hoquan2007/Shoppe-C-/actions/runs/39816561909) đạt: kiểm thử SQLite/PostgreSQL và build container.
+- Sau khi chủ dự án cho phép nhập demo vào Production, kiểm tra ngày 22/10/2026 lúc 16:50 UTC: preview 60 sản phẩm; nhập **30 mới**, bỏ qua **30 đã có**; tổng catalog công khai **60 sản phẩm**.
+- So sánh toàn bộ 30 sản phẩm có trước và các biến thể: tên, ảnh, danh mục, mô tả, trạng thái, giá và tồn kho đều giữ nguyên.
+- API thực tế trả đúng: chưa đăng nhập `401`, preview thiếu CSRF `403`, preview hợp lệ `200`, commit `200`, dùng lại token `409`. Trạng thái đồng bộ xác nhận `source=DummyJSON`, `is_demo=true`, `payment_provider=payos`; không lộ token hash.
+- Lần kiểm tra này chỉ đăng nhập/xem trước/nhập catalog/đăng xuất, **không tạo đơn hoặc thực hiện thanh toán**. Chưa có kiểm thử chuyển tiền thật trong lượt này.
+- Không tìm thấy log mức error/fatal của deployment trong cửa sổ 15 phút kiểm tra; đây là kết quả tại thời điểm kiểm tra, không phải cam kết không có lỗi về sau.
+
+Biên bản chi tiết riêng tại máy: `artifacts/catalog-api-production-20261022.json` (không chứa mật khẩu, cookie, CSRF hoặc preview token). Tệp artifact không đưa vào Git.
