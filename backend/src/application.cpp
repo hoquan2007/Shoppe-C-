@@ -16,6 +16,90 @@
 
 namespace shoppe {
 namespace {
+// Explicit method contract shared by every C++ API handler. Exact paths precede IDs.
+void validateMethod(const httplib::Request &req, httplib::Response &res) {
+    static const std::vector<std::pair<std::regex, std::string>> rules = {
+        {std::regex(R"(^/api/health$)"), "GET"},
+        {std::regex(R"(^/api/meta$)"), "GET"},
+        {std::regex(R"(^/api/products$)"), "GET"},
+        {std::regex(R"(^/api/vouchers$)"), "GET, POST"},
+        {std::regex(R"(^/api/auth/me$)"), "GET"},
+        {std::regex(R"(^/api/auth/register$)"), "POST"},
+        {std::regex(R"(^/api/auth/login$)"), "POST"},
+        {std::regex(R"(^/api/auth/logout$)"), "POST"},
+        {std::regex(R"(^/api/auth/forgot$)"), "POST"},
+        {std::regex(R"(^/api/auth/resend$)"), "POST"},
+        {std::regex(R"(^/api/auth/reset$)"), "POST"},
+        {std::regex(R"(^/api/auth/verify$)"), "POST"},
+        {std::regex(R"(^/api/account$)"), "PATCH"},
+        {std::regex(R"(^/api/addresses$)"), "GET, POST"},
+        {std::regex(R"(^/api/cart$)"), "GET, PUT"},
+        {std::regex(R"(^/api/wishlist$)"), "GET"},
+        {std::regex(R"(^/api/shops/apply$)"), "POST"},
+        {std::regex(R"(^/api/shops/mine$)"), "PATCH"},
+        {std::regex(R"(^/api/seller/products$)"), "GET, POST"},
+        {std::regex(R"(^/api/seller/import$)"), "POST"},
+        {std::regex(R"(^/api/seller/export$)"), "GET"},
+        {std::regex(R"(^/api/checkout/quote$)"), "POST"},
+        {std::regex(R"(^/api/checkout$)"), "POST"},
+        {std::regex(R"(^/api/payments/webhook$)"), "POST"},
+        {std::regex(R"(^/api/orders$)"), "GET"},
+        {std::regex(R"(^/api/seller/orders$)"), "GET"},
+        {std::regex(R"(^/api/admin/orders$)"), "GET"},
+        {std::regex(R"(^/api/admin/refunds$)"), "POST"},
+        {std::regex(R"(^/api/reviews$)"), "POST"},
+        {std::regex(R"(^/api/conversations$)"), "GET, POST"},
+        {std::regex(R"(^/api/notifications$)"), "GET, POST"},
+        {std::regex(R"(^/api/dashboard$)"), "GET"},
+        {std::regex(R"(^/api/admin/export$)"), "GET"},
+        {std::regex(R"(^/api/admin/products$)"), "GET, POST"},
+        {std::regex(R"(^/api/admin/shops$)"), "GET"},
+        {std::regex(R"(^/api/admin/users$)"), "GET"},
+        {std::regex(R"(^/api/admin/catalog/import$)"), "POST"},
+        {std::regex(R"(^/api/admin/payments$)"), "GET"},
+        {std::regex(R"(^/api/admin/reviews$)"), "GET"},
+        {std::regex(R"(^/api/admin/outbox$)"), "GET"},
+        {std::regex(R"(^/api/admin/outbox/retry$)"), "POST"},
+        {std::regex(R"(^/api/admin/audit$)"), "GET"},
+        {std::regex(R"(^/api/admin/settings$)"), "GET, POST"},
+        {std::regex(R"(^/api/storage/images$)"), "POST"},
+        {std::regex(R"(^/api/jobs/maintenance$)"), "GET"},
+        {std::regex(R"(^/api/products/[^/]+$)"), "GET"},
+        {std::regex(R"(^/api/shops/[^/]+$)"), "GET"},
+        {std::regex(R"(^/api/addresses/[^/]+$)"), "DELETE"},
+        {std::regex(R"(^/api/wishlist/[^/]+$)"), "POST, DELETE"},
+        {std::regex(R"(^/api/seller/products/[^/]+$)"), "PUT, DELETE"},
+        {std::regex(R"(^/api/vouchers/[^/]+$)"), "DELETE"},
+        {std::regex(R"(^/api/payments/[^/]+$)"), "GET"},
+        {std::regex(R"(^/api/payments/[^/]+/sync$)"), "POST"},
+        {std::regex(R"(^/api/payments/[^/]+/cancel$)"), "POST"},
+        {std::regex(R"(^/api/orders/[^/]+$)"), "GET"},
+        {std::regex(R"(^/api/orders/[^/]+/status$)"), "POST"},
+        {std::regex(R"(^/api/orders/[^/]+/collect$)"), "POST"},
+        {std::regex(R"(^/api/orders/[^/]+/return$)"), "POST"},
+        {std::regex(R"(^/api/returns/[^/]+$)"), "POST"},
+        {std::regex(R"(^/api/conversations/[^/]+/messages$)"), "GET, POST"},
+        {std::regex(R"(^/api/admin/products/[^/]+$)"), "PUT, POST"},
+        {std::regex(R"(^/api/admin/shops/[^/]+$)"), "POST"},
+        {std::regex(R"(^/api/admin/users/[^/]+$)"), "POST"},
+        {std::regex(R"(^/api/admin/payments/[^/]+/refund$)"), "POST"},
+        {std::regex(R"(^/api/admin/reviews/[^/]+$)"), "POST"},
+    };
+    auto method = req.method == "HEAD" ? "GET" : req.method;
+    for (const auto &[pattern, allowed] : rules) {
+        if (!std::regex_match(req.path, pattern))
+            continue;
+        std::string allow = allowed;
+        if (allowed.find("GET") != std::string::npos)
+            allow += ", HEAD";
+        if ((", " + allowed + ", ").find(", " + method + ", ") == std::string::npos) {
+            res.set_header("Allow", allow);
+            throw Error(405, "method_not_allowed", "Phương thức không được hỗ trợ.");
+        }
+        return;
+    }
+    throw Error(404, "not_found", "Không tìm thấy API.");
+}
 std::string sid(const httplib::Request &req) {
     auto cookie = req.get_header_value("Cookie");
     std::regex re(R"((?:^|;\s*)shoppe_session=([a-f0-9]{64})(?:;|$))");
@@ -124,6 +208,68 @@ Json orderView(Repository &r, Json o) {
     o["return_request"] = r.one("returns", "order_id = ?", {o.at("id")});
     o["refunds"] = r.list("refunds", "order_id = ?", {o.at("id")});
     return o;
+}
+// Restrict batches to authorized parent rows. Placeholders keep identifiers out of SQL text.
+Json relatedRows(Repository &r, const std::string &table, const std::string &column, const Json &parents,
+                 const std::string &key = "id") {
+    std::set<std::string> ids;
+    for (const auto &parent : parents)
+        ids.insert(parent.at(key).get<std::string>());
+    Json rows = Json::array();
+    Params parameters;
+    std::string placeholders;
+    auto flush = [&] {
+        auto batch = r.list(table, column + " IN (" + placeholders + ")", parameters);
+        for (auto &row : batch)
+            rows.push_back(std::move(row));
+        parameters.clear();
+        placeholders.clear();
+    };
+    for (const auto &id : ids) {
+        if (!parameters.empty())
+            placeholders += ",";
+        placeholders += "?";
+        parameters.push_back(id);
+        if (parameters.size() == 400)
+            flush();
+    }
+    if (!parameters.empty())
+        flush();
+    return rows;
+}
+Json orderViews(Repository &r, Json orders) {
+    if (orders.empty())
+        return orders;
+    std::map<std::string, Json> checkouts, items, returns, refunds;
+    for (auto row : relatedRows(r, "checkouts", "id", orders, "checkout_id")) {
+        auto id = row.at("id").get<std::string>();
+        checkouts[id] = std::move(row);
+    }
+    for (auto row : relatedRows(r, "returns", "order_id", orders)) {
+        auto id = row.at("order_id").get<std::string>();
+        returns[id] = std::move(row);
+    }
+    auto groupRows = [](auto &groups, Json rows) {
+        for (auto &row : rows) {
+            auto id = row.at("order_id").template get<std::string>();
+            if (!groups.contains(id))
+                groups[id] = Json::array();
+            groups[id].push_back(std::move(row));
+        }
+    };
+    groupRows(items, relatedRows(r, "order_items", "order_id", orders));
+    groupRows(refunds, relatedRows(r, "refunds", "order_id", orders));
+    for (auto &order : orders) {
+        auto id = order.at("id").get<std::string>();
+        auto group = required(checkouts.at(order.at("checkout_id").get<std::string>()));
+        order["payment_method"] = group["method"];
+        order["payment_status"] = group["method"] == "cod" ? order.value("cod_status", "unpaid")
+                                                           : group.value("status", "pending");
+        order["items"] = items.contains(id) ? items.at(id) : Json::array();
+        order["refunds"] = refunds.contains(id) ? refunds.at(id) : Json::array();
+        order["return_request"] = returns.contains(id) ? returns.at(id) : Json();
+    }
+    return orders;
 }
 bool accessOrder(Repository &r, const Json &u, const Json &o) {
     if (u.is_null())
@@ -498,8 +644,9 @@ void Application::expire(Repository &r) {
 void Application::handle(const httplib::Request &req, httplib::Response &res) {
     res.set_header("Cache-Control", "no-store");
     try {
+        validateMethod(req, res);
         Json body = Json::object();
-        if (req.path == "/api/jobs/maintenance" && req.method == "GET") {
+        if (req.path == "/api/jobs/maintenance" && (req.method == "GET" || req.method == "HEAD")) {
             auto secret = env("CRON_SECRET");
             if (secret.size() < 32 ||
                 !constantEqual(req.get_header_value("Authorization"), "Bearer " + secret))
@@ -551,9 +698,17 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             if (origin != appUrl_)
                 throw Error(403, "invalid_origin", "Nguồn yêu cầu không hợp lệ.");
         }
-        auto tx = db_.begin();
+        // Only reads that expose time-sensitive checkout state or mark chat as read need writes.
+        bool statefulRead =
+            req.path == "/api/dashboard" || req.path == "/api/orders" ||
+            req.path.rfind("/api/orders/", 0) == 0 || req.path.rfind("/api/payments/", 0) == 0 ||
+            req.path == "/api/seller/orders" || req.path == "/api/admin/orders" ||
+            req.path == "/api/admin/payments" ||
+            (req.path.rfind("/api/conversations/", 0) == 0 && req.path.ends_with("/messages"));
+        auto tx = db_.begin(!writing && !statefulRead);
         Repository r(*tx);
-        expire(r);
+        if (writing || statefulRead)
+            expire(r);
         Json session;
         Json user;
         auto token = sid(req);
@@ -653,7 +808,7 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
 Json Application::route(Repository &r, const httplib::Request &req, httplib::Response &res,
                         const Json &b, const Json &u, const Json &session) {
     auto p = segments(req.path);
-    auto method = req.method;
+    auto method = req.method == "HEAD" ? "GET" : req.method;
     auto path = req.path;
     if (path == "/api/health")
         return {
@@ -1194,9 +1349,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         if (!admin(u) && g["buyer_id"] != u["id"])
             throw Error(403, "forbidden", "Không có quyền xem giao dịch.");
         if (method == "GET" || (p.size() == 4 && p[3] == "sync" && method == "POST")) {
-            Json orders = Json::array();
-            for (auto o : r.list("orders", "checkout_id = ?", {g.at("id")}))
-                orders.push_back(orderView(r, o));
+            auto orders = orderViews(r, r.list("orders", "checkout_id = ?", {g.at("id")}));
             return {{"checkout", g}, {"orders", orders}};
         }
         if (p.size() == 4 && p[3] == "cancel" && method == "POST") {
@@ -1217,10 +1370,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             records = r.list("orders", "shop_id = ?", {shop.at("id")});
         } else
             records = r.list("orders", "buyer_id = ?", {u.at("id")});
-        Json list = Json::array();
-        for (auto o : records)
-            list.push_back(orderView(r, o));
-        return {{"orders", list}};
+        return {{"orders", orderViews(r, records)}};
     }
     if (p.size() >= 3 && p[1] == "orders") {
         auto o = required(r.get("orders", p[2]));
@@ -1387,7 +1537,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         review["name"] = u["name"];
         review["rating"] = numberField(b, "rating", 1, 5);
         review["comment"] = textField(b, "comment", 3000);
-        review["hidden"] = false;
+        review["hidden"] = review.value("hidden", false);
         r.save("reviews", review);
         return {{"review", review}};
     }
@@ -1467,18 +1617,18 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         int delivered = 0, returned = 0;
         Json recent = Json::array(), low = Json::array();
         std::map<std::string, Json> sold;
+        orders = orderViews(r, orders);
         for (auto o : orders) {
-            auto g = required(r.get("checkouts", o.at("checkout_id")));
-            if (g["status"] == "paid" || o.value("cod_status", "") == "paid") {
+            if (o["payment_status"] == "paid") {
                 revenue += o.value("total", 0LL);
             }
             if (o["status"] == "delivered" || o["status"] == "completed")
                 ++delivered;
-            auto ret = r.one("returns", "order_id = ?", {o.at("id")});
+            auto ret = o["return_request"];
             if (!ret.is_null() && ret["status"] == "received")
                 ++returned;
             if (o["status"] == "delivered" || o["status"] == "completed")
-                for (auto line : r.list("order_items", "order_id = ?", {o.at("id")})) {
+                for (auto line : o["items"]) {
                     auto quantity = line.value("quantity", 0);
                     if (!ret.is_null() && ret["status"] == "received")
                         for (auto returnedLine : ret["items"])
@@ -1489,9 +1639,9 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                         sold[key] = {{"id", key}, {"name", line["name"]}, {"quantity", 0}};
                     sold[key]["quantity"] = sold[key].value("quantity", 0) + quantity;
                 }
-            for (auto refund : r.list("refunds", "order_id = ?", {o.at("id")}))
+            for (auto refund : o["refunds"])
                 refunds += refund.value("amount", 0LL);
-            recent.push_back(orderView(r, o));
+            recent.push_back(o);
         }
         if (scope == "admin") {
             for (auto group : r.list("checkouts")) {
@@ -1506,12 +1656,14 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         }
         auto products =
             scope == "admin" ? r.list("products") : r.list("products", "shop_id = ?", {shop.at("id")});
-        for (auto product : products)
-            for (auto v : r.list("variants", "product_id = ?", {product.at("id")}))
-                if (v.value("stock", 0) < 10) {
-                    v["product_name"] = product["name"];
-                    low.push_back(v);
-                }
+        std::map<std::string, Json> productNames;
+        for (const auto &product : products)
+            productNames[product.at("id").get<std::string>()] = product["name"];
+        for (auto v : relatedRows(r, "variants", "product_id", products))
+            if (v.value("stock", 0) < 10) {
+                v["product_name"] = productNames.at(v.at("product_id").get<std::string>());
+                low.push_back(v);
+            }
         Json best = Json::array();
         for (auto &[key, p] : sold)
             if (p.value("quantity", 0) > 0)
@@ -1546,14 +1698,18 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             records = path == "/api/admin/export" ? r.list("products")
                                                   : r.list("products", "shop_id = ?", {shop.at("id")});
             csv += "name,category,description,variant,price,stock,weight\r\n";
-            for (auto product : records)
-                for (auto v : r.list("variants", "product_id = ?", {product.at("id")}))
-                    csv += csvCell(product.value("name", "")) + "," +
-                           csvCell(product.value("category", "")) + "," +
-                           csvCell(product.value("description", "")) + "," +
-                           csvCell(v.value("name", "")) + "," + std::to_string(v.value("price", 0LL)) +
-                           "," + std::to_string(v.value("stock", 0LL)) + "," +
-                           std::to_string(product.value("weight", 0)) + "\r\n";
+            std::map<std::string, Json> byId;
+            for (const auto &product : records)
+                byId[product.at("id").get<std::string>()] = product;
+            for (auto v : relatedRows(r, "variants", "product_id", records)) {
+                const auto &product = byId.at(v.at("product_id").get<std::string>());
+                csv += csvCell(product.value("name", "")) + "," +
+                       csvCell(product.value("category", "")) + "," +
+                       csvCell(product.value("description", "")) + "," + csvCell(v.value("name", "")) +
+                       "," + std::to_string(v.value("price", 0LL)) + "," +
+                       std::to_string(v.value("stock", 0LL)) + "," +
+                       std::to_string(product.value("weight", 0)) + "\r\n";
+            }
         } else {
             records = path == "/api/admin/export" ? r.list("orders")
                                                   : r.list("orders", "shop_id = ?", {shop.at("id")});

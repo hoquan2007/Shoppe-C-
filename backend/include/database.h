@@ -1,5 +1,6 @@
 #pragma once
 #include "json.hpp"
+#include <condition_variable>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -14,6 +15,12 @@ class Database {
     std::string url_, path_;
     sqlite3 *sqlite_ = nullptr;
     std::mutex mutex_;
+    std::mutex poolMutex_;
+    std::condition_variable poolAvailable_;
+    std::vector<void *> idleConnections_;
+    std::size_t connectionCount_ = 0;
+    void *acquireConnection();
+    void releaseConnection(void *connection);
 
   public:
     class Transaction {
@@ -23,7 +30,7 @@ class Database {
         bool done_ = false;
 
       public:
-        explicit Transaction(Database &db);
+        explicit Transaction(Database &db, bool readOnly = false);
         ~Transaction();
         Transaction(const Transaction &) = delete;
         Transaction &operator=(const Transaction &) = delete;
@@ -37,7 +44,7 @@ class Database {
     ~Database();
     Database(const Database &) = delete;
     Database &operator=(const Database &) = delete;
-    std::unique_ptr<Transaction> begin();
+    std::unique_ptr<Transaction> begin(bool readOnly = false);
     bool postgres() const {
         return !url_.empty();
     }

@@ -670,6 +670,30 @@ test("dashboard, audit, configurable shipping and persistent data", async () => 
     db.close();
   }
 });
+test("API method contract rejects unsupported methods and non-existent payment subpaths", async () => {
+  for (const [path, method] of [
+    ["/cart", "POST"],
+    ["/products", "PUT"],
+    ["/payments/webhook", "GET"],
+    ["/shops/apply", "GET"],
+    ["/auth/me", "DELETE"],
+  ]) {
+    assert.equal(
+      (await buyer.request(path, method)).status,
+      405,
+      `${method} ${path}`,
+    );
+  }
+  assert.equal(
+    (await buyer.request("/payments/does-not-exist/unknown")).status,
+    404,
+  );
+  assert.equal((await buyer.request("/unknown-api")).status, 404);
+  const response = await fetch(base + "/api/products", { method: "HEAD" });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "");
+});
+
 test("Vietnamese search, admin product editing, review moderation and chat isolation", async () => {
   const found = await ok(client(), "/products?q=ao%20thun");
   assert.ok(found.products.some((p) => p.id === "product-4"));
@@ -698,6 +722,21 @@ test("Vietnamese search, admin product editing, review moderation and chat isola
   assert.equal(
     (await ok(client(), "/products/" + reviews[0].product_id)).reviews.length,
     0,
+  );
+  await ok(buyer, "/reviews", "POST", {
+    order_item_id: reviews[0].order_item_id,
+    rating: 4,
+    comment: "Nội dung đã chỉnh sửa vẫn cần được quản trị viên cho hiện.",
+  });
+  assert.equal(
+    (await ok(client(), "/products/" + reviews[0].product_id)).reviews.length,
+    0,
+  );
+  assert.equal(
+    (await ok(admin, "/admin/reviews")).reviews.find(
+      (r) => r.id === reviews[0].id,
+    ).hidden,
+    true,
   );
   const { conversation } = await ok(buyer, "/conversations", "POST", {
     shop_id: "shop-mono",

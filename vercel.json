@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "env": { "PORT": "8080" },
+  "env": {
+    "PORT": "8080"
+  },
   "services": {
     "shoppe": {
       "root": ".",
@@ -8,6 +10,19 @@
       "entrypoint": "Dockerfile.vercel"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": { "service": "shoppe" } }],
-  "crons": [{ "path": "/api/jobs/maintenance", "schedule": "0 0 * * *" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "shoppe"
+      }
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/jobs/maintenance",
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "regions": ["sin1"]
 }

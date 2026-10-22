@@ -7,6 +7,7 @@
 #endif
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -174,28 +175,79 @@ Database::Database(std::string url, std::string path, const std::string &schemaP
 Database::~Database() {
     if (sqlite_)
         sqlite3_close(sqlite_);
+#ifdef SHOPPE_POSTGRES
+    for (auto connection : idleConnections_)
+        PQfinish(static_cast<PGconn *>(connection));
+#endif
 }
-std::unique_ptr<Database::Transaction> Database::begin() {
-    return std::make_unique<Transaction>(*this);
+void *Database::acquireConnection() {
+#ifdef SHOPPE_POSTGRES
+    std::unique_lock lock(poolMutex_);
+    if (!poolAvailable_.wait_for(lock, std::chrono::seconds(10),
+                                 [&] { return !idleConnections_.empty() || connectionCount_ < 4; }))
+        throw Error(503, "database_busy", "Dữ liệu đang bận. Vui lòng thử lại.");
+    if (!idleConnections_.empty()) {
+        auto connection = idleConnections_.back();
+        idleConnections_.pop_back();
+        lock.unlock();
+        auto pg = static_cast<PGconn *>(connection);
+        if (PQstatus(pg) != CONNECTION_OK)
+            PQreset(pg);
+        if (PQstatus(pg) == CONNECTION_OK)
+            return pg;
+        releaseConnection(pg);
+        throw Error(503, "database_unavailable", "Không kết nối được dữ liệu.");
+    }
+    ++connectionCount_;
+    lock.unlock();
+    auto connection = PQconnectdb(url_.c_str());
+    if (PQstatus(connection) == CONNECTION_OK)
+        return connection;
+    releaseConnection(connection);
+#endif
+    throw Error(503, "database_unavailable", "Không kết nối được dữ liệu.");
 }
-Database::Transaction::Transaction(Database &db) : db_(db), lock_(db.mutex_, std::defer_lock) {
+void Database::releaseConnection(void *connection) {
+#ifdef SHOPPE_POSTGRES
+    auto pg = static_cast<PGconn *>(connection);
+    bool reusable = PQstatus(pg) == CONNECTION_OK && PQtransactionStatus(pg) == PQTRANS_IDLE;
+    {
+        std::lock_guard lock(poolMutex_);
+        if (reusable)
+            idleConnections_.push_back(connection);
+        else {
+            PQfinish(pg);
+            --connectionCount_;
+        }
+    }
+    poolAvailable_.notify_one();
+#endif
+}
+std::unique_ptr<Database::Transaction> Database::begin(bool readOnly) {
+    return std::make_unique<Transaction>(*this, readOnly);
+}
+Database::Transaction::Transaction(Database &db, bool readOnly)
+    : db_(db), lock_(db.mutex_, std::defer_lock) {
     if (db.postgres()) {
 #ifdef SHOPPE_POSTGRES
-        pg_ = PQconnectdb(db.url_.c_str());
-        if (PQstatus(static_cast<PGconn *>(pg_)) != CONNECTION_OK) {
-            PQfinish(static_cast<PGconn *>(pg_));
-            pg_ = nullptr;
-            throw Error(503, "database_unavailable", "Không kết nối được dữ liệu.");
-        }
-        try {
-            execute("BEGIN");
-            execute("SET LOCAL search_path TO shoppe");
-            execute("SET LOCAL statement_timeout = '10000'");
-            execute("SELECT pg_advisory_xact_lock(72134001)");
-        } catch (...) {
-            PQfinish(static_cast<PGconn *>(pg_));
-            pg_ = nullptr;
-            throw;
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            pg_ = db.acquireConnection();
+            try {
+                // One network round trip. Readers use a consistent snapshot without the write lock.
+                // Mutations retain the cross-instance lock protecting stock and voucher reservations.
+                executeScript(std::string(readOnly ? "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;"
+                                                   : "BEGIN;") +
+                              "SET LOCAL search_path TO shoppe;"
+                              "SET LOCAL statement_timeout = '10000';" +
+                              (readOnly ? "" : "SELECT pg_advisory_xact_lock(72134001);"));
+                break;
+            } catch (...) {
+                db.releaseConnection(pg_);
+                pg_ = nullptr;
+                // A pooler may close an idle socket. Retry only transaction setup, before business SQL.
+                if (attempt == 1)
+                    throw Error(503, "database_unavailable", "Không kết nối được dữ liệu.");
+            }
         }
 #endif
     } else {
@@ -211,10 +263,12 @@ Database::Transaction::~Transaction() {
         }
 #ifdef SHOPPE_POSTGRES
     if (pg_)
-        PQfinish(static_cast<PGconn *>(pg_));
+        db_.releaseConnection(pg_);
 #endif
 }
 Rows Database::Transaction::query(const std::string &sql, const Params &params) {
+    if (done_)
+        throw std::logic_error("Transaction already closed");
     Rows rows;
 #ifdef SHOPPE_POSTGRES
     if (pg_) {
@@ -273,7 +327,8 @@ void Database::Transaction::executeScript(const std::string &sql) {
 #ifdef SHOPPE_POSTGRES
     if (pg_) {
         auto result = PQexec(static_cast<PGconn *>(pg_), sql.c_str());
-        bool ok = PQresultStatus(result) == PGRES_COMMAND_OK;
+        bool ok =
+            PQresultStatus(result) == PGRES_COMMAND_OK || PQresultStatus(result) == PGRES_TUPLES_OK;
         PQclear(result);
         if (!ok)
             throw std::runtime_error("Database migration failed");
@@ -289,12 +344,24 @@ void Database::Transaction::executeScript(const std::string &sql) {
 void Database::Transaction::commit() {
     execute("COMMIT");
     done_ = true;
+#ifdef SHOPPE_POSTGRES
+    if (pg_) {
+        db_.releaseConnection(pg_);
+        pg_ = nullptr;
+    }
+#endif
     if (lock_.owns_lock())
         lock_.unlock();
 }
 void Database::Transaction::rollback() {
     execute("ROLLBACK");
     done_ = true;
+#ifdef SHOPPE_POSTGRES
+    if (pg_) {
+        db_.releaseConnection(pg_);
+        pg_ = nullptr;
+    }
+#endif
     if (lock_.owns_lock())
         lock_.unlock();
 }

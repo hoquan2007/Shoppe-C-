@@ -31,6 +31,11 @@ jobs:
       - run: cmake -S . -B build -DSHOPPE_POSTGRES=ON -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build -j2
       - run: ctest --test-dir build --output-on-failure
+      - name: Check PostgreSQL connection reuse and concurrent reads
+        if: matrix.database == 'postgres'
+        run: ./build/postgres_pool_tests
+        env:
+          SHOPPE_TEST_DATABASE_URL: postgresql://shoppe:test-only-password@127.0.0.1:5432/shoppe_tests
       - run: npm test
         env:
           SHOPPE_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://shoppe:test-only-password@127.0.0.1:5432/shoppe_tests' || '' }}
