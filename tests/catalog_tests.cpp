@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <set>
 
 using namespace shoppe;
 void check(bool ok, const char *message) {
@@ -21,9 +22,10 @@ template <class F> void rejects(F run, const std::string &code) {
 }
 int main(int argc, char **) {
     if (argc > 1) {
-        auto doc = fetchDemoCatalog(60);
-        check(normalizeDemoCatalog(doc).size() == 60, "live provider returned 60 products");
-        std::cout << "Live C++ HTTPS catalog fetch/validation passed: 60 demo products, no keys.\n";
+        auto doc = fetchDemoCatalog(300);
+        check(normalizeDemoCatalog(doc).size() == 300, "live catalog contains 300 labelled demo products");
+        std::cout << "Live C++ catalog fetch/validation passed: 300 demo products, "
+                  << doc.at("generated_products") << " explicitly generated samples, no keys.\n";
         return 0;
     }
     std::ifstream file("database/demo-catalog.json");
@@ -48,8 +50,26 @@ int main(int argc, char **) {
         categories.push_back(item["category"]);
     auto chosen = selectDemoCatalog(categories, {{"products", doc["products"]}}, 12);
     check(chosen["products"].size() == 12, "bounded category selection");
-    rejects([&] { selectDemoCatalog(categories, {{"products", doc["products"]}}, 101); },
+    rejects([&] { selectDemoCatalog(categories, {{"products", doc["products"]}}, 301); },
             "invalid_catalog_limit");
+    auto expanded = selectDemoCatalog(categories, {{"products", doc["products"]}}, 300);
+    auto expandedProducts = normalizeDemoCatalog(expanded);
+    check(expandedProducts.size() == 300 && expanded["generated_products"] == 270, "expand bounded catalog");
+    check(expandedProducts == normalizeDemoCatalog(selectDemoCatalog(categories, {{"products", doc["products"]}}, 300)),
+          "generated identities are deterministic");
+    std::set<std::string> expandedIds;
+    int generated = 0;
+    for (const auto &p : expandedProducts) {
+        check(expandedIds.insert(p.at("id")).second, "unique generated product identities");
+        if (p["source"] == "ShoppeDemo") {
+            ++generated;
+            check(p.at("name").get<std::string>().find("Mẫu demo") != std::string::npos, "visible generated label");
+        }
+    }
+    check(generated == 270, "retain truthful source attribution");
+    auto oversized = expanded;
+    oversized["products"].push_back(oversized["products"][0]);
+    rejects([&] { normalizeDemoCatalog(oversized); }, "invalid_demo_catalog");
     rejects(
         [&] { selectDemoCatalog(Json::array({"not-a-category"}), {{"products", doc["products"]}}, 12); },
         "catalog_provider_invalid");
@@ -86,6 +106,15 @@ int main(int argc, char **) {
     auto status = demoCatalogStatus(r, user);
     check(status.dump().find("token_hash") == std::string::npos,
           "status does not expose preview secrets");
+    auto largePreview = stageDemoCatalog(r, user, expanded);
+    check(largePreview["existing"] == 30 && largePreview["new_products"] == 270, "large preview preserves original IDs");
+    auto largeImport = commitDemoCatalog(r, user, largePreview.at("preview_token"));
+    check(largeImport["imported"] == 270 && r.list("products").size() == 300, "import 300 products");
+    auto largeAgain = stageDemoCatalog(r, user, expanded);
+    auto largeReplay = commitDemoCatalog(r, user, largeAgain.at("preview_token"));
+    check(largeReplay["imported"] == 0 && largeReplay["skipped"] == 300, "repeat 300 never duplicates");
+    check(r.get("variants", variant.at("id"))["stock"] == 7 &&
+          r.get("products", product.at("id"))["name"] == product["name"], "300 product import preserves edits and stock");
     tx->rollback();
     std::cout
         << "Catalog validation, scoped preview, expiry, replay, price and stock preservation passed.\n";

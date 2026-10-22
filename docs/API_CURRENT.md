@@ -119,7 +119,7 @@ Nguồn: `backend/src/application.cpp`, bản catalog API C++ ngày 22/10/2026. 
 | Method | Đường dẫn (sau /api)     | Quyền                 | Input / hành vi                                                                                                    |
 | ------ | ------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | GET    | `/admin/catalog/status`  | Admin                 | Provider/mode/last_sync; không trả token/key                                                                       |
-| POST   | `/admin/catalog/preview` | Admin + CSRF + Origin | limit 1..100; tải category-list/products bên ngoài transaction; snapshot gắn admin, TTL 15 phút; rate limit 3/phút |
+| POST   | `/admin/catalog/preview` | Admin + CSRF + Origin | limit 1..300; tải category-list/products bên ngoài transaction; bổ sung mẫu ShoppeDemo có nhãn khi nguồn không đủ; snapshot gắn admin, TTL 15 phút; rate limit 3/phút |
 | POST   | `/admin/catalog/commit`  | Admin + CSRF + Origin | preview_token; dùng snapshot server, token một lần; chỉ thêm ID mới, giữ hàng/tồn kho đã có                        |
 
 [Phạm vi Shopee và hướng dẫn sử dụng catalog API](SHOPEE_API_SELECTION.md). Provider lỗi trả 502, bản xem trước hết hạn/đã dùng trả 409; không tự âm thầm fallback. Bản demo đóng gói vẫn ở POST /admin/catalog/import.

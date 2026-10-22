@@ -741,7 +741,7 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
         Json result;
         if (req.path == "/api/admin/catalog/preview" && req.method == "POST") {
             adminRequired(user);
-            numberField(body, "limit", 1, 100);
+            numberField(body, "limit", 1, demoCatalogLimit);
             rateLimit(r, "catalog-preview:" + user.at("id").get<std::string>(), 3, 60);
             result = Json::object();
         } else if (req.path == "/api/storage/images" && req.method == "POST") {
@@ -759,7 +759,7 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
         else
             tx->commit();
         if (req.path == "/api/admin/catalog/preview" && req.method == "POST") {
-            auto document = fetchDemoCatalog(static_cast<int>(numberField(body, "limit", 1, 100)));
+            auto document = fetchDemoCatalog(static_cast<int>(numberField(body, "limit", 1, demoCatalogLimit)));
             auto write = db_.begin();
             Repository repo(*write);
             // Recheck privileges after network I/O, before storing a server-owned snapshot.

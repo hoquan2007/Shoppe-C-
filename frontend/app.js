@@ -662,7 +662,7 @@ async function managementProducts(scope) {
     ) +
     `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : '<button class="btn secondary small" data-action="catalog-api">Lấy sản phẩm demo từ API</button><button class="btn outline small" data-action="load-demo-catalog">Dùng demo đóng gói</button>'}</div>` +
     (catalog
-      ? `<p class="small-text muted">Nguồn demo: DummyJSON · Thanh toán: payOS/COD. ${catalog.last_sync ? "Đã nhập qua API: " + catalog.last_sync.imported + " sản phẩm mới trong lần gần nhất." : "Chưa nhập qua API trực tiếp."}</p>`
+      ? `<p class="small-text muted">Nguồn demo: DummyJSON và mẫu mô phỏng Shoppe · Thanh toán: payOS/COD. ${catalog.last_sync ? "Đã nhập: " + catalog.last_sync.imported + " sản phẩm mới trong lần gần nhất." : "Chưa nhập qua API trực tiếp."}</p>`
       : "") +
     table(
       ["Sản phẩm", "Giá từ", "Tồn kho", "Trạng thái", "Thao tác"],
@@ -1233,14 +1233,14 @@ document.addEventListener("click", async (e) => {
       state.catalogPreviewToken = null;
       dialog(
         "Nạp dữ liệu demo qua API",
-        '<div class="notice">Sản phẩm minh họa từ DummyJSON, không phải hàng thật hoặc dữ liệu Shopee. Nếu chọn payOS, thanh toán vẫn sử dụng tiền thật. Giá và tồn kho là dữ liệu mô phỏng; không ghi đè hàng đã có.</div>' +
+        '<div class="notice">Tối đa 300 sản phẩm demo. Khi nguồn DummyJSON không đủ, hệ thống bổ sung mẫu mô phỏng Shoppe có nhãn riêng và ảnh minh họa từ nguồn. Không phải hàng thật hoặc dữ liệu Shopee. Nếu chọn payOS, thanh toán sử dụng tiền thật. Giá và tồn kho là dữ liệu mô phỏng; không ghi đè hàng đã có.</div>' +
           '<form data-form="catalog-preview">' +
           field(
             "Số sản phẩm muốn xem trước",
             "limit",
-            60,
+            300,
             "number",
-            'min="1" max="100" required',
+            'min="1" max="300" required',
           ) +
           '<div class="form-error" hidden></div><button class="btn full">Tải bản xem trước</button></form><div id="catalog-preview-result" aria-live="polite"></div>',
       );
@@ -1524,12 +1524,12 @@ document.addEventListener("submit", async (e) => {
       if (!form.isConnected || form.elements.limit.value !== data.limit) return;
       state.catalogPreviewToken = result.preview_token;
       $("#catalog-preview-result").innerHTML =
-        `<div class="notice success">${result.products.length} sản phẩm · ${result.new_products} mới · ${result.existing} đã có. Bản xem trước có hiệu lực 15 phút.</div>` +
+        `<div class="notice success">${result.products.length} sản phẩm · ${result.new_products} mới · ${result.existing} đã có · ${result.generated_products || 0} mẫu mô phỏng mở rộng. Bản xem trước có hiệu lực 15 phút.</div>` +
         table(
-          ["Tên sản phẩm", "Danh mục", "Giá demo", "Trạng thái"],
+          ["Tên sản phẩm", "Nguồn", "Danh mục", "Giá demo", "Trạng thái"],
           result.products.map(
             (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${p.exists ? "Giữ nguyên" : "Sẽ thêm"}</td></tr>`,
+              `<tr><td>${esc(p.name)}</td><td>${p.source === "ShoppeDemo" ? "Mẫu mô phỏng Shoppe" : "DummyJSON"}</td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${p.exists ? "Giữ nguyên" : "Sẽ thêm"}</td></tr>`,
           ),
         ) +
         '<button type="button" class="btn full" data-action="catalog-commit">Nhập bản xem trước vào shop</button>';

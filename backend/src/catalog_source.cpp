@@ -33,8 +33,8 @@ Json providerGet(const std::string &path) {
 }
 } // namespace
 Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
-    if (limit < 1 || limit > 100)
-        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 100 sản phẩm demo.");
+    if (limit < 1 || limit > demoCatalogLimit)
+        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 300 sản phẩm demo.");
     if (!categories.is_array() || categories.empty() || categories.size() > 200 || !data.is_object() ||
         !data.contains("products") || !data["products"].is_array() || data["products"].size() > 1000)
         throw Error(502, "catalog_provider_invalid", "Danh mục nguồn demo không hợp lệ.");
@@ -50,6 +50,7 @@ Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
                                           "furniture",
                                           "home-decoration",
                                           "kitchen-accessories",
+                                          "groceries",
                                           "smartphones",
                                           "laptops",
                                           "mobile-accessories",
@@ -61,6 +62,7 @@ Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
                                           "womens-shoes",
                                           "tops",
                                           "womens-bags",
+                                          "womens-jewellery",
                                           "mens-watches",
                                           "womens-watches",
                                           "sunglasses"};
@@ -101,7 +103,16 @@ Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
     }
     if (selected.empty())
         throw Error(502, "catalog_provider_empty", "Nguồn demo không có sản phẩm phù hợp.");
-    Json document{{"source", "DummyJSON"},
+    // The provider has fewer than 300 eligible originals. Extend only with explicitly
+    // labelled synthetic samples; never present these as extra provider listings.
+    const auto originals = selected.size();
+    for (std::size_t index = 0; selected.size() < static_cast<std::size_t>(limit); ++index) {
+        auto sample = selected[index % originals];
+        sample["_demo_series"] = index / originals + 1;
+        selected.push_back(std::move(sample));
+    }
+    Json document{{"source", selected.size() > originals ? "DummyJSON+ShoppeDemo" : "DummyJSON"},
+                  {"generated_products", selected.size() - originals},
                   {"source_url", "https://dummyjson.com/docs/products"},
                   {"fetched_at", now()},
                   {"excluded", excluded},
@@ -110,8 +121,8 @@ Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
     return document;
 }
 Json fetchDemoCatalog(int limit) {
-    if (limit < 1 || limit > 100)
-        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 100 sản phẩm demo.");
+    if (limit < 1 || limit > demoCatalogLimit)
+        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 300 sản phẩm demo.");
     auto categories = providerGet("/products/category-list");
     auto products =
         providerGet("/products?limit=0&select=id,title,description,category,price,thumbnail");

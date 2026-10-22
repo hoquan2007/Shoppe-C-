@@ -2,6 +2,7 @@
 #include "database.h"
 
 namespace shoppe {
+inline constexpr int demoCatalogLimit = 300;
 Json importDemoCatalog(Repository &repository, const Json &adminUser, const std::string &file);
 Json importDemoCatalog(Repository &repository, const Json &adminUser, const Json &document);
 Json normalizeDemoCatalog(const Json &document);

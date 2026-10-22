@@ -4,7 +4,7 @@ Kiểm tra ngày 22/10/2026. Website: https://shoppec.vercel.app. Đây là hư�
 
 ## 1. Hệ thống hiện gọi API nào?
 
-**Hiện có 0 API Shopee được tích hợp.** Có snapshot 30 sản phẩm từ DummyJSON trong `database/demo-catalog.json` và luồng C++ mới để admin xem trước/nhập 1–100 sản phẩm từ API. Trang chủ đọc database qua C++; không gọi Shopee hoặc DummyJSON mỗi lần mở trang. Giá VNĐ và tồn kho demo phục vụ kiểm thử bài tập.
+**Hiện có 0 API Shopee được tích hợp.** Có snapshot 30 sản phẩm từ DummyJSON trong `database/demo-catalog.json` và luồng C++ để admin xem trước/nhập 1–300 sản phẩm. Nếu nguồn API không đủ, C++ bổ sung mẫu mô phỏng `ShoppeDemo` có nhãn riêng và ảnh minh họa từ nguồn. Trang chủ đọc database qua C++; không gọi Shopee hoặc DummyJSON mỗi lần mở trang. Giá VNĐ và tồn kho demo phục vụ kiểm thử bài tập; không cần key mới.
 
 | Nhóm                   | Đường đi hiện tại                                                                       | Nhiệm vụ                                                     |
 | ---------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |

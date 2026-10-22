@@ -28,9 +28,10 @@ std::set<std::string> existingCatalogIds(Repository &r, const Json &products) {
 }
 } // namespace
 Json normalizeDemoCatalog(const Json &document) {
-    if (!document.is_object() || document.value("source", "") != "DummyJSON" ||
+    if (!document.is_object() ||
+        (document.value("source", "") != "DummyJSON" && document.value("source", "") != "DummyJSON+ShoppeDemo") ||
         !document.contains("products") || !document["products"].is_array() ||
-        document["products"].empty() || document["products"].size() > 100)
+        document["products"].empty() || document["products"].size() > demoCatalogLimit)
         throw Error(422, "invalid_demo_catalog", "Danh mục demo không hợp lệ.");
     const std::map<std::string, std::string> categories{{"beauty", "Sức khỏe & Làm đẹp"},
                                                         {"fragrances", "Sức khỏe & Làm đẹp"},
@@ -51,10 +52,15 @@ Json normalizeDemoCatalog(const Json &document) {
                                                         {"tops", "Thời trang"}};
 
     Json normalized = Json::array();
-    std::set<std::int64_t> ids;
+    std::set<std::string> ids;
     for (const auto &item : document["products"]) {
         auto externalId = numberField(item, "id", 1, 1000000);
-        if (!ids.insert(externalId).second)
+        const auto series = item.contains("_demo_series") ? numberField(item, "_demo_series", 1, demoCatalogLimit) : 0;
+        if (series && document.value("source", "") != "DummyJSON+ShoppeDemo")
+            throw Error(422, "invalid_demo_catalog", "Nguồn mẫu mô phỏng không hợp lệ.");
+        auto id = series ? "demo-shoppe-" + std::to_string(externalId) + "-" + std::to_string(series)
+                         : "demo-dummyjson-" + std::to_string(externalId);
+        if (!ids.insert(id).second)
             throw Error(422, "duplicate_demo_id", "Mã demo bị trùng.");
         auto image = textField(item, "thumbnail", 2048);
         if (image.rfind("https://cdn.dummyjson.com/", 0) != 0)
@@ -69,17 +75,20 @@ Json normalizeDemoCatalog(const Json &document) {
                          .value();
         auto categoryKey = textField(item, "category", 100);
         normalized.push_back(
-            {{"id", "demo-dummyjson-" + std::to_string(externalId)},
+            {{"id", id},
              {"source_id", externalId},
-             {"name", textField(item, "title", 200)},
+             {"name", textField(item, "title", series ? 170 : 200) +
+                          (series ? " · Mẫu demo " + std::to_string(series) : "")},
              {"description", "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
                              "giao dịch sử dụng tiền thật.\n\n" +
-                                 textField(item, "description", 8000)},
+                                 (series ? "Mẫu mô phỏng mở rộng do Shoppe tạo. Ảnh DummyJSON chỉ để minh họa; không phải sản phẩm bổ sung từ API nguồn."
+                                         : textField(item, "description", 8000))},
              {"category", categories.contains(categoryKey) ? categories.at(categoryKey) : "Phụ kiện"},
              {"image", image},
              {"price", price},
              {"is_demo", true},
-             {"source", "DummyJSON"}});
+             {"source", series ? "ShoppeDemo" : "DummyJSON"},
+             {"demo_series", series}});
     }
     return normalized;
 }
@@ -154,7 +163,8 @@ Json importDemoCatalog(Repository &r, const Json &user, const Json &document) {
     return {{"imported", imported},
             {"skipped", skipped},
             {"shop_id", shop.at("id")},
-            {"source", "DummyJSON"}};
+            {"source", document.at("source")},
+            {"generated_products", document.value("generated_products", 0)}};
 }
 Json stageDemoCatalog(Repository &r, const Json &user, const Json &document) {
     catalogAdmin(user);
@@ -171,7 +181,8 @@ Json stageDemoCatalog(Repository &r, const Json &user, const Json &document) {
         if (product["exists"].get<bool>())
             ++existing;
     }
-    return {{"source", "DummyJSON"}, {"preview_token", token},
+    return {{"source", document.at("source")}, {"preview_token", token},
+            {"generated_products", document.value("generated_products", 0)},
             {"expires_in", 900},     {"products", products},
             {"existing", existing},  {"new_products", products.size() - existing},
             {"currency", "VND"},     {"payment_provider", "payos"},
@@ -200,7 +211,8 @@ Json demoCatalogStatus(Repository &r, const Json &user) {
     return {{"provider", "DummyJSON"},
             {"mode", "demo"},
             {"requires_key", false},
-            {"max_products", 100},
+            {"max_products", demoCatalogLimit},
+            {"supplement", "ShoppeDemo"},
             {"payment_provider", "payos"},
             {"last_sync", r.get("settings", "catalog-api-sync")},
             {"shopee", {{"enabled", false}, {"reason", "demo_source_selected"}}}};

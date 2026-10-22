@@ -821,6 +821,7 @@ test("live demo catalog requires admin, CSRF and bounded input before network ac
   }
   const status = await ok(admin, "/admin/catalog/status");
   assert.equal(status.provider, "DummyJSON");
+  assert.equal(status.max_products, 300);
   assert.equal(status.requires_key, false);
   assert.equal(status.payment_provider, "payos");
   assert.equal(status.shopee.enabled, false);
@@ -847,7 +848,7 @@ test("live demo catalog requires admin, CSRF and bounded input before network ac
     403,
   );
   assert.equal(
-    (await admin.request("/admin/catalog/preview", "POST", { limit: 101 }))
+    (await admin.request("/admin/catalog/preview", "POST", { limit: 301 }))
       .status,
     422,
   );

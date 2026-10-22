@@ -66,7 +66,7 @@ Không khai báo các API này là “đã tích hợp” chỉ vì đã có tê
 | API dự án                         | Quyền / dữ liệu                                                                                                        |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/admin/catalog/status`   | Admin: nguồn DummyJSON, mode demo, không cần key, lần nhập gần nhất, payment_provider=payos                            |
-| `POST /api/admin/catalog/preview` | Admin + Origin + CSRF; `{limit:1..100}`. C++ tải category-list và products, kiểm tra/chọn dữ liệu, trả preview 15 phút |
+| `POST /api/admin/catalog/preview` | Admin + Origin + CSRF; `{limit:1..300}`. C++ tải category-list/products, bổ sung mẫu có nhãn khi thiếu, trả preview 15 phút |
 | `POST /api/admin/catalog/commit`  | Admin + Origin + CSRF; `{preview_token}`. Chỉ nhập snapshot server đã lưu; token dùng một lần, giữ nguyên hàng đã có   |
 
 Provider được gọi: `GET https://dummyjson.com/products/category-list` và `GET https://dummyjson.com/products?limit=0&select=id,title,description,category,price,thumbnail`. Nguồn chính thức giới thiệu dữ liệu sản phẩm cho thử nghiệm/prototype ecommerce: [DummyJSON Products](https://dummyjson.com/docs/products).
@@ -86,7 +86,7 @@ flowchart LR
 ## Quy trình admin và bảo toàn dữ liệu
 
 1. Admin → Sản phẩm → **Lấy sản phẩm demo từ API**.
-2. Chọn 1–100 sản phẩm, mặc định 60 → **Tải bản xem trước**.
+2. Chọn 1–300 sản phẩm, mặc định 300 → **Tải bản xem trước**.
 3. Kiểm tra tên, danh mục tiếng Việt, giá VNĐ minh họa, số lượng mới/đã tồn tại.
 4. Chọn **Nhập bản xem trước vào shop**. Hệ thống chỉ thêm ID mới, không tự restock hoặc ghi đè sửa đổi của admin.
 5. Sản phẩm mới xuất hiện ở trang mua sắm, dùng checkout nội bộ và payOS/COD. Đây vẫn là hàng demo, không cung cấp hàng thật.
@@ -97,6 +97,10 @@ Server chỉ gọi HTTPS tới hostname cố định, không theo redirect, gi�
 Giá minh họa và tồn kho ban đầu 20 là quy tắc C++ của dữ liệu demo; không phải tỷ giá trực tiếp hoặc stock của Shopee/DummyJSON. Ngày giờ, snapshot và token đều được kiểm tra ở server; frontend chỉ hiển thị/gửi thao tác.
 
 ## Kiểm thử triển khai
+
+Nâng cấp 300 sản phẩm: API nguồn hiện có 194 sản phẩm tổng cộng (kiểm tra trực tiếp 23/10/2026 giờ Việt Nam), nên không thể lấy 300 listing gốc khác nhau từ DummyJSON. C++ chọn sản phẩm tiêu dùng hợp lệ, loại xe/giá ngoài giới hạn; nếu thiếu thì tạo mẫu mô phỏng có ID `demo-shoppe-<id-gốc>-<số-mẫu>`, nguồn `ShoppeDemo`, tên có “Mẫu demo”, mô tả giải thích ảnh chỉ minh họa. Listing nguồn giữ ID `demo-dummyjson-<id>` và nguồn `DummyJSON`; preview/import trả nguồn hỗn hợp và số mẫu được tạo. ID ổn định và tách riêng giúp nhập lại không trùng hoặc ghi đè hàng cũ. Không có thêm API Shopee hoặc key mới.
+
+Các kết quả dưới đây là mốc triển khai 60 sản phẩm trước khi nâng cấp; kết quả kiểm thử 300 sản phẩm được ghi riêng sau khi xác nhận Production.
 
 - C++ CTest: 4/4, gồm catalog validation, preview/commit, token hết hạn/replay và giữ hàng đã sửa.
 - HTTP: 16/16 trên SQLite và 16/16 trên PostgreSQL thử nghiệm riêng; có chặn user thường, CSRF/Origin, limit sai, token giả và method sai trước khi gọi provider.
