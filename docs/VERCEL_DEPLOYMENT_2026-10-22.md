@@ -8,7 +8,8 @@
 - Dashboard: https://vercel.com/hnquan/shoppe-c.
 - Repository: https://github.com/hoquan2007/Shoppe-C-.
 - Nhánh: `codex/deployment-payment-readiness`.
-- Commit mã chạy: `7310eeac754a35025a03bd806112085fdcfb8e07`.
+- Commit mã chạy: `3548b0bff0e5fe5385e75d110ef6d93ee9fe4493`.
+- Deployment Production đã xác minh: `dpl_BfeeuzDquxPfjNYGms1fcWbtM1vU`.
 - Kết nối qua connector Vercel; CLI trên máy chưa đăng nhập. File `.vercel/project.json` riêng tại máy trỏ đúng project trên, không chứa token.
 
 Tên yêu cầu ban đầu là `Shoppe_C`. API tạo project chỉ chấp nhận chữ thường. Tên `shoppe_c` được tạo thành công nhưng push image lên VCR bị `NAME_INVALID`; đã đổi tên cùng project sang `shoppe-c`. Domain do Vercel cấp trước đó vẫn giữ nguyên.
@@ -30,9 +31,26 @@ Không có key nhạy cảm mang tiền tố `VITE_`; không đưa file `.env*` 
 
 ## Xác minh
 
-Deployment container `dpl_CaJEtWFwAs2feBPREAQCJ7kh6yZP` đã READY, đẩy image lên VCR thành công sau khi đổi tên project. Build mất khoảng 3 phút và bộ CTest có 3/3 bài qua.
+Deployment Production mới đã READY và phục vụ được website thật tại **https://shoppec.vercel.app**. Toàn bộ frontend/backend chạy trên Vercel; runtime C++ kết nối Supabase qua Session pooler. Build container mất khoảng 3 phút; bộ CTest chạy trong Dockerfile có 3/3 bài qua.
 
-Kiểm tra runtime gặp lỗi HTTP 500 ngay tại `/api/health`. Runtime log ghi `Startup failed: Cannot connect to PostgreSQL; check DATABASE_URL/TLS.`; backend chưa phục vụ request nên chưa tiếp tục kiểm tra đăng nhập hoặc thanh toán. Supabase project đang ACTIVE_HEALTHY, ở Singapore; cần thay URI direct IPv6 bằng Session pooler IPv4 chính xác lấy từ Connect. Đã yêu cầu chủ dự án cung cấp Host/Port/User, không yêu cầu gửi lại mật khẩu. Không coi trạng thái READY là ứng dụng hoạt động đầy đủ.
+Lỗi HTTP 500 của deployment cũ `dpl_CaJEtWFwAs2feBPREAQCJ7kh6yZP` đã được xử lý bằng URI Session pooler IPv4 do chủ dự án cung cấp: host `aws-0-ap-southeast-1.pooler.supabase.com`, port `5432`, user `postgres.igjwnwzhyxbpntthkapk`. Giữ `sslmode=require`, đã xác minh TLS từ client đến pooler bằng psql và truy vấn đủ 30 sản phẩm. Không suy luận TLS client từ `pg_stat_ssl` của backend vì pooler có hai chặng kết nối. Cả `.env`, `.env.vercel` riêng tại máy và Secret Production đã cập nhật; không in hoặc commit mật khẩu.
+
+Luồng được kiểm chứng: trình duyệt tải trang chủ → API C++ → dữ liệu Supabase → danh mục và ảnh hiển thị. Script kiểm tra trên domain Production qua **10 nhóm kiểm tra**:
+
+| Ranh giới | Kết quả thực tế |
+| --- | --- |
+| Runtime | `/api/health` HTTP 200, `engine=C++20`, `database=postgresql` |
+| Cấu hình Production | `development=false`, payment/storage configured; `email_configured=false` |
+| Catalog | API trả 30 sản phẩm; API chi tiết trả đúng ID |
+| Frontend | Trang chủ, chi tiết, checkout và admin trả HTML tiếng Việt, deep link hoạt động |
+| Phân quyền | Khách chưa đăng nhập gọi API admin bị HTTP 401 |
+| Đăng nhập | Admin đăng nhập thành công; cookie có Secure, HttpOnly, SameSite=Lax |
+| Phiên PostgreSQL | Request tiếp theo nhận đúng quyền admin và đọc được shop |
+| CSRF | Mutation thiếu CSRF token bị HTTP 403 |
+| Đăng xuất | Phiên bị vô hiệu hóa; đã dọn phiên thử |
+| Trình duyệt | Trang chủ hiển thị 6 danh mục và 12 sản phẩm gợi ý, ảnh tải được; không có lỗi console trong lần kiểm tra |
+
+Bằng chứng tại máy (bị Git bỏ qua): `artifacts/vercel-verification-20261022.json`, `artifacts/vercel-home-20261022.png`, `artifacts/vercel-catalog-20261022.png`. Chưa tạo đơn, gọi tạo link payOS hoặc chuyển tiền trong đợt kiểm tra này.
 
 ## Việc chủ dự án cần chuẩn bị
 

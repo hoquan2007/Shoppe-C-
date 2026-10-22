@@ -8,6 +8,7 @@ Bản cập nhật và hướng dẫn cho người chưa có tài khoản: [báo
 - Bộ kiểm thử API chạy qua SQLite và PostgreSQL cục bộ.
 - Đã kiểm chứng build Linux, kiểm thử SQLite/PostgreSQL và Dockerfile triển khai qua GitHub Actions; xem liên kết bằng chứng trong báo cáo 22/10.
 - Vercel đã kết nối qua connector với team HNQUAN (Hobby). Project `shoppe-c` liên kết repository `hoquan2007/Shoppe-C-`; tên miền được cấp là `https://shoppec.vercel.app`. CLI trên máy vẫn đăng xuất và không được dùng cho lần triển khai này.
+- Production đã được kiểm chứng qua API C++20/PostgreSQL, 30 sản phẩm, đăng nhập admin, cookie/CSRF và trình duyệt. Lỗi database direct IPv6 đã được xử lý bằng Session pooler có TLS. Xem [báo cáo triển khai Vercel](VERCEL_DEPLOYMENT_2026-10-22.md).
 - Supabase và khóa kênh payOS đã được cấu hình; admin, shop demo và 30 sản phẩm đã nằm trong database thật. Email thật vẫn chưa cấu hình. Không coi các integration test là giao dịch ngân hàng thật.
 
 ## 1. Supabase

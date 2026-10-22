@@ -61,7 +61,7 @@ Tham khảo [Shopee Open Platform](https://open.shopee.com/), [hướng dẫn g�
 3. `APP_URL` hiện là `https://shoppec.vercel.app`, đúng **origin HTTPS thật** của project, không có dấu `/` cuối. File riêng `.env.vercel` đã cập nhật giá trị này; kiểm tra production/online đã qua (email vẫn tùy chọn).
 4. Giữ `APP_ENV=production`, `PORT=8080`, `SEED_DEMO=false`. Admin và dữ liệu đã nằm trong Supabase nên không cần đưa bootstrap password lên Vercel.
 5. Deploy và kiểm tra `/api/health` có C++20/PostgreSQL, đăng nhập admin và xem 30 sản phẩm. Kiểm tra lại dữ liệu sau redeploy.
-6. Nếu Vercel không kết nối được host database direct IPv6, lấy **Session pooler URI chính xác** từ Supabase Connect, thay DATABASE_URL và giữ TLS. Kết nối direct hiện đã xác minh được từ máy này; chưa xác minh từ Vercel.
+6. Vercel không kết nối được database direct IPv6. Đã thay cấu hình riêng tại máy và Secret Production bằng **Session pooler URI chính xác do chủ dự án cung cấp**, host `aws-0-ap-southeast-1.pooler.supabase.com`, port `5432`, user `postgres.igjwnwzhyxbpntthkapk`. Giữ `sslmode=require`; client-to-pooler TLS và truy vấn 30 sản phẩm đã được kiểm chứng. Không dùng host pooler đoán từ region hoặc đưa mật khẩu vào tài liệu.
 7. Trong payOS, đăng ký webhook `https://DOMAIN/api/payments/webhook`; bản deploy cần được payOS truy cập mà không đăng nhập Vercel. Bước này xác minh webhook/Checksum Key với provider.
 8. Tạo đơn thử trên website, tự kiểm tra tài khoản nhận/số tiền và tự thanh toán bằng ngân hàng. Đối chiếu website, payOS và ngân hàng; không dùng URL quay về làm bằng chứng đã trả tiền.
 9. Email vẫn chưa có RESEND_API_KEY/EMAIL_FROM. Bổ sung sender/domain được xác minh nếu cần kiểm chứng xác minh email và quên mật khẩu qua email thật.
