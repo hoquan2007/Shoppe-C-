@@ -190,7 +190,9 @@ if (process.env.DATABASE_URL) {
         "--tuples-only",
         "--no-align",
         "--command",
-        "SELECT json_build_object('connected',true,'schema_present',to_regnamespace('shoppe') IS NOT NULL,'tls',(SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()))",
+        "SELECT json_build_object('connected',true,'schema_present',to_regnamespace('shoppe') IS NOT NULL)",
+        "--command",
+        "\\conninfo",
       ],
       {
         env: {
@@ -204,11 +206,16 @@ if (process.env.DATABASE_URL) {
       },
     );
     if (result.status === 0) {
-      const data = JSON.parse(result.stdout.trim());
+      // With a pooler, pg_stat_ssl describes the pooler-to-database leg.
+      // Inspect libpq's client connection instead of treating that leg as TLS
+      // evidence for this client. Require TLS even if the input URI omitted it.
+      const lines = result.stdout.trim().split(/\r?\n/);
+      const data = JSON.parse(lines[0]);
+      const tls = /TLSv[0-9]|SSL connection/i.test(lines.slice(1).join("\n"));
       report(
         "postgresql",
-        data.tls ? "OK" : "FAIL",
-        `Connected; TLS=${!!data.tls}; application schema=${!!data.schema_present}`,
+        tls ? "OK" : "FAIL",
+        `Connected; client TLS=${tls}; application schema=${!!data.schema_present}`,
       );
     } else {
       const error = result.stderr || "";

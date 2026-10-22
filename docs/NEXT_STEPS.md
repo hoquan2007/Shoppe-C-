@@ -1,5 +1,7 @@
 # Kế hoạch giai đoạn tiếp theo — 22/10/2026
 
+> Kế hoạch này được lập trước khi hoàn tất deploy. Trạng thái mới nhất: [audit](AUDIT_2026-10-22.md); thứ tự ưu tiên và điều kiện nghiệm thu sau audit: [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md).
+
 ## 1. Định hướng
 
 Đưa bản hiện có thành bản demo chạy trên Vercel, có thanh toán thật và có thể tái tạo khi chấm bài. Ưu tiên độ đúng của tiền, tồn kho, phân quyền và khả năng triển khai. Giữ nghiệp vụ chính ở C++20; frontend HTML/CSS/JavaScript; PostgreSQL và kho ảnh ở dịch vụ bên ngoài theo phạm vi đã thống nhất.

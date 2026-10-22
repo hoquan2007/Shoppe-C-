@@ -1,5 +1,7 @@
 # Kết quả kiểm chứng ngày 17/10/2026
 
+> Đây là báo cáo lịch sử. Kết quả hiện tại, các ca lỗi và giới hạn đã được cập nhật trong [audit 22/10/2026](AUDIT_2026-10-22.md), [API hiện tại](API_CURRENT.md) và [kế hoạch phát triển](DEVELOPMENT_ROADMAP.md).
+
 ## Đã thực hiện
 
 | Hạng mục                                      | Kết quả                                                                                                   |
