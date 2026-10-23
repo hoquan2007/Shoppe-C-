@@ -34,7 +34,7 @@ Json providerGet(const std::string &path) {
 } // namespace
 Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
     if (limit < 1 || limit > demoCatalogLimit)
-        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 300 sản phẩm demo.");
+        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 600 sản phẩm demo.");
     if (!categories.is_array() || categories.empty() || categories.size() > 200 || !data.is_object() ||
         !data.contains("products") || !data["products"].is_array() || data["products"].size() > 1000)
         throw Error(502, "catalog_provider_invalid", "Danh mục nguồn demo không hợp lệ.");
@@ -103,7 +103,7 @@ Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
     }
     if (selected.empty())
         throw Error(502, "catalog_provider_empty", "Nguồn demo không có sản phẩm phù hợp.");
-    // The provider has fewer than 300 eligible originals. Extend only with explicitly
+    // The provider has fewer eligible originals than the expanded demo catalog. Use explicitly
     // labelled synthetic samples; never present these as extra provider listings.
     const auto originals = selected.size();
     for (std::size_t index = 0; selected.size() < static_cast<std::size_t>(limit); ++index) {
@@ -122,7 +122,7 @@ Json selectDemoCatalog(const Json &categories, const Json &data, int limit) {
 }
 Json fetchDemoCatalog(int limit) {
     if (limit < 1 || limit > demoCatalogLimit)
-        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 300 sản phẩm demo.");
+        throw Error(422, "invalid_catalog_limit", "Chọn từ 1 đến 600 sản phẩm demo.");
     auto categories = providerGet("/products/category-list");
     auto products =
         providerGet("/products?limit=0&select=id,title,description,category,price,thumbnail");

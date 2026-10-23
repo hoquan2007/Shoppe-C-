@@ -1233,14 +1233,14 @@ document.addEventListener("click", async (e) => {
       state.catalogPreviewToken = null;
       dialog(
         "Nạp dữ liệu demo qua API",
-        '<div class="notice">Tối đa 300 sản phẩm demo. Khi nguồn DummyJSON không đủ, hệ thống bổ sung mẫu mô phỏng Shoppe có nhãn riêng và ảnh minh họa từ nguồn. Không phải hàng thật hoặc dữ liệu Shopee. Nếu chọn payOS, thanh toán sử dụng tiền thật. Giá và tồn kho là dữ liệu mô phỏng; không ghi đè hàng đã có.</div>' +
+        '<div class="notice">Tối đa 600 sản phẩm demo. Khi nguồn DummyJSON không đủ, hệ thống bổ sung mẫu mô phỏng Shoppe có nhãn riêng và ảnh minh họa từ nguồn. Không phải hàng thật hoặc dữ liệu Shopee. Nếu chọn payOS, thanh toán sử dụng tiền thật. Giá và tồn kho là dữ liệu mô phỏng; không ghi đè hàng đã có.</div>' +
           '<form data-form="catalog-preview">' +
           field(
             "Số sản phẩm muốn xem trước",
             "limit",
-            300,
+            600,
             "number",
-            'min="1" max="300" required',
+            'min="1" max="600" required',
           ) +
           '<div class="form-error" hidden></div><button class="btn full">Tải bản xem trước</button></form><div id="catalog-preview-result" aria-live="polite"></div>',
       );

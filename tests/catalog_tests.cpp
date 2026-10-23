@@ -22,9 +22,9 @@ template <class F> void rejects(F run, const std::string &code) {
 }
 int main(int argc, char **) {
     if (argc > 1) {
-        auto doc = fetchDemoCatalog(300);
-        check(normalizeDemoCatalog(doc).size() == 300, "live catalog contains 300 labelled demo products");
-        std::cout << "Live C++ catalog fetch/validation passed: 300 demo products, "
+        auto doc = fetchDemoCatalog(demoCatalogLimit);
+        check(normalizeDemoCatalog(doc).size() == demoCatalogLimit, "live catalog reaches configured limit");
+        std::cout << "Live C++ catalog fetch/validation passed: " << demoCatalogLimit << " demo products, "
                   << doc.at("generated_products") << " explicitly generated samples, no keys.\n";
         return 0;
     }
@@ -50,7 +50,7 @@ int main(int argc, char **) {
         categories.push_back(item["category"]);
     auto chosen = selectDemoCatalog(categories, {{"products", doc["products"]}}, 12);
     check(chosen["products"].size() == 12, "bounded category selection");
-    rejects([&] { selectDemoCatalog(categories, {{"products", doc["products"]}}, 301); },
+    rejects([&] { selectDemoCatalog(categories, {{"products", doc["products"]}}, 601); },
             "invalid_catalog_limit");
     auto expanded = selectDemoCatalog(categories, {{"products", doc["products"]}}, 300);
     auto expandedProducts = normalizeDemoCatalog(expanded);
@@ -67,7 +67,8 @@ int main(int argc, char **) {
         }
     }
     check(generated == 270, "retain truthful source attribution");
-    auto oversized = expanded;
+    auto expanded600 = selectDemoCatalog(categories, {{"products", doc["products"]}}, 600);
+    auto oversized = expanded600;
     oversized["products"].push_back(oversized["products"][0]);
     rejects([&] { normalizeDemoCatalog(oversized); }, "invalid_demo_catalog");
     rejects(
@@ -115,6 +116,27 @@ int main(int argc, char **) {
     check(largeReplay["imported"] == 0 && largeReplay["skipped"] == 300, "repeat 300 never duplicates");
     check(r.get("variants", variant.at("id"))["stock"] == 7 &&
           r.get("products", product.at("id"))["name"] == product["name"], "300 product import preserves edits and stock");
+    // Incremental expansion must retain every existing original/generated identity and edit.
+    auto editedGenerated = r.get("products", expandedProducts[299].at("id"));
+    editedGenerated["name"] = "Edited generated sample";
+    r.save("products", editedGenerated);
+    auto editedVariant = r.get("variants", editedGenerated.at("id").get<std::string>() + "-default");
+    editedVariant["stock"] = 3;
+    r.save("variants", editedVariant);
+    auto priorProducts = r.list("products"), priorVariants = r.list("variants");
+    auto preview600 = stageDemoCatalog(r, user, expanded600);
+    check(preview600["existing"] == 300 && preview600["new_products"] == 300,
+          "600 preview adds exactly 300 while retaining previous samples");
+    auto imported600 = commitDemoCatalog(r, user, preview600.at("preview_token"));
+    check(imported600["imported"] == 300 && imported600["skipped"] == 300 &&
+          r.list("products").size() == 600, "incremental import reaches 600");
+    for (const auto &p : priorProducts)
+        check(r.get("products", p.at("id")) == p, "preserve every previous product");
+    for (const auto &v : priorVariants)
+        check(r.get("variants", v.at("id")) == v, "preserve every previous variant and stock");
+    auto repeat600 = stageDemoCatalog(r, user, expanded600);
+    auto skipped600 = commitDemoCatalog(r, user, repeat600.at("preview_token"));
+    check(skipped600["imported"] == 0 && skipped600["skipped"] == 600, "repeat 600 never duplicates or restocks");
     tx->rollback();
     std::cout
         << "Catalog validation, scoped preview, expiry, replay, price and stock preservation passed.\n";
