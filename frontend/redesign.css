@@ -1935,6 +1935,9 @@ dialog::backdrop {
   margin-top: 24px;
   min-width: 0;
 }
+.google-auth [hidden] {
+  display: none !important;
+}
 .google-divider {
   display: flex;
   align-items: center;
