@@ -130,3 +130,13 @@ Biên bản chi tiết riêng tại máy: `artifacts/catalog-api-production-2026
 - Bản cuối `d266057ca7116188917dc7dd109006d8332e42f4` đã READY tại [shoppec.vercel.app](https://shoppec.vercel.app/search), deployment `dpl_7LXB86MM2mE7b4xwaD7y59bD8Dri`, vùng `sin1`. [CI đúng commit cuối](https://github.com/hoquan2007/Shoppe-C-/actions/runs/39820181707) đạt.
 - Trình duyệt Production xác nhận: 300 sản phẩm/25 trang; trang 25 có 12 thẻ; tìm “Mẫu demo” trả 123 sản phẩm có nhãn. Bản CSS cuối cho các nút phân trang xuống dòng. Kiểm tra ở viewport 390px: document width 375px (phần còn lại là thanh cuộn), không tràn ngang, 12 thẻ/trang và 25 liên kết phân trang; không có lỗi JavaScript được ghi nhận. Ảnh tại máy: `artifacts/catalog-300-mobile-20261023.png`.
 - Không tìm thấy log error/fatal của deployment cuối trong cửa sổ 10 phút kiểm tra. Key và cấu hình payOS được giữ nguyên; không cần thêm credential cho catalog 300.
+
+## Thêm 300 sản phẩm nữa — tổng 600 (23/10/2026)
+
+- Theo yêu cầu tiếp theo của chủ dự án, nâng giới hạn xem trước/nhập lên **600**; giữ cách tạo ID ổn định và tách riêng nguồn mô phỏng. Không có API Shopee hoặc key mới.
+- C++ CTest 4/4, HTTP SQLite 16/16, frontend build và quét key đạt. Kiểm thử mới đối chiếu toàn bộ record sản phẩm/biến thể sau bước 300 → 600, gồm mẫu đã được sửa tên và tồn kho; nhập lại 600 bỏ qua đủ 600 ID.
+- [CI Linux đúng commit a5952bd](https://github.com/hoquan2007/Shoppe-C-/actions/runs/39902514617) đạt trên SQLite/PostgreSQL và container. Production READY: `a5952bda0326ea325aa6a82302cfcd5659229cf6`, deployment `dpl_BmEpC3QxSAouvuGJirweEqdjRCFR`, vùng `sin1`.
+- Kiểm tra Production lúc **11:55 ngày 23/10/2026 giờ Việt Nam**: trước **300**, nhập mới **300**, bỏ qua **300**, sau và catalog công khai **600**. Nội dung/giá/tồn kho của 300 sản phẩm trước đó giữ nguyên.
+- Tổng catalog gồm **177 listing nguồn DummyJSON và 423 mẫu mô phỏng Shoppe**; 300 sản phẩm thêm trong lượt này đều là mẫu mô phỏng có nhãn, có thể dùng lại ảnh minh họa của nguồn. Không gọi đây là 600 listing gốc khác nhau từ API bên ngoài.
+- Preview 600 và commit thành công; thiếu CSRF trả 403, dùng lại token trả 409. Thanh toán vẫn `payos`; không tạo đơn hoặc chuyển tiền trong lượt này. Biên bản riêng không chứa credential: `artifacts/catalog-600-production-20261023.json`.
+- Trình duyệt xác nhận 600 sản phẩm, 50 trang, 12 thẻ/trang; tại viewport 1280px, document width 1265px nên không tràn ngang. Không có lỗi JavaScript được ghi nhận hoặc log error/fatal trong cửa sổ 10 phút kiểm tra. Ảnh tại máy: `artifacts/catalog-600-production-20261023.png`.
