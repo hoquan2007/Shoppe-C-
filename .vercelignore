@@ -1,0 +1,14 @@
+.git/
+.cache/
+.env
+.env.*
+.vercel/
+node_modules/
+dist/
+build/
+build-pg/
+artifacts/
+test-results/
+*.db
+*.db-*
+*.log

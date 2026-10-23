@@ -13,6 +13,7 @@ const fields = [
   "CRON_SECRET",
   "RESEND_API_KEY",
   "EMAIL_FROM",
+  "GOOGLE_CLIENT_ID",
 ];
 const lines = [
   "# PRIVATE: import these server variables into Vercel. Never commit this file.",

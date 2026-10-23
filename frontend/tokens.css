@@ -1,7 +1,28 @@
 :root {
   --orange: #ed603b;
-  --ink: #3d4935;
-  --muted: #949d89;
-  --bg: #fafaf6;
-  --line: #e9eadf;
+  --font-body: "Segoe UI", Arial, sans-serif;
+  --action: #c2410c;
+  --action-hover: #9a3412;
+  --accent-soft: #fff0e8;
+  --ink: #202124;
+  --muted: #60636b;
+  --bg: #f6f7f8;
+  --surface: #ffffff;
+  --surface-alt: #f0f1f3;
+  --hero-ground: #f4eee8;
+  --line: #e4e5e9;
+  --control-border: #c7cad0;
+  --positive: #166534;
+  --positive-bg: #ecfdf3;
+  --negative: #b42318;
+  --negative-bg: #fff0ee;
+  --info: #1d4ed8;
+  --info-bg: #eff6ff;
+  --warning: #854d0e;
+  --warning-bg: #fefce8;
+  --focus: #202124;
+  --float-shadow: #2021241a;
+  --overlay: #20212480;
+  --radius: 8px;
+  --duration: 160ms;
 }

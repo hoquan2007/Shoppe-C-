@@ -4,6 +4,7 @@ The CMake build downloads cpp-httplib 0.61.0 and nlohmann/json 3.12.0 from their
 
 - cpp-httplib: Copyright (c) 2026 Yuji Hirose. https://github.com/yhirose/cpp-httplib
 - JSON for Modern C++: Copyright (c) 2013–2025 Niels Lohmann. https://github.com/nlohmann/json
+- jwt-cpp 0.7.1 (pinned archive, MIT): Copyright (c) 2018 Dominik Thalhammer. https://github.com/Thalhammer/jwt-cpp
 
 ## MIT License
 

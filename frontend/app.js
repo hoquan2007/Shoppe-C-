@@ -1,4 +1,5 @@
 import "./style.css";
+import "./redesign.css";
 
 const state = {
   user: null,
@@ -79,7 +80,7 @@ const paths = {
 const icon = (name, size = 20) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.box}</svg>`;
 const logo = () =>
-  `<a class="brand" href="/" aria-label="Shoppe trang chủ">${icon("bag", 38)}<div>shoppe<small>NIỀM VUI MỖI NGÀY</small></div></a>`;
+  `<a class="brand" href="/" aria-label="Shoppe trang chủ">${icon("bag", 38)}<div>shoppe<small>Niềm vui mỗi ngày</small></div></a>`;
 const categoryIcons = {
   "Thời trang": "shirt",
   "Điện tử": "device",
@@ -149,11 +150,111 @@ async function api(path, options = {}) {
   if (!response.ok || data.error) {
     const e = new Error(data.error?.message || "Không thể hoàn tất yêu cầu.");
     e.status = response.status;
+    e.code = data.error?.code;
     throw e;
   }
   return data;
 }
 const post = (path, body = {}) => api(path, { method: "POST", body });
+let googleScript;
+function googleSignInArea(link = false) {
+  if (!state.meta.google_configured) return "";
+  return `<div class="google-auth"><p class="google-divider">${link ? "Liên kết đăng nhập Google" : "Hoặc tiếp tục với"}</p>${link ? '<p class="muted small-text">Chọn Google cùng email với tài khoản này.</p>' : ""}<div id="google-signin" aria-label="Đăng nhập bằng Google"></div><p id="google-status" class="muted small-text" role="status">Đang tải Google…</p><p id="google-error" class="form-error" role="alert" hidden></p><button type="button" class="btn outline small" id="google-retry" hidden>Thử lại Google</button></div>`;
+}
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (!googleScript)
+    googleScript = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client?hl=vi";
+      script.async = true;
+      const timer = setTimeout(() => fail(), 15000);
+      const fail = () => {
+        clearTimeout(timer);
+        script.remove();
+        googleScript = null;
+        reject(
+          new Error(
+            "Chưa tải được Google. Bạn có thể thử lại hoặc đăng nhập bằng email.",
+          ),
+        );
+      };
+      script.onload = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      script.onerror = fail;
+      document.head.append(script);
+    });
+  return googleScript;
+}
+async function mountGoogleSignIn(version) {
+  const container = $("#google-signin");
+  if (!container) return;
+  const status = $("#google-status"),
+    error = $("#google-error"),
+    retry = $("#google-retry");
+  const current = () => version === state.route && container.isConnected;
+  const failed = (e) => {
+    if (!current()) return;
+    container.replaceChildren();
+    status.hidden = true;
+    error.textContent = e.message;
+    error.hidden = false;
+    retry.hidden = false;
+  };
+  retry.onclick = () => {
+    retry.hidden = true;
+    error.hidden = true;
+    status.hidden = false;
+    status.textContent = "Đang tải Google…";
+    mountGoogleSignIn(version);
+  };
+  try {
+    await loadGoogleScript();
+    if (!current()) return;
+    const challenge = await post("/auth/google/challenge");
+    if (!current()) return;
+    window.google.accounts.id.initialize({
+      client_id: challenge.client_id,
+      nonce: challenge.nonce,
+      auto_select: false,
+      callback: async ({ credential }) => {
+        if (!current()) return;
+        status.textContent = "Đang xác minh Google…";
+        status.hidden = false;
+        try {
+          const result = await post("/auth/google", { credential });
+          Object.assign(state, result);
+          await refreshCart();
+          if (!current()) return;
+          let next =
+            new URLSearchParams(location.search).get("next") ||
+            (location.pathname === "/account" ? "/account" : "/");
+          if (!next.startsWith("/") || next.startsWith("//")) next = "/";
+          toast("Đăng nhập Google thành công.");
+          go(next);
+        } catch (e) {
+          failed(e);
+        }
+      },
+    });
+    window.google.accounts.id.renderButton(container, {
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "rectangular",
+      locale: "vi",
+      width: Math.min(
+        360,
+        Math.max(200, Math.floor(container.getBoundingClientRect().width)),
+      ),
+    });
+    status.hidden = true;
+  } catch (e) {
+    failed(e);
+  }
+}
 function requireUser() {
   if (!state.user) {
     go(
@@ -168,21 +269,30 @@ async function refreshUser() {
   Object.assign(state, me);
 }
 function header() {
-  return `<div class="topbar"><div class="wrap"><span class="left-top"><span class="tiny-dot"></span>Mỗi món đồ, một niềm vui mới.</span><div class="topbar-links"><a href="/seller">Kênh người bán</a><a href="/notifications">Thông báo</a><span>Tiếng Việt · VNĐ</span></div></div></div><header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search">${icon("search", 17)}<input name="q" aria-label="Tìm sản phẩm" placeholder="Bạn đang tìm điều gì hôm nay?" value="${esc(new URLSearchParams(location.search).get("q") || "")}"><button aria-label="Tìm kiếm">${icon("search", 18)}</button></form><div class="head-actions"><a class="head-icon" href="/wishlist" aria-label="Yêu thích">${icon("heart")}<span>Yêu thích</span></a><a class="head-icon" href="${state.user ? "/account" : "/login"}" aria-label="Tài khoản">${icon("user")}<span>${esc(state.user?.name.split(" ").slice(-2).join(" ") || "Đăng nhập")}</span></a><a class="head-icon" href="/cart" aria-label="Giỏ hàng">${icon("cart")}<b class="count">${state.cart.reduce((n, i) => n + i.quantity, 0)}</b></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính"><a href="/search" class="all-categories">${icon("grid", 14)} Danh mục sản phẩm</a><a href="/" class="${location.pathname === "/" ? "active" : ""}">Khám phá</a><a href="/search?sort=new">Hàng mới về</a><a href="/vouchers">Ưu đãi hôm nay</a><a href="/orders">Đơn mua của tôi</a><a href="/chat">Tin nhắn</a>${state.user?.role === "admin" ? '<a href="/admin">Quản trị</a>' : ""}<a class="end-link" href="/vouchers">${icon("ticket", 14)} Ưu đãi chào bạn mới</a></nav></header>`;
+  const cartCount = state.cart.reduce((n, i) => n + i.quantity, 0);
+  return `<div class="topbar"><div class="wrap"><span class="left-top">Mỗi món đồ, một niềm vui mới.</span><div class="topbar-links"><a href="/seller">Kênh người bán</a><a href="/notifications">Thông báo</a><span>Tiếng Việt / VNĐ</span></div></div></div><header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search"><input name="q" aria-label="Tìm sản phẩm" placeholder="Tìm món đồ bạn yêu thích" value="${esc(new URLSearchParams(location.search).get("q") || "")}"><button aria-label="Tìm kiếm">${icon("search", 21)}</button></form><div class="head-actions"><a class="head-icon" href="/wishlist" aria-label="Yêu thích">${icon("heart", 22)}<span>Yêu thích</span></a><a class="head-icon" href="${state.user ? "/account" : "/login"}" aria-label="Tài khoản">${icon("user", 22)}<span>${esc(state.user?.name.split(" ").slice(-2).join(" ") || "Đăng nhập")}</span></a><a class="head-icon" href="/cart" aria-label="Giỏ hàng">${icon("cart", 24)}<b class="count">${cartCount}</b><span>Giỏ hàng</span></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính"><a href="/search" class="all-categories">${icon("grid", 17)} Danh mục sản phẩm</a><a href="/" class="${location.pathname === "/" ? "active" : ""}">Khám phá</a><a href="/search?sort=new">Hàng mới về</a><a href="/vouchers">Ưu đãi hôm nay</a><a href="/orders">Đơn mua của tôi</a><a href="/chat">Tin nhắn</a>${state.user?.role === "admin" ? '<a href="/admin">Quản trị</a>' : ""}<a class="end-link" href="/vouchers">Ưu đãi chào bạn mới</a></nav></header>`;
 }
 function footer() {
-  return `<footer class="footer"><div class="wrap"><div class="footer-grid"><div>${logo()}<p>Kết nối những shop bạn tin với những món đồ bạn yêu. Mua sắm giản đơn, mỗi ngày thêm vui.</p><div class="row muted">${icon("shield", 18)}<span class="small-text">Mua sắm với sự an tâm</span></div></div><div><h4>KHÁM PHÁ SHOPPE</h4><a class="footer-link" href="/search">Tất cả sản phẩm</a><a class="footer-link" href="/vouchers">Mã giảm giá</a><a class="footer-link" href="/seller">Trở thành người bán</a></div><div><h4>ĐỒNG HÀNH CÙNG BẠN</h4><a class="footer-link" href="/orders">Theo dõi đơn hàng</a><a class="footer-link" href="/chat">Nhắn tin với shop</a><a class="footer-link" href="/account">Tài khoản của bạn</a></div><div><h4>THANH TOÁN</h4><div class="row"><span class="badge green">payOS</span><span class="badge gray">COD</span></div><p>Thanh toán chuyển khoản hoặc nhận hàng rồi thanh toán.</p></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Shoppe · Một dự án học tập về thương mại điện tử.</span><span>Được tạo với sự chỉn chu, dành cho mỗi ngày của bạn.</span></div></div></footer>`;
+  return `<footer class="footer"><div class="wrap"><div class="footer-grid"><div>${logo()}<p>Kết nối những shop bạn tin với những món đồ bạn yêu. Mua sắm giản đơn, mỗi ngày thêm vui.</p><div class="row muted">${icon("shield", 18)}<span class="small-text">Mua sắm với sự an tâm</span></div></div><div><h4>Khám phá Shoppe</h4><a class="footer-link" href="/search">Tất cả sản phẩm</a><a class="footer-link" href="/vouchers">Mã giảm giá</a><a class="footer-link" href="/seller">Trở thành người bán</a></div><div><h4>Đồng hành cùng bạn</h4><a class="footer-link" href="/orders">Theo dõi đơn hàng</a><a class="footer-link" href="/chat">Nhắn tin với shop</a><a class="footer-link" href="/account">Tài khoản của bạn</a></div><div><h4>Thanh toán</h4><div class="row"><span class="badge green">payOS</span><span class="badge gray">COD</span></div><p>Thanh toán chuyển khoản hoặc nhận hàng rồi thanh toán.</p></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Shoppe. Một dự án học tập về thương mại điện tử.</span><span>Được tạo với sự chỉn chu, dành cho mỗi ngày của bạn.</span></div></div></footer>`;
 }
 function shell() {
+  const destinations = [
+    ["/", "home", "Trang chủ"],
+    ["/search", "grid", "Khám phá"],
+    ["/cart", "cart", "Giỏ hàng"],
+    ["/orders", "box", "Đơn mua"],
+    ["/account", "user", "Tài khoản"],
+  ];
   $("#app").innerHTML =
     header() +
-    '<main class="main"><div class="wrap" id="content"><div class="loading"><span class="spinner"></span></div></div></main>' +
-    footer();
+    '<main class="main"><div class="wrap" id="content"><div class="loading" role="status"><span class="spinner"></span><span>Đang tải nội dung…</span></div></div></main>' +
+    footer() +
+    `<nav class="mobile-nav" aria-label="Điều hướng điện thoại">${destinations.map(([href, i, label]) => `<a href="${href}" ${location.pathname === href ? 'aria-current="page"' : ""}>${icon(i, 21)}<span>${label}</span></a>`).join("")}</nav>`;
 }
 function card(p) {
   const variants = p.variants.filter((v) => v.active);
   const price = Math.min(...variants.map((v) => v.price));
-  return `<article class="product-card"><a href="/product/${esc(p.id)}" class="product-image"><span class="product-tag">${esc(p.category)}</span><img src="${image(p.image)}" alt="${esc(p.name)}" loading="lazy" width="400" height="400"></a><button class="favorite" data-action="favorite" data-id="${esc(p.id)}" aria-label="Yêu thích ${esc(p.name)}">${icon("heart", 15)}</button><div class="product-info"><a class="product-shop" href="/shop/${esc(p.shop_id)}">${esc(p.shop?.name || "")}</a><a class="product-name" href="/product/${esc(p.id)}">${esc(p.name)}</a><div class="product-bottom"><span class="price">${Number.isFinite(price) ? money(price) : "Ngừng bán"}</span><span class="rating"><b>★</b> ${p.review_count ? p.rating.toFixed(1) : "Mới"}</span></div><div class="product-meta"><span>${icon("pin", 10)}${esc(p.shop?.region || "Việt Nam")}</span><span>${variants.reduce((n, v) => n + v.stock, 0) ? "Sẵn hàng" : "Hết hàng"}</span></div></div></article>`;
+  return `<article class="product-card"><a href="/product/${esc(p.id)}" class="product-image"><span class="product-tag">${esc(p.category)}</span><img src="${image(p.image)}" alt="${esc(p.name)}" loading="lazy" decoding="async" width="400" height="400"></a><button class="favorite" data-action="favorite" data-id="${esc(p.id)}" aria-label="Yêu thích ${esc(p.name)}">${icon("heart", 19)}</button><div class="product-info"><a class="product-shop" href="/shop/${esc(p.shop_id)}">${esc(p.shop?.name || "")}</a><a class="product-name" href="/product/${esc(p.id)}">${esc(p.name)}</a><div class="product-bottom"><span class="price">${Number.isFinite(price) ? money(price) : "Ngừng bán"}</span><span class="rating">${p.review_count ? "★ " + p.rating.toFixed(1) : "Mới"}</span></div><div class="product-meta"><span>${esc(p.shop?.region || "Việt Nam")}</span><span>${variants.reduce((n, v) => n + v.stock, 0) ? "Sẵn hàng" : "Hết hàng"}</span></div>${p.is_demo ? '<span class="demo-label">Sản phẩm minh họa</span>' : ""}</div></article>`;
 }
 const cards = (products, home = false) =>
   `<div class="products ${home ? "home-products" : ""}">${products.map(card).join("")}</div>`;
@@ -193,12 +303,31 @@ async function home() {
   ]);
   state.products = products;
   const categories = state.meta.categories || [];
+  const original = products.filter((p) => !p.demo_series);
+  const pick = (category) =>
+    original.find(
+      (p) => p.category === category && p.image?.startsWith("https://"),
+    ) ||
+    original.find((p) => p.category === category) ||
+    products[0];
+  const featured = pick("Điện tử"),
+    homeProduct = pick("Nhà cửa & Đời sống"),
+    accessory = pick("Phụ kiện");
   const heroTitle =
-    meta.settings?.banner_title === "Một chút mới. Thêm nhiều vui." ||
-    !meta.settings?.banner_title
-      ? "Một chút mới.<br>Thêm <em>nhiều vui.</em>"
-      : esc(meta.settings.banner_title);
-  return `<section class="hero"><div class="hero-main"><div class="hero-copy"><span class="eyebrow">CHỌN ĐIỀU BẠN YÊU</span><h1>${heroTitle}</h1><p>${esc(meta.settings?.banner_subtitle || "Khám phá những món đồ bạn yêu, từ những shop bạn tin.")}</p><a class="btn" href="/search">Khám phá ngay ${icon("arrow", 15)}</a></div><img class="hero-art" src="/assets/hero.svg" alt="Bộ sưu tập tai nghe, túi và bình giữ nhiệt"><span class="hero-note">LỰA CHỌN NHỎ · CẢM HỨNG LỚN</span></div><div class="hero-side"><div class="promo promo-peach"><small>CHĂM CHÚT MỖI NGÀY</small><h3>Đồ xinh cho<br>góc nhỏ của bạn.</h3><a href="/search?category=${encodeURIComponent("Nhà cửa & Đời sống")}">Tìm cảm hứng ${icon("arrow", 12)}</a><img src="/assets/product-lamp.svg" alt="Đèn bàn phong cách tối giản"></div><div class="promo promo-lilac"><small>KẾT NỐI NIỀM VUI</small><h3>Phụ kiện nhỏ.<br>Trải nghiệm lớn.</h3><a href="/search?category=${encodeURIComponent("Điện tử")}">Xem bộ sưu tập ${icon("arrow", 12)}</a><img src="/assets/product-headphones.svg" alt="Tai nghe không dây"></div></div></section><div class="benefits">${[
+    meta.settings?.banner_title || "Một chút mới. Thêm nhiều vui.";
+  const featureImage = featured
+    ? `<a class="market-object" href="/product/${esc(featured.id)}"><img src="${image(featured.image)}" alt="${esc(featured.name)}" width="520" height="520" fetchpriority="high"><span>${esc(featured.name)}</span></a>`
+    : "";
+  const promo = (product, category, heading, text) =>
+    `<a class="market-promo" href="/search?category=${encodeURIComponent(category)}"><div><h2>${heading}</h2><span>${text}</span></div>${product ? `<img src="${image(product.image)}" alt="${esc(product.name)}" width="200" height="200">` : ""}</a>`;
+  return `<section class="market-hero"><div class="market-lead"><div class="market-copy"><h1>${esc(heroTitle)}</h1><p>${esc(meta.settings?.banner_subtitle || "Khám phá những món đồ bạn yêu, từ những shop bạn tin.")}</p><a class="btn" href="/search">Khám phá ngay</a></div>${featureImage}</div><div class="market-side">${promo(homeProduct, "Nhà cửa & Đời sống", "Đồ xinh cho góc nhỏ của bạn.", "Tìm cảm hứng")}${promo(accessory, "Phụ kiện", "Phụ kiện nhỏ. Trải nghiệm lớn.", "Xem bộ sưu tập")}</div></section><section class="category-section"><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục</a></div><div class="market-categories">${categories
+    .map((c) => {
+      const product = pick(c);
+      return `<a class="market-category" href="/search?category=${encodeURIComponent(c)}">${product ? `<img src="${image(product.image)}" alt="" width="80" height="80" loading="lazy">` : icon(categoryIcons[c] || "grid", 24)}<span>${esc(c)}</span></a>`;
+    })
+    .join(
+      "",
+    )}</div></section><section class="home-catalog"><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="catalog-more"><a class="btn outline" href="/search">Khám phá thêm</a></div></section><div class="benefits">${[
     ["truck", "Giao hàng tiện lợi", "Theo dõi từng bước hành trình"],
     ["shield", "Thanh toán an tâm", "payOS & thanh toán khi nhận hàng"],
     ["return", "Đổi trả dễ dàng", "Yêu cầu trả hàng trong 7 ngày"],
@@ -206,21 +335,20 @@ async function home() {
   ]
     .map(
       ([i, h, p]) =>
-        `<div class="benefit">${icon(i, 24)}<div><strong>${h}</strong><small>${p}</small></div></div>`,
+        `<div class="benefit">${icon(i, 23)}<div><strong>${h}</strong><small>${p}</small></div></div>`,
     )
     .join(
       "",
-    )}</div><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục ${icon("arrow", 15)}</a></div><div class="categories">${categories.map((c) => `<a class="category" href="/search?category=${encodeURIComponent(c)}"><div class="category-icon">${icon(categoryIcons[c] || "grid", 21)}</div><span>${esc(c)}</span></a>`).join("")}</div><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="row" style="justify-content:center;margin:26px"><a class="btn outline" href="/search">Khám phá thêm ${icon("arrow", 15)}</a></div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng ${icon("arrow", 15)}</a></section>`;
+    )}</div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng</a></section>`;
 }
 async function searchPage() {
   const params = new URLSearchParams(location.search);
   const { products } = await api("/products?" + params);
-  let list = products;
   const min = Number(params.get("min") || 0),
     max = Number(params.get("max") || Infinity);
   const price = (p) =>
     Math.min(...p.variants.filter((v) => v.active).map((v) => v.price));
-  list = list.filter((p) => price(p) >= min && price(p) <= max);
+  const list = products.filter((p) => price(p) >= min && price(p) <= max);
   const sort = params.get("sort") || "new";
   list.sort(
     sort === "price"
@@ -229,8 +357,29 @@ async function searchPage() {
         ? (a, b) => price(b) - price(a)
         : (a, b) => b.created_at - a.created_at,
   );
-  const page = Math.max(1, Number(params.get("page") || 1)),
-    pages = Math.ceil(list.length / 12);
+  const pages = Math.ceil(list.length / 12),
+    page = Math.max(
+      1,
+      Math.min(pages || 1, Math.floor(Number(params.get("page")) || 1)),
+    );
+  const link = (i) => {
+    const q = new URLSearchParams(params);
+    q.set("page", i);
+    return "/search?" + esc(q);
+  };
+  const visible = [
+    ...new Set([
+      1,
+      ...Array.from({ length: 5 }, (_, i) => page - 2 + i),
+      pages,
+    ]),
+  ]
+    .filter((i) => i >= 1 && i <= pages)
+    .sort((a, b) => a - b);
+  const paging =
+    pages > 1
+      ? `<nav class="pagination" aria-label="Phân trang sản phẩm">${page > 1 ? `<a href="${link(page - 1)}" aria-label="Trang trước">${icon("arrow", 16)}</a>` : ""}${visible.map((i, n) => `${n && i > visible[n - 1] + 1 ? '<span class="page-gap" aria-hidden="true">…</span>' : ""}<a class="${page === i ? "active" : ""}" ${page === i ? 'aria-current="page"' : ""} href="${link(i)}">${i}</a>`).join("")}${page < pages ? `<a href="${link(page + 1)}" aria-label="Trang sau">${icon("arrow", 16)}</a>` : ""}<label class="page-picker"><span>Đến trang</span><select id="catalog-page" aria-label="Chọn trang">${Array.from({ length: pages }, (_, i) => `<option value="${i + 1}" ${page === i + 1 ? "selected" : ""}>${i + 1}</option>`).join("")}</select></label></nav>`
+      : "";
   return (
     title(
       params.get("q")
@@ -238,7 +387,7 @@ async function searchPage() {
         : params.get("category") || "Khám phá sản phẩm",
       `${list.length} lựa chọn đang chờ bạn khám phá`,
     ) +
-    `<div class="catalog-layout"><aside class="filter-panel"><h3>${icon("grid", 16)} Danh mục</h3><a class="category-link" href="/search">Tất cả sản phẩm</a>${state.meta.categories.map((c) => `<a class="category-link ${params.get("category") === c ? "active" : ""}" href="/search?category=${encodeURIComponent(c)}">${esc(c)}</a>`).join("")}<form data-form="filter-price"><input type="hidden" name="category" value="${esc(params.get("category") || "")}"><input type="hidden" name="q" value="${esc(params.get("q") || "")}"><label class="field"><span>Giá từ</span><input type="number" name="min" min="0" placeholder="0" value="${esc(params.get("min") || "")}"></label><label class="field"><span>Đến</span><input type="number" name="max" min="0" placeholder="Không giới hạn" value="${esc(params.get("max") || "")}"></label><button class="btn full">Áp dụng</button></form></aside><div><div class="row between" style="margin-bottom:20px"><span class="small-text muted">Chọn điều bạn yêu</span><select class="sort-select" id="sort-products" aria-label="Sắp xếp">${[
+    `<div class="catalog-layout"><aside class="filter-panel"><button class="filter-toggle" type="button" data-action="toggle-filters" aria-expanded="false" aria-controls="catalog-filters">${icon("settings", 18)} Bộ lọc sản phẩm</button><div class="filter-content" id="catalog-filters"><h3>Danh mục</h3><a class="category-link" href="/search">Tất cả sản phẩm</a>${state.meta.categories.map((c) => `<a class="category-link ${params.get("category") === c ? "active" : ""}" href="/search?category=${encodeURIComponent(c)}">${esc(c)}</a>`).join("")}<form data-form="filter-price"><input type="hidden" name="category" value="${esc(params.get("category") || "")}"><input type="hidden" name="q" value="${esc(params.get("q") || "")}"><label class="field"><span>Giá từ</span><input type="number" name="min" min="0" placeholder="0" value="${esc(params.get("min") || "")}"></label><label class="field"><span>Đến</span><input type="number" name="max" min="0" placeholder="Không giới hạn" value="${esc(params.get("max") || "")}"></label><button class="btn full">Áp dụng</button></form></div></aside><div class="catalog-results"><div class="catalog-toolbar"><span>${list.length ? `${(page - 1) * 12 + 1}–${Math.min(page * 12, list.length)} / ${list.length} sản phẩm` : "Chọn điều bạn yêu"}</span><select class="sort-select" id="sort-products" aria-label="Sắp xếp">${[
       ["new", "Mới nhất"],
       ["price", "Giá thấp đến cao"],
       ["price-desc", "Giá cao đến thấp"],
@@ -249,14 +398,7 @@ async function searchPage() {
       )
       .join(
         "",
-      )}</select></div>${list.length ? cards(list.slice((page - 1) * 12, page * 12)) : empty("Chưa tìm thấy sản phẩm", "Bạn thử từ khóa hoặc khoảng giá khác nhé.")}<div class="pagination">${Array.from(
-      { length: pages },
-      (_, i) => {
-        const q = new URLSearchParams(params);
-        q.set("page", i + 1);
-        return `<a class="${page === i + 1 ? "active" : ""}" href="/search?${esc(q)}">${i + 1}</a>`;
-      },
-    ).join("")}</div></div></div>`
+      )}</select></div>${list.length ? cards(list.slice((page - 1) * 12, page * 12)) : empty("Chưa tìm thấy sản phẩm", "Bạn thử từ khóa hoặc khoảng giá khác nhé.")}${paging}</div></div>`
   );
 }
 async function productPage(id) {
@@ -264,25 +406,26 @@ async function productPage(id) {
   state.product = p;
   state.variant = p.variants.find((v) => v.active);
   const v = state.variant;
-  return `<div class="breadcrumbs"><a href="/">Trang chủ</a> / <a href="/search?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a> / ${esc(p.name)}</div><div class="detail-grid"><div class="detail-photo"><img src="${image(p.image)}" alt="${esc(p.name)}"></div><div class="detail-info"><span class="eyebrow">${esc(p.category)}</span><h1>${esc(p.name)}</h1><div class="small-text muted"><span style="color:#bea06c">★</span> ${p.review_count ? p.rating.toFixed(1) : "Chưa có đánh giá"} <span style="margin:0 12px">|</span> ${p.review_count} đánh giá</div><div class="detail-price" id="variant-price">${money(v?.price)}</div><div class="small-text muted">Phân loại</div><div class="variants">${p.variants
+  return `<div class="breadcrumbs"><a href="/">Trang chủ</a><span>/</span><a href="/search?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a><span>/</span><span>${esc(p.name)}</span></div><div class="detail-grid"><div class="detail-photo"><img src="${image(p.image)}" alt="${esc(p.name)}" width="640" height="640" fetchpriority="high">${p.is_demo ? '<span class="detail-demo">Sản phẩm minh họa cho bài tập</span>' : ""}</div><div class="detail-info"><h1>${esc(p.name)}</h1><div class="detail-rating">${p.review_count ? `★ ${p.rating.toFixed(1)}` : "Chưa có đánh giá"}<span>${p.review_count} đánh giá</span></div><div class="detail-price" id="variant-price">${money(v?.price)}</div><h2 class="variant-title">Phân loại</h2><div class="variants">${p.variants
     .filter((v) => v.active)
     .map(
       (item, i) =>
-        `<button class="variant ${i === 0 ? "active" : ""}" data-action="variant" data-id="${esc(item.id)}">${esc(item.name)}</button>`,
+        `<button class="variant ${i === 0 ? "active" : ""}" data-action="variant" data-id="${esc(item.id)}" aria-pressed="${i === 0}">${esc(item.name)}</button>`,
     )
     .join(
       "",
-    )}</div><div class="row"><div class="quantity"><button data-action="detail-qty" data-value="-1" aria-label="Giảm số lượng">−</button><input id="product-qty" type="number" min="1" max="99" value="1" aria-label="Số lượng"><button data-action="detail-qty" data-value="1" aria-label="Tăng số lượng">+</button></div><span class="small-text muted" id="variant-stock">${v?.stock || 0} sản phẩm có sẵn</span></div><div class="detail-actions"><button class="btn outline" data-action="add-cart">${icon("cart", 18)} Thêm vào giỏ</button><button class="btn" data-action="buy-now">Mua ngay ${icon("arrow", 16)}</button></div><div class="detail-benefits"><span>${icon("shield", 14)} Thanh toán an tâm</span><span>${icon("return", 14)} Trả hàng trong 7 ngày</span></div><div class="shop-strip"><div class="avatar">${esc(p.shop.name[0])}</div><div><strong>${esc(p.shop.name)}</strong><p class="small-text muted">${esc(p.shop.region)}</p></div><a class="btn secondary small" href="/shop/${esc(p.shop_id)}">Xem shop</a><button class="icon-btn" data-action="start-chat" data-id="${esc(p.shop_id)}" aria-label="Chat với shop">${icon("chat")}</button></div></div></div><section class="panel"><h3>Thông tin sản phẩm</h3><p class="description">${esc(p.description)}</p></section><section class="panel" style="margin-top:20px"><h3>Đánh giá từ người mua (${p.review_count})</h3>${
+    )}</div><div class="detail-quantity"><div class="quantity"><button data-action="detail-qty" data-value="-1" aria-label="Giảm số lượng">−</button><input id="product-qty" type="number" min="1" max="99" value="1" aria-label="Số lượng"><button data-action="detail-qty" data-value="1" aria-label="Tăng số lượng">+</button></div><span id="variant-stock">${v?.stock || 0} sản phẩm có sẵn</span></div><div class="detail-actions"><button class="btn outline" data-action="add-cart" ${!v?.stock ? "disabled" : ""}>${icon("cart", 19)} Thêm vào giỏ</button><button class="btn" data-action="buy-now" ${!v?.stock ? "disabled" : ""}>Mua ngay</button></div><div class="detail-benefits"><span>${icon("shield", 17)} Thanh toán an tâm</span><span>${icon("return", 17)} Trả hàng trong 7 ngày</span></div><div class="shop-strip"><div class="avatar">${esc(p.shop.name[0])}</div><div><strong>${esc(p.shop.name)}</strong><p class="small-text muted">${esc(p.shop.region)}</p></div><a class="btn secondary small" href="/shop/${esc(p.shop_id)}">Xem shop</a><button class="icon-btn" data-action="start-chat" data-id="${esc(p.shop_id)}" aria-label="Chat với shop">${icon("chat")}</button></div></div></div><section class="panel product-description"><h2>Thông tin sản phẩm</h2><p class="description">${esc(p.description)}</p></section><section class="panel product-reviews"><h2>Đánh giá từ người mua (${p.review_count})</h2>${
     reviews
       .filter((r) => !r.hidden)
       .map(
         (r) =>
-          `<article class="review"><div class="row between"><strong class="small-text">${esc(r.name)}</strong><span class="small-text muted">${date(r.created_at)}</span></div><div style="color:#b6a076">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</div><p>${esc(r.comment)}</p></article>`,
+          `<article class="review"><div class="row between"><strong>${esc(r.name)}</strong><span class="muted small-text">${date(r.created_at)}</span></div><div class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</div><p>${esc(r.comment)}</p></article>`,
       )
       .join("") ||
-    '<p class="small-text muted">Chưa có đánh giá. Mua và trải nghiệm để chia sẻ cảm nhận của bạn.</p>'
+    '<p class="muted">Chưa có đánh giá. Mua và trải nghiệm để chia sẻ cảm nhận của bạn.</p>'
   }</section>`;
 }
+
 async function shopPage(id) {
   const [{ shop }, { products }] = await Promise.all([
     api("/shops/" + id),
@@ -304,7 +447,7 @@ function authPage(kind) {
         : verify
           ? "Xác minh email"
           : "Rất vui gặp lại bạn.";
-  return `<div class="auth-wrap"><div class="auth-art"><span class="eyebrow">CHÀO BẠN ĐẾN SHOPPE</span><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p><form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button class="btn full">${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
+  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p><form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button class="btn full">${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
 }
 function field(label, name, value = "", type = "text", extra = "") {
   return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}></label>`;
@@ -386,7 +529,7 @@ async function checkoutPage() {
       "Hoàn tất đơn hàng",
       "Chỉ còn một bước nữa để những món đồ yêu thích đến tay bạn.",
     ) +
-    `<form data-form="checkout" id="checkout-form"><div class="checkout-layout"><div class="stack"><section class="panel"><h3>${icon("pin", 19)} Địa chỉ nhận hàng</h3><label class="field"><select name="address_id" id="checkout-address" required>${addresses.map((a) => `<option value="${esc(a.id)}" ${a.is_default ? "selected" : ""}>${esc(a.name)} · ${esc(a.phone)} — ${esc(a.street)}, ${esc(a.city)}</option>`).join("")}</select></label><a class="small-text muted" href="/account">Quản lý địa chỉ →</a></section>${Object.values(
+    `<form data-form="checkout" id="checkout-form"><div class="checkout-layout"><div class="stack"><section class="panel"><h3>${icon("pin", 19)} Địa chỉ nhận hàng</h3><label class="field"><select name="address_id" id="checkout-address" aria-label="Địa chỉ nhận hàng" required>${addresses.map((a) => `<option value="${esc(a.id)}" ${a.is_default ? "selected" : ""}>${esc(a.name)} · ${esc(a.phone)} — ${esc(a.street)}, ${esc(a.city)}</option>`).join("")}</select></label><a class="small-text muted" href="/account">Quản lý địa chỉ →</a></section>${Object.values(
       groups,
     )
       .map(
@@ -581,7 +724,7 @@ function workspace(content, scope) {
           ["/vouchers", "Voucher của shop", "ticket"],
           ["/settings", "Thông tin shop", "settings"],
         ];
-  return `<div class="content-with-aside"><aside class="aside"><h3>${scope === "admin" ? "QUẢN TRỊ SHOPPE" : "KÊNH NGƯỜI BÁN"}</h3>${nav.map(([url, text, i]) => `<a href="/${scope}${url}" class="${location.pathname === "/" + scope + url ? "active" : ""}">${icon(i, 17)} ${text}</a>`).join("")}<a href="/chat">${icon("chat", 17)} Tin nhắn</a><a href="/">${icon("home", 17)} Về trang mua sắm</a></aside><div class="workspace">${content}</div></div>`;
+  return `<div class="content-with-aside"><aside class="aside"><h3>${scope === "admin" ? "Quản trị Shoppe" : "Kênh người bán"}</h3>${nav.map(([url, text, i]) => `<a href="/${scope}${url}" class="${location.pathname === "/" + scope + url ? "active" : ""}">${icon(i, 17)} ${text}</a>`).join("")}<a href="/chat">${icon("chat", 17)} Tin nhắn</a><a href="/">${icon("home", 17)} Về trang mua sắm</a></aside><div class="workspace">${content}</div></div>`;
 }
 async function dashboardPage(scope) {
   const { stats, orders, low_stock, top_products } = await api(
@@ -916,6 +1059,7 @@ function go(url, replace = false) {
 }
 async function renderRoute() {
   const version = ++state.route;
+  document.body.dataset.page = location.pathname.split("/")[1] || "home";
   clearInterval(state.timer);
   shell();
   window.scrollTo(0, 0);
@@ -962,6 +1106,19 @@ async function renderRoute() {
       );
     if (version !== state.route) return;
     $("#content").innerHTML = content;
+    if (["login", "register", "account"].includes(parts[0])) {
+      if (parts[0] === "account")
+        $("[data-form=profile]")?.insertAdjacentHTML(
+          "afterend",
+          googleSignInArea(true),
+        );
+      else
+        $("[data-form=auth]")?.insertAdjacentHTML(
+          "afterend",
+          googleSignInArea(),
+        );
+      void mountGoogleSignIn(version);
+    }
     document.title = (
       parts[0] === "product" ? state.product?.name : $("h1")?.textContent
     )
@@ -1077,7 +1234,11 @@ document.addEventListener("click", async (e) => {
   if (button.disabled) return;
   button.disabled = true;
   try {
-    if (action === "close-dialog") $("#dialog").close();
+    if (action === "toggle-filters") {
+      const panel = button.closest(".filter-panel");
+      const open = panel.classList.toggle("is-open");
+      button.setAttribute("aria-expanded", String(open));
+    } else if (action === "close-dialog") $("#dialog").close();
     else if (action === "favorite") {
       if (!requireUser()) return;
       if (location.pathname === "/wishlist") {
@@ -1109,6 +1270,12 @@ document.addEventListener("click", async (e) => {
       $("#variant-price").textContent = money(state.variant.price);
       $("#variant-stock").textContent =
         `${state.variant.stock} sản phẩm có sẵn`;
+      $$(".detail-actions button").forEach(
+        (el) => (el.disabled = !state.variant.stock),
+      );
+      $$(".variant").forEach((el) =>
+        el.setAttribute("aria-pressed", String(el === button)),
+      );
     } else if (action === "detail-qty")
       $("#product-qty").value = Math.max(
         1,
@@ -1287,6 +1454,12 @@ document.addEventListener("click", async (e) => {
   } finally {
     button.disabled = false;
   }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id !== "catalog-page") return;
+  const q = new URLSearchParams(location.search);
+  q.set("page", e.target.value);
+  go("/search?" + q);
 });
 document.addEventListener("change", async (e) => {
   try {

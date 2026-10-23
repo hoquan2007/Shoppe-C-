@@ -24,6 +24,8 @@ for (const file of [
   "vercel.json",
   "database/schema.sql",
   "database/migrations/0002_payment_events_index.sql",
+  "database/migrations/0003_google_identity.sql",
+  "cmake/JwtCpp.cmake",
 ])
   check(file, existsSync(file));
 if (production) {

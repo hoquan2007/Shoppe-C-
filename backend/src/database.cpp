@@ -22,6 +22,8 @@ const std::map<std::string, std::vector<std::string>> columns = {
     {"variants", {"product_id", "shop_id", "stock", "price"}},
     {"sessions", {"user_id", "expires_at"}},
     {"email_tokens", {"user_id", "purpose", "expires_at"}},
+    {"auth_identities", {"user_id", "provider", "subject"}},
+    {"auth_challenges", {"expires_at"}},
     {"addresses", {"user_id"}},
     {"carts", {"user_id"}},
     {"wishlists", {"user_id", "product_id"}},

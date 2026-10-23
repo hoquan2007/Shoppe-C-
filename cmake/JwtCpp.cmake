@@ -1,0 +1,18 @@
+# Pinned upstream JWT verifier; do not implement token signatures in application code.
+set(JWT_ARCHIVE "${DEPS}/jwt-cpp-v0.7.1.tar.gz")
+set(JWT_SHA "e52f247d5e62fac5da6191170998271a70ce27f747f2ce8fde9b09f96a5375a4")
+if(NOT EXISTS "${JWT_ARCHIVE}")
+  file(DOWNLOAD "https://github.com/Thalhammer/jwt-cpp/archive/refs/tags/v0.7.1.tar.gz"
+       "${JWT_ARCHIVE}" TLS_VERIFY ON EXPECTED_HASH SHA256=${JWT_SHA} STATUS JWT_DOWNLOAD)
+  if(NOT JWT_DOWNLOAD MATCHES "^0;")
+    message(FATAL_ERROR "Cannot download pinned jwt-cpp dependency")
+  endif()
+endif()
+file(SHA256 "${JWT_ARCHIVE}" JWT_ACTUAL_SHA)
+if(NOT JWT_ACTUAL_SHA STREQUAL JWT_SHA)
+  message(FATAL_ERROR "jwt-cpp archive checksum mismatch")
+endif()
+file(ARCHIVE_EXTRACT INPUT "${JWT_ARCHIVE}" DESTINATION "${DEPS}")
+file(MAKE_DIRECTORY "${DEPS}/jwt-json-compat/nlohmann")
+file(WRITE "${DEPS}/jwt-json-compat/nlohmann/json.hpp" "#pragma once\n#include \"../../json.hpp\"\n")
+set(JWT_INCLUDES "${DEPS}/jwt-cpp-0.7.1/include" "${DEPS}/jwt-json-compat")

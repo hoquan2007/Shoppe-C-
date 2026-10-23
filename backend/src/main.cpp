@@ -61,11 +61,22 @@ int main(int argc, char **argv) {
         server.set_pre_routing_handler([](const httplib::Request &, httplib::Response &res) {
             res.set_header("X-Content-Type-Options", "nosniff");
             res.set_header("X-Frame-Options", "DENY");
-            res.set_header("Referrer-Policy", "strict-origin-when-cross-origin");
-            res.set_header("Content-Security-Policy",
-                           "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                           "img-src 'self' https: data:; connect-src 'self'; font-src 'self'; "
-                           "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+            res.set_header("Referrer-Policy", googleReady() && env("APP_ENV") != "production"
+                                                 ? "no-referrer-when-downgrade"
+                                                 : "strict-origin-when-cross-origin");
+            if (googleReady()) {
+                res.set_header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+                res.set_header("Content-Security-Policy",
+                               "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; "
+                               "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; "
+                               "img-src 'self' https: data:; connect-src 'self' https://accounts.google.com/gsi/; "
+                               "frame-src https://accounts.google.com/gsi/; font-src 'self'; "
+                               "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+            } else
+                res.set_header("Content-Security-Policy",
+                               "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                               "img-src 'self' https: data:; connect-src 'self'; font-src 'self'; "
+                               "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
             return httplib::Server::HandlerResponse::Unhandled;
         });
         auto handler = [&](const httplib::Request &req, httplib::Response &res) {
