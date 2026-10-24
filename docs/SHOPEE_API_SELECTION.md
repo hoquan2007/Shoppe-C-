@@ -66,7 +66,7 @@ Không khai báo các API này là “đã tích hợp” chỉ vì đã có tê
 | API dự án                         | Quyền / dữ liệu                                                                                                        |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/admin/catalog/status`   | Admin: nguồn DummyJSON, mode demo, không cần key, lần nhập gần nhất, payment_provider=payos                            |
-| `POST /api/admin/catalog/preview` | Admin + Origin + CSRF; `{limit:1..600}`. C++ tải category-list/products, bổ sung mẫu có nhãn khi thiếu, trả preview 15 phút |
+| `POST /api/admin/catalog/preview` | Admin + Origin + CSRF; `{limit:1..1000}`. C++ tải category-list/products, bổ sung bản ghi minh họa khi thiếu, trả preview 15 phút |
 | `POST /api/admin/catalog/commit`  | Admin + Origin + CSRF; `{preview_token}`. Chỉ nhập snapshot server đã lưu; token dùng một lần, giữ nguyên hàng đã có   |
 
 Provider được gọi: `GET https://dummyjson.com/products/category-list` và `GET https://dummyjson.com/products?limit=0&select=id,title,description,category,price,thumbnail`. Nguồn chính thức giới thiệu dữ liệu sản phẩm cho thử nghiệm/prototype ecommerce: [DummyJSON Products](https://dummyjson.com/docs/products).
@@ -86,7 +86,7 @@ flowchart LR
 ## Quy trình admin và bảo toàn dữ liệu
 
 1. Admin → Sản phẩm → **Lấy sản phẩm demo từ API**.
-2. Chọn 1–600 sản phẩm, mặc định 600 → **Tải bản xem trước**. Đây là kích thước catalog muốn xem trước, không phải số bản sao cần thêm: hàng đã có được bỏ qua.
+2. Chọn 1–1.000 sản phẩm, mặc định 1.000 → **Tải bản xem trước**. Đây là kích thước catalog muốn xem trước, không phải số bản sao cần thêm: hàng đã có được bỏ qua.
 3. Kiểm tra tên, danh mục tiếng Việt, giá VNĐ minh họa, số lượng mới/đã tồn tại.
 4. Chọn **Nhập bản xem trước vào shop**. Hệ thống chỉ thêm ID mới, không tự restock hoặc ghi đè sửa đổi của admin.
 5. Sản phẩm mới xuất hiện ở trang mua sắm, dùng checkout nội bộ và payOS/COD. Đây vẫn là hàng demo, không cung cấp hàng thật.

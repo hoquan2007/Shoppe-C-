@@ -4,7 +4,7 @@ Website tiếng Việt cho bài tập lớn OOP, frontend HTML/CSS/JavaScript v�
 
 Bản sửa mới: [lỗi và hiệu năng C++](docs/PERFORMANCE_FIX_2026-10-22.md), [chuẩn bị key và đăng ký API Shopee](docs/KEYS_AND_SHOPEE_GUIDE.md), [API hiện tại](docs/API_CURRENT.md).
 
-Catalog API: [bảng chọn API Shopee và luồng demo phù hợp](docs/SHOPEE_API_SELECTION.md). Admin có thể tải/xem trước/nhập 1–600 sản phẩm demo bằng C++: lấy sản phẩm DummyJSON và bổ sung mẫu mô phỏng Shoppe có nhãn riêng khi nguồn không đủ, giữ checkout payOS/COD của dự án. Khi mở rộng catalog, ID và dữ liệu sản phẩm đã có được giữ nguyên.
+Catalog API: [bảng chọn API Shopee và luồng demo phù hợp](docs/SHOPEE_API_SELECTION.md). Admin có thể tải/xem trước/nhập 1–1.000 sản phẩm demo bằng C++: lấy sản phẩm DummyJSON và bổ sung bản ghi mô phỏng Shoppe dùng chung ảnh/nội dung mẫu gốc khi nguồn không đủ, giữ checkout payOS/COD của dự án. Khi mở rộng catalog, ID và dữ liệu sản phẩm đã có được giữ nguyên.
 
 ## Chạy nhanh trên Windows
 
