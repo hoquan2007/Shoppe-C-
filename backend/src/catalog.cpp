@@ -1,4 +1,5 @@
 #include "catalog.h"
+#include "catalog_copy.h"
 #include "domain.h"
 #include "security.h"
 #include <cmath>
@@ -51,6 +52,10 @@ Json normalizeDemoCatalog(const Json &document) {
                                                         {"womens-shoes", "Thời trang"},
                                                         {"tops", "Thời trang"}};
 
+    static const auto editorial = loadCatalogCopy(env("CATALOG_COPY_PATH", "database/catalog-copy.vi.json"));
+    std::map<int, Json> copyBySource;
+    for (const auto &entry : editorial.at("products"))
+        copyBySource.emplace(entry.at("source_id").get<int>(), entry);
     Json normalized = Json::array();
     std::set<std::string> ids;
     for (const auto &item : document["products"]) {
@@ -74,15 +79,27 @@ Json normalizeDemoCatalog(const Json &document) {
                                1000, static_cast<std::int64_t>(std::round(originalPrice * 25.0)) * 1000))
                          .value();
         auto categoryKey = textField(item, "category", 100);
+        auto name = textField(item, "title", series ? 170 : 200) +
+                    (series ? " · Mẫu demo " + std::to_string(series) : "");
+        auto description = "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
+                           "giao dịch sử dụng tiền thật.\n\n" +
+                           (series ? std::string("Mẫu mô phỏng mở rộng do Shoppe tạo. Ảnh DummyJSON chỉ để minh họa; không phải sản phẩm bổ sung từ API nguồn.")
+                                   : textField(item, "description", 8000));
+        // Only use reviewed copy when both the original title and image still match.
+        // Provider changes and unknown products retain the existing import behavior.
+        if (copyBySource.contains(static_cast<int>(externalId))) {
+            const auto &entry = copyBySource.at(static_cast<int>(externalId));
+            if (entry.at("source_title") == item.at("title") && entry.at("source_image") == image) {
+                auto copy = catalogCopyText(entry);
+                name = copy.at("name");
+                description = copy.at("description");
+            }
+        }
         normalized.push_back(
             {{"id", id},
              {"source_id", externalId},
-             {"name", textField(item, "title", series ? 170 : 200) +
-                          (series ? " · Mẫu demo " + std::to_string(series) : "")},
-             {"description", "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
-                             "giao dịch sử dụng tiền thật.\n\n" +
-                                 (series ? "Mẫu mô phỏng mở rộng do Shoppe tạo. Ảnh DummyJSON chỉ để minh họa; không phải sản phẩm bổ sung từ API nguồn."
-                                         : textField(item, "description", 8000))},
+             {"name", name},
+             {"description", description},
              {"category", categories.contains(categoryKey) ? categories.at(categoryKey) : "Phụ kiện"},
              {"image", image},
              {"price", price},

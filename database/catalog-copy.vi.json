@@ -1,0 +1,1423 @@
+{
+  "version": 1,
+  "language": "vi",
+  "source": "DummyJSON",
+  "products": [
+    {
+      "source_id": 1,
+      "source_title": "Essence Mascara Lash Princess",
+      "source_image": "https://cdn.dummyjson.com/product-images/beauty/essence-mascara-lash-princess/thumbnail.webp",
+      "name": "Mascara Essence Lash Princess",
+      "introduction": "Mascara Essence Lash Princess dành cho bước trang điểm mi. Thiết kế dạng tuýp kèm cọ chải, phù hợp để tạo điểm nhấn cho hàng mi trong phong cách trang điểm hằng ngày.",
+      "usage": "Chải nhẹ từ chân đến ngọn mi, tránh để cọ chạm vào mắt. Đậy nắp sau khi dùng và không dùng chung sản phẩm trang điểm mắt."
+    },
+    {
+      "source_id": 2,
+      "source_title": "Eyeshadow Palette with Mirror",
+      "source_image": "https://cdn.dummyjson.com/product-images/beauty/eyeshadow-palette-with-mirror/thumbnail.webp",
+      "name": "Bảng phấn mắt kèm gương",
+      "introduction": "Bảng phấn mắt tập hợp nhiều ô màu trong hộp có gương, thuận tiện phối màu cho vùng mắt. Có thể lựa chọn sắc độ và cách tán tùy phong cách trang điểm.",
+      "usage": "Dùng cọ sạch, lấy lượng phấn vừa đủ và tán từng lớp mỏng. Đóng hộp sau khi sử dụng, tránh làm rơi vỡ các ô phấn."
+    },
+    {
+      "source_id": 3,
+      "source_title": "Powder Canister",
+      "source_image": "https://cdn.dummyjson.com/product-images/beauty/powder-canister/thumbnail.webp",
+      "name": "Hộp phấn phủ trang điểm",
+      "introduction": "Phấn phủ dạng hộp dành cho bước hoàn thiện lớp trang điểm. Bao bì nhỏ gọn, tiện đặt trên bàn trang điểm hoặc mang theo trong túi đồ cá nhân.",
+      "usage": "Dùng bông hoặc cọ sạch để phủ lớp mỏng lên da. Tránh vùng mắt và bảo quản hộp kín ở nơi khô ráo."
+    },
+    {
+      "source_id": 4,
+      "source_title": "Red Lipstick",
+      "source_image": "https://cdn.dummyjson.com/product-images/beauty/red-lipstick/thumbnail.webp",
+      "name": "Son môi sắc đỏ",
+      "introduction": "Son môi tông đỏ giúp tạo điểm nhấn cho đôi môi, dễ kết hợp với phong cách trang điểm nhẹ hoặc sắc nét. Mẫu sản phẩm có thiết kế thỏi, thuận tiện khi sử dụng.",
+      "usage": "Thoa từng lớp mỏng để điều chỉnh độ đậm của màu. Không dùng trên vùng môi đang tổn thương; màu thực tế có thể khác theo nền môi và ánh sáng."
+    },
+    {
+      "source_id": 5,
+      "source_title": "Red Nail Polish",
+      "source_image": "https://cdn.dummyjson.com/product-images/beauty/red-nail-polish/thumbnail.webp",
+      "name": "Sơn móng tay màu đỏ",
+      "introduction": "Sơn móng tay tông đỏ dành cho phong cách móng nổi bật. Lọ sơn đi kèm cọ, hỗ trợ thao tác phủ màu trên bề mặt móng.",
+      "usage": "Sử dụng ở nơi thông thoáng, tránh tiếp xúc mắt và nguồn nhiệt. Để từng lớp khô trước khi sơn tiếp, vặn kín nắp sau khi dùng."
+    },
+    {
+      "source_id": 6,
+      "source_title": "Calvin Klein CK One",
+      "source_image": "https://cdn.dummyjson.com/product-images/fragrances/calvin-klein-ck-one/thumbnail.webp",
+      "name": "Nước hoa Calvin Klein CK One",
+      "introduction": "Calvin Klein CK One là tên mẫu nước hoa được dùng trong catalog. Phong cách hương tươi mát, hướng đến lựa chọn dùng hằng ngày cho nhiều phong cách cá nhân.",
+      "usage": "Xịt lượng vừa phải lên vùng da lành hoặc thử trên giấy thử hương. Tránh mắt, vùng da kích ứng và ánh nắng trực tiếp khi bảo quản."
+    },
+    {
+      "source_id": 7,
+      "source_title": "Chanel Coco Noir Eau De",
+      "source_image": "https://cdn.dummyjson.com/product-images/fragrances/chanel-coco-noir-eau-de/thumbnail.webp",
+      "name": "Nước hoa Chanel Coco Noir",
+      "introduction": "Chanel Coco Noir được giới thiệu theo phong cách hương trầm ấm, phù hợp người yêu thích cảm giác nổi bật và sâu lắng. Thiết kế chai tối màu tạo điểm nhấn trên bàn trang điểm.",
+      "usage": "Thử hương trước khi lựa chọn vì cảm nhận và độ lưu hương tùy cơ địa. Không xịt vào mắt, không đặt chai gần nguồn nhiệt."
+    },
+    {
+      "source_id": 8,
+      "source_title": "Dior J'adore",
+      "source_image": "https://cdn.dummyjson.com/product-images/fragrances/dior-j'adore/thumbnail.webp",
+      "name": "Nước hoa Dior J’adore",
+      "introduction": "Mẫu nước hoa Dior J’adore được giới thiệu với phong cách hương hoa thanh lịch. Chai có thiết kế cổ cao, phù hợp trưng bày cùng bộ sưu tập nước hoa cá nhân.",
+      "usage": "Sử dụng lượng nhỏ trên vùng da phù hợp, tránh chà xát ngay sau khi xịt. Đậy nắp và giữ chai ở nơi mát, tránh ánh sáng mạnh."
+    },
+    {
+      "source_id": 9,
+      "source_title": "Dolce Shine Eau de",
+      "source_image": "https://cdn.dummyjson.com/product-images/fragrances/dolce-shine-eau-de/thumbnail.webp",
+      "name": "Nước hoa Dolce & Gabbana Dolce Shine",
+      "introduction": "Dolce Shine được giới thiệu theo phong cách hương hoa và trái cây, tạo cảm giác tươi sáng. Mẫu chai phù hợp với bộ sưu tập nước hoa theo sở thích cá nhân.",
+      "usage": "Nên thử trên giấy thử hương trước khi dùng trên da. Tránh mắt, không sử dụng trên vùng da đang trầy xước hoặc kích ứng."
+    },
+    {
+      "source_id": 10,
+      "source_title": "Gucci Bloom Eau de",
+      "source_image": "https://cdn.dummyjson.com/product-images/fragrances/gucci-bloom-eau-de/thumbnail.webp",
+      "name": "Nước hoa Gucci Bloom",
+      "introduction": "Gucci Bloom được giới thiệu với phong cách hương hoa, dành cho người yêu thích cảm giác mềm mại và thanh lịch. Tên mẫu và thiết kế chai giúp nhận diện trong bộ sưu tập.",
+      "usage": "Thử hương để đánh giá mức độ phù hợp với sở thích. Bảo quản chai đậy kín, tránh ánh nắng và nguồn nhiệt."
+    },
+    {
+      "source_id": 11,
+      "source_title": "Annibale Colombo Bed",
+      "source_image": "https://cdn.dummyjson.com/product-images/furniture/annibale-colombo-bed/thumbnail.webp",
+      "name": "Giường ngủ Annibale Colombo",
+      "introduction": "Mẫu giường Annibale Colombo có kiểu dáng hướng đến không gian phòng ngủ trang nhã. Phần khung và đầu giường tạo điểm nhấn khi phối với tủ đầu giường, chăn ga và đồ nội thất.",
+      "usage": "Đo diện tích phòng, kích thước nệm và lối vận chuyển trước khi chọn. Vệ sinh bằng khăn mềm; cách lắp đặt phụ thuộc phiên bản và phụ kiện thực tế."
+    },
+    {
+      "source_id": 12,
+      "source_title": "Annibale Colombo Sofa",
+      "source_image": "https://cdn.dummyjson.com/product-images/furniture/annibale-colombo-sofa/thumbnail.webp",
+      "name": "Ghế sofa Annibale Colombo",
+      "introduction": "Sofa Annibale Colombo là mẫu ghế dành cho không gian tiếp khách và sinh hoạt chung. Kiểu dáng phù hợp phối với bàn trà, thảm và đèn trang trí để hoàn thiện góc ngồi.",
+      "usage": "Kiểm tra kích thước cửa và diện tích bố trí trước khi chọn. Làm sạch bề mặt theo chất liệu thực tế, tránh chất tẩy mạnh và vật sắc nhọn."
+    },
+    {
+      "source_id": 13,
+      "source_title": "Bedside Table African Cherry",
+      "source_image": "https://cdn.dummyjson.com/product-images/furniture/bedside-table-african-cherry/thumbnail.webp",
+      "name": "Tủ đầu giường African Cherry",
+      "introduction": "Tủ đầu giường African Cherry dành để sắp xếp đồ dùng cạnh giường ngủ. Mặt tủ có thể bố trí đèn ngủ, sách hoặc các vật dụng cá nhân phù hợp với tải trọng thực tế.",
+      "usage": "Đặt trên mặt phẳng ổn định, tránh khu vực ẩm và nước đọng. Kiểm tra kích thước, số ngăn và chất liệu trước khi chọn mua."
+    },
+    {
+      "source_id": 14,
+      "source_title": "Knoll Saarinen Executive Conference Chair",
+      "source_image": "https://cdn.dummyjson.com/product-images/furniture/knoll-saarinen-executive-conference-chair/thumbnail.webp",
+      "name": "Ghế họp Knoll Saarinen Executive",
+      "introduction": "Mẫu ghế Knoll Saarinen Executive hướng đến không gian họp, làm việc hoặc góc tiếp khách. Phần tựa và mặt ngồi có thiết kế liền mạch, dễ phối với bàn theo phong cách tối giản.",
+      "usage": "Chọn chiều cao ghế tương thích với bàn và kiểm tra tải trọng công bố của phiên bản thực tế. Lau sạch bằng phương pháp phù hợp với vật liệu bọc."
+    },
+    {
+      "source_id": 15,
+      "source_title": "Wooden Bathroom Sink With Mirror",
+      "source_image": "https://cdn.dummyjson.com/product-images/furniture/wooden-bathroom-sink-with-mirror/thumbnail.webp",
+      "name": "Bộ tủ chậu rửa phòng tắm kèm gương",
+      "introduction": "Bộ tủ chậu rửa kèm gương giúp tổ chức khu vực lavabo và cất các vật dụng phòng tắm. Thiết kế kết hợp mặt chậu, phần tủ và gương để tạo bố cục đồng bộ.",
+      "usage": "Đo vị trí cấp thoát nước và diện tích lắp đặt trước khi chọn. Lau khô nước bắn lên tủ và nhờ người có chuyên môn thực hiện lắp đặt."
+    },
+    {
+      "source_id": 16,
+      "source_title": "Apple",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/apple/thumbnail.webp",
+      "name": "Táo tươi",
+      "introduction": "Táo là lựa chọn trái cây dùng trực tiếp hoặc chế biến món ăn, thức uống. Có thể cắt lát dùng cùng bữa phụ hoặc kết hợp trong salad theo sở thích.",
+      "usage": "Rửa sạch trước khi dùng; loại bỏ phần dập hỏng. Khối lượng, giống táo, xuất xứ và điều kiện bảo quản cần đối chiếu trên lô hàng thực tế."
+    },
+    {
+      "source_id": 17,
+      "source_title": "Beef Steak",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/beef-steak/thumbnail.webp",
+      "name": "Thịt bò dùng chế biến bít tết",
+      "introduction": "Thịt bò được giới thiệu theo nhu cầu chế biến bít tết hoặc món áp chảo. Cách sơ chế và thời gian nấu cần điều chỉnh theo phần thịt, độ dày và khẩu vị.",
+      "usage": "Giữ lạnh theo hướng dẫn của đơn vị cung cấp, tách biệt thực phẩm sống và chín. Không mặc định trọng lượng, phần cắt hay cấp chất lượng từ hình minh họa."
+    },
+    {
+      "source_id": 18,
+      "source_title": "Cat Food",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/cat-food/thumbnail.webp",
+      "name": "Thức ăn cho mèo",
+      "introduction": "Thức ăn dành cho mèo, thuận tiện tham khảo khi xây dựng khẩu phần chăm sóc thú cưng. Lựa chọn công thức cần dựa trên độ tuổi, thể trạng và nhu cầu riêng của mèo.",
+      "usage": "Đọc thành phần, định lượng và hướng dẫn trên bao bì thực tế. Chuẩn bị nước sạch, bảo quản kín và chuyển đổi thức ăn từ từ khi cần."
+    },
+    {
+      "source_id": 19,
+      "source_title": "Chicken Meat",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/chicken-meat/thumbnail.webp",
+      "name": "Thịt gà dùng chế biến món ăn",
+      "introduction": "Thịt gà là nguyên liệu cho các món luộc, hấp, nướng hoặc xào. Có thể sơ chế và chia phần theo nhu cầu nấu ăn trong gia đình.",
+      "usage": "Bảo quản lạnh đúng hướng dẫn, tránh tiếp xúc chéo với thực phẩm ăn ngay. Nấu chín kỹ; kiểm tra phần thịt, khối lượng và hạn dùng trên hàng thực tế."
+    },
+    {
+      "source_id": 20,
+      "source_title": "Cooking Oil",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/cooking-oil/thumbnail.webp",
+      "name": "Dầu ăn dùng trong nấu nướng",
+      "introduction": "Dầu ăn dành cho các món chế biến trong gia đình. Việc chọn loại dầu và nhiệt độ nấu phù hợp cần căn cứ vào thành phần cùng hướng dẫn trên nhãn.",
+      "usage": "Đậy kín sau khi sử dụng và tránh ánh nắng trực tiếp. Không suy đoán loại dầu, dung tích hoặc đặc tính dinh dưỡng chỉ từ hình ảnh."
+    },
+    {
+      "source_id": 21,
+      "source_title": "Cucumber",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/cucumber/thumbnail.webp",
+      "name": "Dưa leo tươi",
+      "introduction": "Dưa leo thích hợp dùng trong salad, món cuốn hoặc ăn kèm bữa chính. Có thể cắt lát, thái sợi hoặc kết hợp cùng các loại rau khác.",
+      "usage": "Rửa sạch và sơ chế trước khi dùng. Bảo quản mát, loại bỏ phần hỏng; kích cỡ và khối lượng tùy lô hàng thực tế."
+    },
+    {
+      "source_id": 22,
+      "source_title": "Dog Food",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/dog-food/thumbnail.webp",
+      "name": "Thức ăn cho chó",
+      "introduction": "Thức ăn dành cho chó, phù hợp tham khảo trong danh mục chăm sóc thú cưng. Cần lựa chọn sản phẩm tương thích với độ tuổi, kích cỡ và nhu cầu dinh dưỡng của từng bé.",
+      "usage": "Tuân theo khẩu phần ghi trên bao bì thực tế, luôn có nước sạch. Kiểm tra thành phần và tham khảo bác sĩ thú y khi thú cưng có chế độ ăn đặc biệt."
+    },
+    {
+      "source_id": 23,
+      "source_title": "Eggs",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/eggs/thumbnail.webp",
+      "name": "Trứng dùng chế biến món ăn",
+      "introduction": "Trứng là nguyên liệu quen thuộc cho món luộc, chiên, hấp và làm bánh. Có thể kết hợp cùng nhiều thực phẩm để chuẩn bị bữa ăn theo nhu cầu.",
+      "usage": "Kiểm tra vỏ và hạn dùng trước khi sử dụng; nấu chín phù hợp. Loại trứng, số lượng và quy cách đóng gói cần xem trên sản phẩm thực tế."
+    },
+    {
+      "source_id": 24,
+      "source_title": "Fish Steak",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/fish-steak/thumbnail.webp",
+      "name": "Cá cắt khúc dùng chế biến món ăn",
+      "introduction": "Cá cắt khúc phù hợp chế biến món áp chảo, kho, hấp hoặc nướng. Cách nêm và thời gian làm chín phụ thuộc vào loại cá cùng độ dày miếng cắt.",
+      "usage": "Bảo quản lạnh, sơ chế sạch và nấu chín trước khi ăn. Loại cá, khối lượng và quy cách cắt cần xác nhận theo hàng thực tế."
+    },
+    {
+      "source_id": 25,
+      "source_title": "Green Bell Pepper",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/green-bell-pepper/thumbnail.webp",
+      "name": "Ớt chuông xanh",
+      "introduction": "Ớt chuông xanh là nguyên liệu cho salad, món xào hoặc món nướng. Màu xanh giúp bổ sung sắc màu cho món ăn và dễ phối cùng rau củ khác.",
+      "usage": "Rửa sạch, loại bỏ cuống và hạt theo công thức. Bảo quản mát, tránh để quả dập; kích thước và khối lượng tùy lô hàng."
+    },
+    {
+      "source_id": 26,
+      "source_title": "Green Chili Pepper",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/green-chili-pepper/thumbnail.webp",
+      "name": "Ớt xanh dùng nấu ăn",
+      "introduction": "Ớt xanh dùng tạo vị cay cho món ăn, nước chấm hoặc các món xào. Có thể thái lát, băm nhỏ hay để nguyên quả theo cách chế biến.",
+      "usage": "Rửa sạch trước khi dùng và tránh chạm mắt sau khi sơ chế. Độ cay, giống ớt và quy cách đóng gói cần xác nhận trên hàng thực tế."
+    },
+    {
+      "source_id": 27,
+      "source_title": "Honey Jar",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/honey-jar/thumbnail.webp",
+      "name": "Mật ong đóng hũ",
+      "introduction": "Mật ong dạng hũ dành cho nhu cầu pha đồ uống, dùng cùng món ăn hoặc chế biến theo công thức. Miệng hũ thuận tiện khi lấy lượng nhỏ bằng thìa.",
+      "usage": "Dùng dụng cụ sạch, khô và đậy kín sau khi sử dụng. Kiểm tra thành phần, khối lượng và nguồn gốc trên nhãn; không dùng mật ong cho trẻ dưới một tuổi."
+    },
+    {
+      "source_id": 28,
+      "source_title": "Ice Cream",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/ice-cream/thumbnail.webp",
+      "name": "Kem tráng miệng",
+      "introduction": "Kem là lựa chọn cho món tráng miệng hoặc bữa phụ theo sở thích. Có thể dùng riêng hoặc kết hợp trái cây, bánh và các món ăn kèm phù hợp.",
+      "usage": "Duy trì điều kiện đông lạnh theo nhãn thực tế. Kiểm tra hương vị, thành phần gây dị ứng, dung tích và hạn dùng trước khi sử dụng."
+    },
+    {
+      "source_id": 29,
+      "source_title": "Juice",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/juice/thumbnail.webp",
+      "name": "Nước trái cây",
+      "introduction": "Nước trái cây dành cho nhu cầu giải khát và dùng cùng bữa ăn. Hương vị, tỷ lệ trái cây và độ ngọt cần đối chiếu theo từng sản phẩm cụ thể.",
+      "usage": "Đọc nhãn về thành phần, dung tích và cách dùng sau khi mở. Bảo quản theo hướng dẫn thực tế; không mặc định đây là nước ép nguyên chất."
+    },
+    {
+      "source_id": 30,
+      "source_title": "Kiwi",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/kiwi/thumbnail.webp",
+      "name": "Kiwi tươi",
+      "introduction": "Kiwi có thể ăn trực tiếp sau khi sơ chế hoặc dùng cho salad, sữa chua và món tráng miệng. Miếng kiwi cắt lát giúp tạo điểm nhấn màu sắc cho món ăn.",
+      "usage": "Rửa sạch, gọt vỏ hoặc bổ đôi để lấy phần thịt quả. Kiểm tra độ chín và bảo quản phù hợp; giống và xuất xứ tùy lô hàng."
+    },
+    {
+      "source_id": 31,
+      "source_title": "Lemon",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/lemon/thumbnail.webp",
+      "name": "Chanh tươi",
+      "introduction": "Chanh là nguyên liệu cho nước uống, nước chấm và các món cần vị chua. Có thể dùng nước cốt hoặc phần vỏ theo yêu cầu của công thức.",
+      "usage": "Rửa sạch trước khi cắt, loại bỏ quả hỏng. Không để nước cốt tiếp xúc mắt; khối lượng và giống chanh cần xác nhận theo hàng thực tế."
+    },
+    {
+      "source_id": 32,
+      "source_title": "Milk",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/milk/thumbnail.webp",
+      "name": "Sữa dùng hằng ngày",
+      "introduction": "Sữa được giới thiệu trong nhóm thực phẩm và đồ uống dùng hằng ngày. Có thể dùng trực tiếp hoặc làm nguyên liệu theo hướng dẫn trên bao bì.",
+      "usage": "Kiểm tra loại sữa, thành phần gây dị ứng, dung tích và hạn dùng. Bảo quản đúng nhiệt độ được ghi trên nhãn và chú ý thời gian dùng sau khi mở."
+    },
+    {
+      "source_id": 33,
+      "source_title": "Mulberry",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/mulberry/thumbnail.webp",
+      "name": "Dâu tằm tươi",
+      "introduction": "Dâu tằm phù hợp dùng trực tiếp sau khi làm sạch hoặc chế biến đồ uống, mứt và món tráng miệng. Màu quả tạo điểm nhấn tự nhiên cho nhiều công thức.",
+      "usage": "Rửa nhẹ để hạn chế dập quả, loại bỏ quả hỏng và dùng theo độ tươi thực tế. Bảo quản mát; xuất xứ và khối lượng tùy lô hàng."
+    },
+    {
+      "source_id": 34,
+      "source_title": "Nescafe Coffee",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/nescafe-coffee/thumbnail.webp",
+      "name": "Cà phê Nescafé",
+      "introduction": "Cà phê Nescafé được giới thiệu cho nhu cầu pha đồ uống tại nhà hoặc nơi làm việc. Cách pha và hương vị phụ thuộc vào dòng sản phẩm cụ thể trên bao bì.",
+      "usage": "Kiểm tra đây là cà phê hòa tan, phối trộn hay loại khác trước khi dùng. Đọc định lượng, thành phần và bảo quản kín tại nơi khô ráo."
+    },
+    {
+      "source_id": 35,
+      "source_title": "Potatoes",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/potatoes/thumbnail.webp",
+      "name": "Khoai tây dùng nấu ăn",
+      "introduction": "Khoai tây là nguyên liệu cho món nghiền, súp, chiên hoặc nướng. Có thể cắt miếng và chế biến theo khẩu phần cùng công thức mong muốn.",
+      "usage": "Bảo quản nơi khô thoáng, tránh ánh sáng. Không sử dụng củ mọc mầm hoặc chuyển xanh; sơ chế và nấu chín trước khi ăn."
+    },
+    {
+      "source_id": 36,
+      "source_title": "Protein Powder",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/protein-powder/thumbnail.webp",
+      "name": "Bột protein dùng pha uống",
+      "introduction": "Bột protein được giới thiệu trong nhóm thực phẩm bổ sung dạng bột. Việc lựa chọn cần căn cứ vào thành phần, khẩu phần và nhu cầu dinh dưỡng cá nhân.",
+      "usage": "Đọc nhãn thực tế về loại protein, thành phần gây dị ứng và cách pha. Không dùng thay bữa ăn một cách tùy tiện; hỏi chuyên gia khi có chế độ ăn đặc biệt."
+    },
+    {
+      "source_id": 37,
+      "source_title": "Red Onions",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/red-onions/thumbnail.webp",
+      "name": "Hành tây đỏ dùng nấu ăn",
+      "introduction": "Hành tây đỏ dùng tạo hương cho món xào, món nướng, salad hoặc nước sốt. Có thể thái lát, cắt múi hay băm nhỏ tùy công thức.",
+      "usage": "Bóc vỏ, rửa và sơ chế trước khi dùng. Bảo quản nơi khô thoáng, loại bỏ củ mềm hỏng; kích cỡ và quy cách tùy lô hàng."
+    },
+    {
+      "source_id": 38,
+      "source_title": "Rice",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/rice/thumbnail.webp",
+      "name": "Gạo dùng nấu cơm",
+      "introduction": "Gạo là nguyên liệu cho bữa ăn hằng ngày và nhiều món chế biến khác. Lượng nước cùng thời gian nấu cần điều chỉnh theo giống gạo và thiết bị sử dụng.",
+      "usage": "Đọc thông tin giống gạo, khối lượng và hạn dùng trên bao bì thực tế. Giữ gạo khô, đậy kín và tránh côn trùng trong quá trình bảo quản."
+    },
+    {
+      "source_id": 39,
+      "source_title": "Soft Drinks",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/soft-drinks/thumbnail.webp",
+      "name": "Nước giải khát",
+      "introduction": "Nước giải khát dùng trong bữa ăn hoặc khi cần đồ uống tiện mang theo. Hương vị, độ ngọt và thành phần phụ thuộc vào sản phẩm cụ thể.",
+      "usage": "Kiểm tra nhãn, dung tích và hạn dùng; làm lạnh nếu hướng dẫn cho phép. Không mặc định sản phẩm không đường hoặc có công dụng sức khỏe."
+    },
+    {
+      "source_id": 40,
+      "source_title": "Strawberry",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/strawberry/thumbnail.webp",
+      "name": "Dâu tây tươi",
+      "introduction": "Dâu tây có thể dùng trực tiếp sau khi rửa sạch hoặc kết hợp trong bánh, salad và món tráng miệng. Hình dáng cùng màu sắc phù hợp trang trí món ăn.",
+      "usage": "Rửa nhẹ trước khi ăn, loại bỏ quả dập hỏng và bảo quản mát. Kích cỡ, giống dâu và xuất xứ cần xác nhận theo lô hàng."
+    },
+    {
+      "source_id": 41,
+      "source_title": "Tissue Paper Box",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/tissue-paper-box/thumbnail.webp",
+      "name": "Hộp khăn giấy dùng hằng ngày",
+      "introduction": "Khăn giấy đựng trong hộp thuận tiện đặt trên bàn ăn, bàn làm việc hoặc khu vực sinh hoạt. Thiết kế hộp hỗ trợ lấy từng tờ theo nhu cầu.",
+      "usage": "Giữ hộp khô và sạch, tránh nguồn nhiệt. Số lớp, số tờ, kích thước và thành phần cần kiểm tra trên bao bì thực tế."
+    },
+    {
+      "source_id": 42,
+      "source_title": "Water",
+      "source_image": "https://cdn.dummyjson.com/product-images/groceries/water/thumbnail.webp",
+      "name": "Nước uống đóng chai",
+      "introduction": "Nước uống đóng chai dành cho nhu cầu sử dụng trong sinh hoạt, học tập và làm việc. Bao bì chai thuận tiện bố trí trên bàn hoặc mang theo khi di chuyển.",
+      "usage": "Kiểm tra niêm phong, dung tích và hạn dùng trước khi uống. Bảo quản tránh nắng và nhiệt; loại nước cần xác nhận trên nhãn thực tế."
+    },
+    {
+      "source_id": 43,
+      "source_title": "Decoration Swing",
+      "source_image": "https://cdn.dummyjson.com/product-images/home-decoration/decoration-swing/thumbnail.webp",
+      "name": "Xích đu trang trí nội thất",
+      "introduction": "Mẫu xích đu trang trí tạo điểm nhấn cho góc sinh hoạt hoặc không gian bài trí. Kiểu dáng phù hợp phối với cây xanh và các vật dụng trang trí khác.",
+      "usage": "Kiểm tra kích thước, kết cấu treo và tải trọng trước khi bố trí. Không sử dụng để ngồi nếu nhà cung cấp không công bố chức năng chịu lực."
+    },
+    {
+      "source_id": 44,
+      "source_title": "Family Tree Photo Frame",
+      "source_image": "https://cdn.dummyjson.com/product-images/home-decoration/family-tree-photo-frame/thumbnail.webp",
+      "name": "Khung ảnh trang trí hình cây gia đình",
+      "introduction": "Khung ảnh dạng cây giúp sắp xếp nhiều hình kỷ niệm theo bố cục gia đình. Có thể đặt tại góc phòng khách, bàn làm việc hoặc khu vực trưng bày.",
+      "usage": "Đối chiếu số ô và kích thước ảnh của phiên bản thực tế. Lau bằng khăn mềm và đặt tại vị trí ổn định, tránh ẩm."
+    },
+    {
+      "source_id": 45,
+      "source_title": "House Showpiece Plant",
+      "source_image": "https://cdn.dummyjson.com/product-images/home-decoration/house-showpiece-plant/thumbnail.webp",
+      "name": "Cây giả trang trí để bàn",
+      "introduction": "Cây giả trang trí tạo điểm nhấn xanh cho bàn làm việc, kệ hoặc góc tiếp khách. Có thể phối cùng chậu và phụ kiện theo phong cách của không gian, không cần tưới nước.",
+      "usage": "Kiểm tra kích thước, vật liệu và quy cách chậu đi kèm. Làm sạch bụi nhẹ theo chất liệu thực tế, tránh nhiệt cao hoặc ngâm nước khi chưa có hướng dẫn."
+    },
+    {
+      "source_id": 46,
+      "source_title": "Plant Pot",
+      "source_image": "https://cdn.dummyjson.com/product-images/home-decoration/plant-pot/thumbnail.webp",
+      "name": "Chậu cây trang trí",
+      "introduction": "Chậu cây dùng để bố trí cây xanh hoặc làm vật dụng trang trí trong nhà. Kiểu dáng có thể kết hợp cùng kệ, bàn hoặc các chậu khác theo bố cục mong muốn.",
+      "usage": "Đo đường kính chậu và kiểm tra lỗ thoát nước trước khi trồng. Chất liệu, kích thước và phụ kiện đi kèm cần đối chiếu trên sản phẩm thực tế."
+    },
+    {
+      "source_id": 47,
+      "source_title": "Table Lamp",
+      "source_image": "https://cdn.dummyjson.com/product-images/home-decoration/table-lamp/thumbnail.webp",
+      "name": "Đèn bàn trang trí",
+      "introduction": "Đèn bàn tạo điểm nhấn cho góc đọc sách, bàn làm việc hoặc tủ đầu giường. Kiểu dáng phù hợp phối với các vật dụng nội thất theo sở thích.",
+      "usage": "Kiểm tra điện áp, loại bóng và công suất tương thích trước khi sử dụng. Ngắt điện khi vệ sinh hoặc thay bóng; không mặc định có bóng đèn đi kèm."
+    },
+    {
+      "source_id": 48,
+      "source_title": "Bamboo Spatula",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/bamboo-spatula/thumbnail.webp",
+      "name": "Xẻng nấu ăn bằng tre",
+      "introduction": "Xẻng tre dùng đảo, trộn hoặc lấy thức ăn trong quá trình nấu nướng. Phần cán giúp thao tác khi chế biến các món ăn gia đình.",
+      "usage": "Rửa sạch và để khô sau mỗi lần dùng. Tránh ngâm lâu trong nước hoặc để trực tiếp trên lửa; kích thước tùy phiên bản thực tế."
+    },
+    {
+      "source_id": 49,
+      "source_title": "Black Aluminium Cup",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/black-aluminium-cup/thumbnail.webp",
+      "name": "Cốc nhôm màu đen",
+      "introduction": "Cốc nhôm tông đen có thiết kế gọn, phù hợp trong bộ dụng cụ bếp và bàn ăn. Có thể chọn theo phong cách bài trí cùng nhu cầu sử dụng cá nhân.",
+      "usage": "Kiểm tra lớp phủ và hướng dẫn sử dụng với đồ nóng trước khi dùng. Không đặt vào lò vi sóng; vệ sinh bằng dụng cụ mềm."
+    },
+    {
+      "source_id": 50,
+      "source_title": "Black Whisk",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/black-whisk/thumbnail.webp",
+      "name": "Phới lồng màu đen",
+      "introduction": "Phới lồng dùng khuấy, trộn nguyên liệu trong làm bánh và nấu ăn. Phần đầu có các vòng giúp thao tác với hỗn hợp lỏng hoặc mềm.",
+      "usage": "Chọn kích thước phù hợp với âu trộn. Rửa sạch các khe sau khi dùng, làm khô và đối chiếu vật liệu cùng giới hạn chịu nhiệt của phiên bản thực tế."
+    },
+    {
+      "source_id": 51,
+      "source_title": "Boxed Blender",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/boxed-blender/thumbnail.webp",
+      "name": "Máy xay để bàn",
+      "introduction": "Máy xay để bàn phục vụ nhu cầu xay, trộn nguyên liệu theo chức năng của từng phiên bản. Thiết kế gồm thân máy và cối, thuận tiện bố trí tại khu vực bếp.",
+      "usage": "Đọc hướng dẫn về nguyên liệu, dung tích và thời gian vận hành. Không cho tay vào cối, không tháo lắp khi đang cắm điện; công suất cần xác nhận riêng."
+    },
+    {
+      "source_id": 52,
+      "source_title": "Carbon Steel Wok",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/carbon-steel-wok/thumbnail.webp",
+      "name": "Chảo wok thép carbon",
+      "introduction": "Chảo wok thép carbon có lòng chảo dạng sâu, phù hợp chế biến các món xào và đảo nguyên liệu. Tay cầm hỗ trợ thao tác trên bếp theo kết cấu thực tế.",
+      "usage": "Kiểm tra tương thích với loại bếp và hướng dẫn tôi chảo trước khi dùng. Làm khô sau khi rửa, tránh ngâm nước kéo dài gây gỉ."
+    },
+    {
+      "source_id": 53,
+      "source_title": "Chopping Board",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/chopping-board/thumbnail.webp",
+      "name": "Thớt dùng sơ chế thực phẩm",
+      "introduction": "Thớt tạo bề mặt để cắt và sơ chế nguyên liệu trong bếp. Có thể bố trí riêng từng thớt theo nhóm thực phẩm để tổ chức khu vực nấu ăn.",
+      "usage": "Dùng riêng cho thực phẩm sống và chín, rửa sạch sau mỗi lần dùng. Đặt trên mặt phẳng ổn định và kiểm tra chất liệu, kích thước thực tế."
+    },
+    {
+      "source_id": 54,
+      "source_title": "Citrus Squeezer Yellow",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/citrus-squeezer-yellow/thumbnail.webp",
+      "name": "Dụng cụ vắt cam chanh màu vàng",
+      "introduction": "Dụng cụ vắt cam chanh tông vàng hỗ trợ lấy nước cốt từ trái cây có múi. Kết cấu dùng tay thuận tiện cho các phần nước cốt nhỏ trong nấu ăn hoặc pha uống.",
+      "usage": "Cắt trái cây vừa kích thước lòng vắt và thao tác trên bề mặt ổn định. Rửa sạch sau khi dùng; vật liệu và kích thước cần kiểm tra theo phiên bản."
+    },
+    {
+      "source_id": 55,
+      "source_title": "Egg Slicer",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/egg-slicer/thumbnail.webp",
+      "name": "Dụng cụ cắt lát trứng",
+      "introduction": "Dụng cụ cắt trứng hỗ trợ chia trứng đã luộc thành lát để bày món ăn, salad hoặc bánh mì. Thiết kế có phần đỡ giúp giữ trứng khi thao tác.",
+      "usage": "Chỉ cắt nguyên liệu phù hợp với hướng dẫn của sản phẩm. Không chạm tay vào dây hoặc lưỡi cắt; vệ sinh nhẹ sau khi dùng."
+    },
+    {
+      "source_id": 56,
+      "source_title": "Electric Stove",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/electric-stove/thumbnail.webp",
+      "name": "Bếp điện để bàn",
+      "introduction": "Bếp điện dạng để bàn dành cho khu vực nấu nướng có diện tích phù hợp. Thiết bị dùng nguồn điện để gia nhiệt theo công nghệ của phiên bản cụ thể.",
+      "usage": "Kiểm tra công suất, điện áp, loại nồi và yêu cầu ổ cắm trước khi dùng. Đặt trên mặt phẳng chịu nhiệt, giữ xa nước và ngắt điện sau khi nấu."
+    },
+    {
+      "source_id": 57,
+      "source_title": "Fine Mesh Strainer",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/fine-mesh-strainer/thumbnail.webp",
+      "name": "Rây lọc lưới mịn",
+      "introduction": "Rây lưới mịn giúp lọc hoặc rây các loại nguyên liệu phù hợp trong nấu ăn và làm bánh. Phần tay cầm hỗ trợ thao tác trên tô, nồi hoặc dụng cụ chứa.",
+      "usage": "Chọn cỡ lưới và đường kính phù hợp với công việc. Rửa sạch cặn bám, làm khô sau khi dùng và tránh làm móp bề mặt lưới."
+    },
+    {
+      "source_id": 58,
+      "source_title": "Fork",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/fork/thumbnail.webp",
+      "name": "Nĩa ăn dùng trên bàn ăn",
+      "introduction": "Nĩa ăn hỗ trợ lấy và thưởng thức món ăn, dễ phối cùng thìa, dao và đĩa. Kiểu dáng phù hợp bổ sung vào bộ dụng cụ bàn ăn cá nhân hoặc gia đình.",
+      "usage": "Rửa sạch trước khi dùng và làm khô sau khi vệ sinh. Kích thước, chất liệu và số lượng trong bộ cần xác nhận theo quy cách thực tế."
+    },
+    {
+      "source_id": 59,
+      "source_title": "Glass",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/glass/thumbnail.webp",
+      "name": "Ly thủy tinh uống nước",
+      "introduction": "Ly thủy tinh dùng phục vụ nước uống và các món đồ uống theo nhu cầu. Thiết kế trong suốt giúp quan sát lượng nước cùng màu sắc thức uống.",
+      "usage": "Kiểm tra giới hạn chịu nhiệt trước khi rót nước nóng, tránh thay đổi nhiệt độ đột ngột. Dung tích và số lượng ly cần xem theo phiên bản thực tế."
+    },
+    {
+      "source_id": 60,
+      "source_title": "Grater Black",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/grater-black/thumbnail.webp",
+      "name": "Dụng cụ bào thực phẩm màu đen",
+      "introduction": "Dụng cụ bào hỗ trợ sơ chế các loại rau củ hoặc nguyên liệu tương thích. Kiểu dáng tông đen phù hợp bổ sung vào bộ dụng cụ bếp.",
+      "usage": "Giữ chắc tay khi sử dụng và tránh để đầu ngón tay sát mặt bào. Rửa sạch các khe, để khô; loại lưỡi và kích thước cần kiểm tra thực tế."
+    },
+    {
+      "source_id": 61,
+      "source_title": "Hand Blender",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/hand-blender/thumbnail.webp",
+      "name": "Máy xay cầm tay dùng trong bếp",
+      "introduction": "Máy xay cầm tay hỗ trợ xử lý các nguyên liệu phù hợp ngay trong dụng cụ chứa. Thân máy dạng cầm tay thuận tiện thao tác với lượng nguyên liệu theo hướng dẫn.",
+      "usage": "Đọc giới hạn nhiệt độ, độ sâu ngập và thời gian chạy của máy. Ngắt điện trước khi tháo đầu xay; không chạm vào lưỡi khi thiết bị còn kết nối điện."
+    },
+    {
+      "source_id": 62,
+      "source_title": "Ice Cube Tray",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/ice-cube-tray/thumbnail.webp",
+      "name": "Khay làm đá viên",
+      "introduction": "Khay làm đá dùng tạo các viên đá trong ngăn đông theo khuôn có sẵn. Có thể lựa chọn hình dáng và số ô theo nhu cầu pha đồ uống.",
+      "usage": "Dùng nguồn nước phù hợp, chừa khoảng trống khi rót và đặt khay cân bằng. Vật liệu, kích thước viên và cách lấy đá phụ thuộc phiên bản thực tế."
+    },
+    {
+      "source_id": 63,
+      "source_title": "Kitchen Sieve",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/kitchen-sieve/thumbnail.webp",
+      "name": "Rây lọc dùng trong nhà bếp",
+      "introduction": "Rây bếp dùng lọc, rây hoặc giữ các loại nguyên liệu tùy kích cỡ mắt lưới. Thiết kế phù hợp thao tác cùng tô và nồi trong khu vực sơ chế.",
+      "usage": "Kiểm tra độ tương thích với thực phẩm nóng và loại nguyên liệu cần lọc. Rửa kỹ sau mỗi lần dùng, tránh để cặn khô bám vào lưới."
+    },
+    {
+      "source_id": 64,
+      "source_title": "Knife",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/knife/thumbnail.webp",
+      "name": "Dao bếp dùng sơ chế thực phẩm",
+      "introduction": "Dao bếp phục vụ thao tác cắt, thái nguyên liệu theo kiểu lưỡi và kích thước thực tế. Phần cán hỗ trợ cầm nắm trong quá trình chuẩn bị món ăn.",
+      "usage": "Dùng trên thớt ổn định, hướng lưỡi ra xa cơ thể và để ngoài tầm với trẻ em. Lau khô sau khi rửa; không dùng sai chức năng của dao."
+    },
+    {
+      "source_id": 65,
+      "source_title": "Lunch Box",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/lunch-box/thumbnail.webp",
+      "name": "Hộp đựng bữa ăn",
+      "introduction": "Hộp đựng bữa ăn giúp sắp xếp thức ăn mang theo khi đi học, đi làm hoặc ra ngoài. Thiết kế nắp hỗ trợ bảo quản và bố trí phần ăn theo nhu cầu.",
+      "usage": "Kiểm tra vật liệu và khả năng dùng với lò vi sóng trước khi hâm. Không mặc định hộp giữ nhiệt hoặc kín tuyệt đối; làm sạch sau mỗi lần dùng."
+    },
+    {
+      "source_id": 66,
+      "source_title": "Microwave Oven",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/microwave-oven/thumbnail.webp",
+      "name": "Lò vi sóng để bàn",
+      "introduction": "Lò vi sóng dành cho nhu cầu hâm nóng hoặc chế biến theo chức năng của thiết bị. Dạng để bàn phù hợp bố trí trong khu vực bếp có khoảng thông gió cần thiết.",
+      "usage": "Chỉ dùng dụng cụ được phép đưa vào lò vi sóng, tránh vật kim loại. Đối chiếu dung tích, công suất và hướng dẫn lắp đặt của phiên bản thực tế."
+    },
+    {
+      "source_id": 67,
+      "source_title": "Mug Tree Stand",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/mug-tree-stand/thumbnail.webp",
+      "name": "Giá treo cốc dạng cây",
+      "introduction": "Giá treo cốc dạng cây giúp sắp xếp cốc có quai trên bàn hoặc kệ bếp. Kết cấu nhánh tạo các vị trí treo để giữ khu vực sử dụng gọn hơn.",
+      "usage": "Đặt giá trên mặt phẳng, phân bố cốc cân bằng và không treo quá tải. Số nhánh, chiều cao và vật liệu cần kiểm tra theo sản phẩm thực tế."
+    },
+    {
+      "source_id": 68,
+      "source_title": "Pan",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/pan/thumbnail.webp",
+      "name": "Chảo dùng chế biến món ăn",
+      "introduction": "Chảo dùng cho các thao tác rán, áp chảo hoặc chế biến theo cấu tạo của từng loại. Tay cầm hỗ trợ di chuyển và điều chỉnh vị trí trên bếp.",
+      "usage": "Kiểm tra loại bếp tương thích, chất liệu và lớp phủ trước khi sử dụng. Tránh gia nhiệt chảo rỗng quá lâu, vệ sinh theo hướng dẫn thực tế."
+    },
+    {
+      "source_id": 69,
+      "source_title": "Plate",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/plate/thumbnail.webp",
+      "name": "Đĩa ăn dùng hằng ngày",
+      "introduction": "Đĩa ăn dùng bày món chính, món phụ hoặc phục vụ trên bàn ăn. Có thể phối cùng bát, cốc và dụng cụ ăn theo phong cách mong muốn.",
+      "usage": "Kiểm tra chất liệu, đường kính và khả năng chịu nhiệt trước khi dùng. Tránh va đập; không mặc định đĩa dùng được trong lò vi sóng."
+    },
+    {
+      "source_id": 70,
+      "source_title": "Red Tongs",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/red-tongs/thumbnail.webp",
+      "name": "Kẹp gắp thực phẩm màu đỏ",
+      "introduction": "Kẹp gắp tông đỏ hỗ trợ lấy và trở thực phẩm trong quá trình chế biến hoặc phục vụ. Phần cán giúp hạn chế tiếp xúc trực tiếp với thức ăn.",
+      "usage": "Đối chiếu vật liệu đầu kẹp và giới hạn chịu nhiệt trước khi dùng. Rửa sạch sau khi gắp thực phẩm sống, tránh sử dụng chung với đồ chín chưa vệ sinh."
+    },
+    {
+      "source_id": 71,
+      "source_title": "Silver Pot With Glass Cap",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/silver-pot-with-glass-cap/thumbnail.webp",
+      "name": "Nồi màu bạc kèm nắp kính",
+      "introduction": "Nồi tông bạc có nắp kính giúp quan sát món ăn trong quá trình nấu. Thiết kế phù hợp các món cần đun hoặc nấu theo dung tích của phiên bản thực tế.",
+      "usage": "Kiểm tra tương thích loại bếp, dung tích và chất liệu trước khi sử dụng. Dùng dụng cụ bảo vệ tay khi cầm quai hoặc mở nắp nóng."
+    },
+    {
+      "source_id": 72,
+      "source_title": "Slotted Turner",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/slotted-turner/thumbnail.webp",
+      "name": "Xẻng lật thực phẩm có khe",
+      "introduction": "Xẻng lật có khe dùng trở và lấy thực phẩm trên bề mặt chảo hoặc khay phù hợp. Các khe hỗ trợ thoát bớt chất lỏng trong lúc thao tác.",
+      "usage": "Kiểm tra vật liệu, độ chịu nhiệt và độ tương thích với mặt chảo. Không đặt trực tiếp trên lửa; làm sạch các khe sau khi dùng."
+    },
+    {
+      "source_id": 73,
+      "source_title": "Spice Rack",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/spice-rack/thumbnail.webp",
+      "name": "Kệ sắp xếp gia vị",
+      "introduction": "Kệ gia vị giúp gom các lọ và hộp gia vị tại một vị trí trong bếp. Có thể bố trí theo tần suất sử dụng để thao tác nấu nướng thuận tiện hơn.",
+      "usage": "Đo diện tích đặt kệ và đường kính lọ trước khi chọn. Đặt ổn định, tránh nước đọng và không vượt tải trọng của phiên bản thực tế."
+    },
+    {
+      "source_id": 74,
+      "source_title": "Spoon",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/spoon/thumbnail.webp",
+      "name": "Thìa ăn dùng hằng ngày",
+      "introduction": "Thìa ăn dùng lấy và thưởng thức các món ăn, dễ kết hợp cùng nĩa và bát đĩa. Kiểu dáng phù hợp bổ sung vào bộ dụng cụ bàn ăn gia đình.",
+      "usage": "Vệ sinh trước khi dùng và lau khô sau khi rửa. Kích cỡ, chất liệu và số lượng đi kèm cần đối chiếu theo quy cách sản phẩm."
+    },
+    {
+      "source_id": 75,
+      "source_title": "Tray",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/tray/thumbnail.webp",
+      "name": "Khay phục vụ đồ ăn và thức uống",
+      "introduction": "Khay dùng sắp xếp, bưng và phục vụ các vật dụng phù hợp trên bàn ăn hoặc bàn trà. Mặt khay giúp tổ chức đồ dùng theo từng lần sử dụng.",
+      "usage": "Phân bố đồ cân bằng, cầm chắc khi di chuyển và không vượt tải trọng thực tế. Kiểm tra vật liệu trước khi tiếp xúc trực tiếp với thực phẩm nóng."
+    },
+    {
+      "source_id": 76,
+      "source_title": "Wooden Rolling Pin",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/wooden-rolling-pin/thumbnail.webp",
+      "name": "Cây cán bột bằng gỗ",
+      "introduction": "Cây cán bột bằng gỗ hỗ trợ dàn mỏng và tạo bề mặt bột trong làm bánh. Thân trụ thuận tiện thao tác trên bàn hoặc tấm lót phù hợp.",
+      "usage": "Làm sạch, để khô sau khi sử dụng và tránh ngâm lâu trong nước. Đường kính cùng chiều dài cần lựa chọn theo loại bánh và diện tích thao tác."
+    },
+    {
+      "source_id": 77,
+      "source_title": "Yellow Peeler",
+      "source_image": "https://cdn.dummyjson.com/product-images/kitchen-accessories/yellow-peeler/thumbnail.webp",
+      "name": "Dụng cụ gọt vỏ màu vàng",
+      "introduction": "Dụng cụ gọt vỏ tông vàng hỗ trợ sơ chế rau củ phù hợp với loại lưỡi. Tay cầm giúp điều khiển đường gọt và giảm tiếp xúc trực tiếp với lưỡi.",
+      "usage": "Gọt theo hướng an toàn, giữ tay ngoài đường di chuyển của lưỡi. Rửa sạch, làm khô và bảo quản ngoài tầm với trẻ em."
+    },
+    {
+      "source_id": 78,
+      "source_title": "Apple MacBook Pro 14 Inch Space Grey",
+      "source_image": "https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/thumbnail.webp",
+      "name": "Laptop Apple MacBook Pro 14 inch màu xám",
+      "introduction": "Mẫu MacBook Pro 14 inch màu xám Space Grey hướng đến nhu cầu làm việc và học tập với máy tính xách tay. Thiết kế nhận diện MacBook Pro, thuận tiện bố trí tại bàn hoặc mang theo.",
+      "usage": "Chip, RAM, dung lượng lưu trữ và bộ phụ kiện cần xác nhận theo cấu hình thực tế. Kiểm tra tình trạng máy, bộ sạc và khả năng chạy phần mềm trước khi chọn."
+    },
+    {
+      "source_id": 79,
+      "source_title": "Asus Zenbook Pro Dual Screen Laptop",
+      "source_image": "https://cdn.dummyjson.com/product-images/laptops/asus-zenbook-pro-dual-screen-laptop/thumbnail.webp",
+      "name": "Laptop ASUS Zenbook Pro hai màn hình",
+      "introduction": "Mẫu ASUS Zenbook Pro có thiết kế hai màn hình, hỗ trợ bố trí nhiều vùng làm việc. Phù hợp tham khảo cho người quan tâm thao tác đa nhiệm trên máy tính xách tay.",
+      "usage": "Xác nhận model đầy đủ, kích thước màn hình, CPU, RAM và lưu trữ của cấu hình thực tế. Kiểm tra ứng dụng tương thích với màn hình phụ và phụ kiện đi kèm."
+    },
+    {
+      "source_id": 80,
+      "source_title": "Huawei Matebook X Pro",
+      "source_image": "https://cdn.dummyjson.com/product-images/laptops/huawei-matebook-x-pro/thumbnail.webp",
+      "name": "Laptop HUAWEI MateBook X Pro",
+      "introduction": "MateBook X Pro là mẫu máy tính xách tay thuộc dòng HUAWEI MateBook. Kiểu dáng gọn hướng đến nhu cầu học tập, làm việc và sử dụng máy ở nhiều không gian.",
+      "usage": "Cấu hình, thế hệ máy, cổng kết nối và phụ kiện cần xác nhận theo từng phiên bản. Dùng bộ sạc phù hợp và giữ thông thoáng khu vực tản nhiệt."
+    },
+    {
+      "source_id": 81,
+      "source_title": "Lenovo Yoga 920",
+      "source_image": "https://cdn.dummyjson.com/product-images/laptops/lenovo-yoga-920/thumbnail.webp",
+      "name": "Laptop Lenovo Yoga 920",
+      "introduction": "Lenovo Yoga 920 là mẫu laptop thuộc dòng Yoga, được giới thiệu với thiết kế chuyển đổi linh hoạt. Có thể tham khảo khi cần thiết bị cho bàn làm việc và nhu cầu di chuyển.",
+      "usage": "Kiểm tra cấu hình, tình trạng bản lề, màn hình và pin của máy thực tế. Khả năng cảm ứng, bút và phụ kiện cần đối chiếu theo phiên bản."
+    },
+    {
+      "source_id": 82,
+      "source_title": "New DELL XPS 13 9300 Laptop",
+      "source_image": "https://cdn.dummyjson.com/product-images/laptops/new-dell-xps-13-9300-laptop/thumbnail.webp",
+      "name": "Laptop Dell XPS 13 9300",
+      "introduction": "Dell XPS 13 9300 thuộc dòng máy tính xách tay XPS 13, hướng đến cách bố trí gọn trên bàn làm việc. Tên model giúp đối chiếu cấu hình và phụ kiện tương thích.",
+      "usage": "Xác nhận CPU, RAM, dung lượng lưu trữ, màn hình và tình trạng máy trước khi chọn. Từ tên mẫu không thể kết luận máy còn mới hay có bảo hành hãng."
+    },
+    {
+      "source_id": 83,
+      "source_title": "Blue & Black Check Shirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shirts/blue-&-black-check-shirt/thumbnail.webp",
+      "name": "Áo sơ mi nam kẻ ô xanh đen",
+      "introduction": "Áo sơ mi nam có họa tiết kẻ ô phối xanh và đen, dễ kết hợp cùng quần dài hoặc quần jeans. Kiểu áo phù hợp nhiều cách phối đồ thường ngày.",
+      "usage": "Chọn kích cỡ theo bảng số đo thực tế; không suy đoán chất liệu từ ảnh. Giặt theo nhãn chăm sóc và phân loại màu trước khi giặt."
+    },
+    {
+      "source_id": 84,
+      "source_title": "Gigabyte Aorus Men Tshirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shirts/gigabyte-aorus-men-tshirt/thumbnail.webp",
+      "name": "Áo thun nam Gigabyte AORUS",
+      "introduction": "Áo thun nam mang họa tiết Gigabyte AORUS, phù hợp người yêu thích phong cách đồ công nghệ. Dáng áo dễ phối với quần jeans hoặc quần thể thao theo sở thích.",
+      "usage": "Đối chiếu bảng kích thước và thành phần vải trước khi chọn. Lộn mặt trái khi giặt nếu nhãn chăm sóc cho phép, tránh tác động nhiệt trực tiếp lên hình in."
+    },
+    {
+      "source_id": 85,
+      "source_title": "Man Plaid Shirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shirts/man-plaid-shirt/thumbnail.webp",
+      "name": "Áo sơ mi nam họa tiết caro",
+      "introduction": "Áo sơ mi nam họa tiết caro tạo điểm nhấn cho trang phục hằng ngày. Có thể mặc riêng hoặc phối lớp ngoài cùng áo thun tùy kiểu dáng và cách chọn kích cỡ.",
+      "usage": "Kiểm tra số đo vai, ngực và chiều dài áo theo bảng size thực tế. Giặt theo nhãn chăm sóc; màu hiển thị có thể khác do ánh sáng."
+    },
+    {
+      "source_id": 86,
+      "source_title": "Man Short Sleeve Shirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shirts/man-short-sleeve-shirt/thumbnail.webp",
+      "name": "Áo sơ mi nam tay ngắn",
+      "introduction": "Áo sơ mi nam thiết kế tay ngắn dành cho các cách phối đồ gọn gàng, thường ngày. Dễ kết hợp cùng quần dài hoặc quần short phù hợp với hoàn cảnh sử dụng.",
+      "usage": "Chọn size theo số đo cơ thể và dáng áo thực tế. Thành phần vải, độ co giãn và hướng dẫn là ủi cần xác nhận trên nhãn."
+    },
+    {
+      "source_id": 87,
+      "source_title": "Men Check Shirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shirts/men-check-shirt/thumbnail.webp",
+      "name": "Áo sơ mi nam kẻ ô",
+      "introduction": "Áo sơ mi nam với bố cục kẻ ô giúp trang phục có điểm nhấn mà vẫn dễ phối. Có thể kết hợp cùng quần trơn màu để tạo tổng thể cân đối.",
+      "usage": "Đối chiếu bảng size, màu và chi tiết tay áo của phiên bản thực tế. Giặt theo nhãn hướng dẫn, tránh dùng chất tẩy không phù hợp với vải màu."
+    },
+    {
+      "source_id": 88,
+      "source_title": "Nike Air Jordan 1 Red And Black",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shoes/nike-air-jordan-1-red-and-black/thumbnail.webp",
+      "name": "Giày Nike Air Jordan 1 phối đỏ đen",
+      "introduction": "Mẫu Nike Air Jordan 1 phối đỏ và đen có kiểu dáng sneaker nổi bật. Có thể tham khảo để phối cùng quần jeans hoặc trang phục theo phong cách đường phố.",
+      "usage": "Đối chiếu mã màu, kích cỡ và chiều dài bàn chân trước khi chọn. Thông tin nguồn không xác nhận tình trạng, tính chính hãng hay phụ kiện của hàng thực tế."
+    },
+    {
+      "source_id": 89,
+      "source_title": "Nike Baseball Cleats",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shoes/nike-baseball-cleats/thumbnail.webp",
+      "name": "Giày bóng chày Nike Baseball Cleats",
+      "introduction": "Mẫu giày Nike Baseball Cleats có thiết kế đế đinh theo phong cách giày bóng chày. Kiểu đế cần lựa chọn tương thích với mặt sân cùng quy định sử dụng.",
+      "usage": "Kiểm tra size, chất liệu và dạng đinh thực tế trước khi sử dụng thể thao. Làm sạch đất bám, để khô thoáng và tránh dùng sai mặt sân."
+    },
+    {
+      "source_id": 90,
+      "source_title": "Puma Future Rider Trainers",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shoes/puma-future-rider-trainers/thumbnail.webp",
+      "name": "Giày sneaker PUMA Future Rider",
+      "introduction": "PUMA Future Rider là mẫu sneaker mang phong cách thể thao, dễ kết hợp cùng trang phục thường ngày. Thiết kế phối màu tạo điểm nhấn trong bộ trang phục.",
+      "usage": "Chọn theo bảng size cùng số đo bàn chân. Vệ sinh theo chất liệu thực tế, tránh ngâm lâu hoặc phơi trực tiếp dưới nhiệt độ cao."
+    },
+    {
+      "source_id": 91,
+      "source_title": "Sports Sneakers Off White & Red",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shoes/sports-sneakers-off-white-&-red/thumbnail.webp",
+      "name": "Giày sneaker thể thao phối trắng ngà đỏ",
+      "introduction": "Sneaker phối trắng ngà và đỏ tạo điểm nhấn màu sắc cho phong cách năng động. Kiểu dáng phù hợp tham khảo khi phối đồ hằng ngày cùng quần jeans hoặc đồ thể thao.",
+      "usage": "Đối chiếu size, phom giày và chất liệu trước khi chọn. Không mặc định giày có tính năng chuyên dụng cho chạy bộ hoặc thi đấu."
+    },
+    {
+      "source_id": 92,
+      "source_title": "Sports Sneakers Off White Red",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-shoes/sports-sneakers-off-white-red/thumbnail.webp",
+      "name": "Giày thể thao phối trắng đỏ",
+      "introduction": "Mẫu giày phối trắng và đỏ mang phong cách thể thao, dễ kết hợp với trang phục đơn giản. Phần phối màu nổi bật phù hợp người muốn tạo điểm nhấn cho đôi chân.",
+      "usage": "Đo chiều dài bàn chân và so với bảng size thực tế. Cách vệ sinh phụ thuộc chất liệu; không suy đoán công nghệ đệm hoặc mục đích thi đấu từ hình ảnh."
+    },
+    {
+      "source_id": 93,
+      "source_title": "Brown Leather Belt Watch",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-watches/brown-leather-belt-watch/thumbnail.webp",
+      "name": "Đồng hồ dây da màu nâu",
+      "introduction": "Đồng hồ có dây tông nâu, hướng đến phong cách phụ kiện cổ điển cho cổ tay. Có thể kết hợp cùng trang phục đi làm hoặc đồ thường ngày theo sở thích.",
+      "usage": "Kiểm tra đường kính mặt, độ dài dây và loại máy của phiên bản thực tế. Không ngâm nước khi chưa xác nhận mức chống nước được công bố."
+    },
+    {
+      "source_id": 94,
+      "source_title": "Longines Master Collection",
+      "source_image": "https://cdn.dummyjson.com/product-images/mens-watches/longines-master-collection/thumbnail.webp",
+      "name": "Đồng hồ Longines Master Collection",
+      "introduction": "Mẫu đồng hồ mang tên Longines Master Collection hướng đến phong cách cổ điển, trang nhã. Thiết kế mặt và dây cần được đối chiếu theo mã tham chiếu của từng phiên bản.",
+      "usage": "Xác nhận model, loại máy, kích thước và nguồn gốc trước khi chọn. Catalog không phải bằng chứng chính hãng hay cam kết bảo hành của nhà sản xuất."
+    },
+    {
+      "source_id": 99,
+      "source_title": "Amazon Echo Plus",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/amazon-echo-plus/thumbnail.webp",
+      "name": "Loa thông minh Amazon Echo Plus",
+      "introduction": "Amazon Echo Plus là mẫu loa thông minh trong dòng Echo. Thiết kế dạng trụ thuận tiện bố trí trên kệ hoặc bàn trong khu vực sinh hoạt.",
+      "usage": "Kiểm tra thế hệ, nguồn điện, kết nối và ngôn ngữ dịch vụ hỗ trợ tại nơi dùng. Tính năng phụ thuộc tài khoản, khu vực và thiết bị tương thích."
+    },
+    {
+      "source_id": 100,
+      "source_title": "Apple Airpods",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-airpods/thumbnail.webp",
+      "name": "Tai nghe không dây Apple AirPods",
+      "introduction": "Apple AirPods là mẫu tai nghe không dây có hộp đựng, phù hợp nhu cầu nghe nội dung trên thiết bị tương thích. Dáng tai nghe và hộp giúp nhận diện dòng sản phẩm.",
+      "usage": "Xác nhận thế hệ, kiểu hộp sạc, tình trạng và thiết bị tương thích. Không mặc định thời lượng pin, chống ồn hay phụ kiện khi nguồn chưa nêu rõ."
+    },
+    {
+      "source_id": 101,
+      "source_title": "Apple AirPods Max Silver",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-airpods-max-silver/thumbnail.webp",
+      "name": "Tai nghe chụp tai Apple AirPods Max màu bạc",
+      "introduction": "Mẫu Apple AirPods Max màu bạc có kiểu dáng chụp tai và quai đeo qua đầu. Thiết kế phù hợp người thích tai nghe bao quanh và phối màu trung tính.",
+      "usage": "Kiểm tra cổng sạc, phiên bản, tình trạng đệm tai và bộ phụ kiện. Tính năng cùng khả năng kết nối cần đối chiếu với model thực tế."
+    },
+    {
+      "source_id": 102,
+      "source_title": "Apple Airpower Wireless Charger",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-airpower-wireless-charger/thumbnail.webp",
+      "name": "Đế sạc không dây AirPower — mẫu ý tưởng",
+      "introduction": "Hình minh họa đế sạc mang tên AirPower được giữ từ dữ liệu nguồn để phục vụ catalog bài tập. Đây là mẫu ý tưởng trong dữ liệu demo, không phải xác nhận sản phẩm Apple đang được bán.",
+      "usage": "Không dùng bản ghi này để kết luận về khả năng mua hàng, công suất hoặc thiết bị hỗ trợ. Nếu triển khai kinh doanh thật, cần thay bằng model sạc có thể xác minh."
+    },
+    {
+      "source_id": 103,
+      "source_title": "Apple HomePod Mini Cosmic Grey",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-homepod-mini-cosmic-grey/thumbnail.webp",
+      "name": "Loa Apple HomePod mini màu xám",
+      "introduction": "Mẫu Apple HomePod mini có thiết kế nhỏ dạng khối tròn và tông xám. Có thể tham khảo khi bố trí loa trong không gian bàn làm việc hoặc sinh hoạt.",
+      "usage": "Xác nhận tên màu, phiên bản, nguồn điện và thiết bị Apple tương thích. Các dịch vụ, ngôn ngữ và tính năng phụ thuộc khu vực cùng cấu hình thực tế."
+    },
+    {
+      "source_id": 104,
+      "source_title": "Apple iPhone Charger",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-iphone-charger/thumbnail.webp",
+      "name": "Bộ sạc dành cho iPhone",
+      "introduction": "Bộ sạc được giới thiệu dành cho thiết bị iPhone, với thiết kế nhỏ gọn cho khu vực sạc cá nhân. Loại cổng và khả năng sử dụng cần đối chiếu theo từng model.",
+      "usage": "Kiểm tra công suất, đầu ra, tiêu chuẩn an toàn và cáp đi kèm. Không mặc định đây là phụ kiện chính hãng hoặc hỗ trợ sạc nhanh cho mọi iPhone."
+    },
+    {
+      "source_id": 105,
+      "source_title": "Apple MagSafe Battery Pack",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-magsafe-battery-pack/thumbnail.webp",
+      "name": "Pin sạc gắn từ tính Apple MagSafe Battery Pack",
+      "introduction": "Mẫu MagSafe Battery Pack có thiết kế gắn sau thiết bị tương thích, thuận tiện tham khảo cho nhu cầu bổ sung năng lượng khi di chuyển. Tên mẫu lấy từ dữ liệu catalog nguồn.",
+      "usage": "Xác nhận model iPhone, ốp lưng và khả năng tương thích thực tế. Dung lượng, tình trạng pin và phụ kiện không thể kết luận từ hình minh họa."
+    },
+    {
+      "source_id": 106,
+      "source_title": "Apple Watch Series 4 Gold",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-watch-series-4-gold/thumbnail.webp",
+      "name": "Đồng hồ Apple Watch Series 4 tông vàng",
+      "introduction": "Mẫu Apple Watch Series 4 có phần vỏ tông vàng, kết hợp chức năng đồng hồ với hệ sinh thái thiết bị tương thích. Kiểu dây và kích thước phụ thuộc phiên bản.",
+      "usage": "Kiểm tra cỡ vỏ, GPS hoặc Cellular, tình trạng pin và iPhone hỗ trợ. Không xem thông tin sức khỏe từ đồng hồ là chẩn đoán y khoa."
+    },
+    {
+      "source_id": 107,
+      "source_title": "Beats Flex Wireless Earphones",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/beats-flex-wireless-earphones/thumbnail.webp",
+      "name": "Tai nghe không dây Beats Flex",
+      "introduction": "Beats Flex có thiết kế tai nghe không dây dạng vòng cổ, hai đầu tai nối bằng dây mềm. Kiểu dáng phù hợp người muốn giữ hai bên tai nghe cùng một cụm.",
+      "usage": "Kiểm tra cổng sạc, tình trạng pin, nút tai và thiết bị tương thích. Vệ sinh phần tiếp xúc tai, giữ khô và đối chiếu phụ kiện thực tế."
+    },
+    {
+      "source_id": 108,
+      "source_title": "iPhone 12 Silicone Case with MagSafe Plum",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/iphone-12-silicone-case-with-magsafe-plum/thumbnail.webp",
+      "name": "Ốp lưng iPhone 12 silicone MagSafe màu mận",
+      "introduction": "Ốp lưng tông màu mận được giới thiệu theo kiểu silicone và MagSafe dành cho iPhone 12. Thiết kế ôm theo thân máy, tạo điểm nhấn màu sắc khi sử dụng.",
+      "usage": "Đối chiếu đúng model và kích thước iPhone trước khi chọn. Khả năng gắn từ tính và sạc phụ thuộc phụ kiện thực tế; không mặc định mức bảo vệ khi rơi."
+    },
+    {
+      "source_id": 109,
+      "source_title": "Monopod",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/monopod/thumbnail.webp",
+      "name": "Chân đơn máy ảnh monopod",
+      "introduction": "Chân đơn monopod hỗ trợ giữ và bố trí thiết bị chụp hình trong một số tình huống sử dụng. Dạng một chân thuận tiện di chuyển và thay đổi vị trí tác nghiệp.",
+      "usage": "Kiểm tra chuẩn ngàm, chiều cao và tải trọng thực tế. Luôn giữ chắc thiết bị; chân đơn không tự đứng ổn định như chân máy ba chân."
+    },
+    {
+      "source_id": 110,
+      "source_title": "Selfie Lamp with iPhone",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/selfie-lamp-with-iphone/thumbnail.webp",
+      "name": "Đèn hỗ trợ chụp ảnh cùng điện thoại",
+      "introduction": "Mẫu đèn hỗ trợ ánh sáng khi chụp ảnh hoặc ghi hình bằng điện thoại. Thiết kế phù hợp tham khảo cho góc tạo nội dung cá nhân.",
+      "usage": "Kiểm tra kiểu lắp, nguồn điện, độ sáng và kích thước điện thoại tương thích. Điện thoại trong ảnh là minh họa, không mặc định được bán kèm."
+    },
+    {
+      "source_id": 111,
+      "source_title": "Selfie Stick Monopod",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/selfie-stick-monopod/thumbnail.webp",
+      "name": "Gậy selfie kiêm chân đơn điện thoại",
+      "introduction": "Gậy selfie dạng chân đơn giúp thay đổi khoảng cách và góc chụp bằng điện thoại tương thích. Thiết kế kéo dài thuận tiện cho ảnh tự chụp hoặc ảnh nhóm.",
+      "usage": "Kiểm tra bề rộng kẹp, chiều dài và cơ cấu khóa trước khi dùng. Không mặc định có điều khiển Bluetooth; giữ chắc điện thoại khi thao tác."
+    },
+    {
+      "source_id": 112,
+      "source_title": "TV Studio Camera Pedestal",
+      "source_image": "https://cdn.dummyjson.com/product-images/mobile-accessories/tv-studio-camera-pedestal/thumbnail.webp",
+      "name": "Chân đế máy quay studio",
+      "introduction": "Chân đế máy quay kiểu studio dùng bố trí thiết bị ghi hình trong không gian tác nghiệp. Kết cấu đế và cột hỗ trợ thay đổi vị trí theo thiết kế thực tế.",
+      "usage": "Xác nhận tải trọng, chuẩn đầu gắn, độ cao và cơ cấu khóa trước khi lắp máy. Thiết bị quay trong ảnh không mặc định nằm trong bộ sản phẩm."
+    },
+    {
+      "source_id": 118,
+      "source_title": "Attitude Super Leaves Hand Soap",
+      "source_image": "https://cdn.dummyjson.com/product-images/skin-care/attitude-super-leaves-hand-soap/thumbnail.webp",
+      "name": "Nước rửa tay Attitude Super Leaves",
+      "introduction": "Attitude Super Leaves là tên mẫu nước rửa tay dùng trong chăm sóc vệ sinh cá nhân. Dạng chai thuận tiện đặt gần bồn rửa và sử dụng theo hướng dẫn trên nhãn.",
+      "usage": "Làm ướt tay, lấy lượng phù hợp rồi rửa sạch với nước theo bao bì. Thành phần, mùi hương và dung tích cần xác nhận; không mặc định có công dụng diệt khuẩn."
+    },
+    {
+      "source_id": 119,
+      "source_title": "Olay Ultra Moisture Shea Butter Body Wash",
+      "source_image": "https://cdn.dummyjson.com/product-images/skin-care/olay-ultra-moisture-shea-butter-body-wash/thumbnail.webp",
+      "name": "Sữa tắm Olay Ultra Moisture Shea Butter",
+      "introduction": "Mẫu sữa tắm Olay Ultra Moisture Shea Butter được giới thiệu cho bước làm sạch cơ thể. Tên dòng sản phẩm giúp đối chiếu đúng nhãn và phiên bản khi lựa chọn.",
+      "usage": "Dùng trên da ướt, tạo bọt rồi xả sạch theo hướng dẫn thực tế. Kiểm tra thành phần và dung tích; ngưng sử dụng nếu có dấu hiệu kích ứng."
+    },
+    {
+      "source_id": 120,
+      "source_title": "Vaseline Men Body and Face Lotion",
+      "source_image": "https://cdn.dummyjson.com/product-images/skin-care/vaseline-men-body-and-face-lotion/thumbnail.webp",
+      "name": "Sữa dưỡng thể và da mặt Vaseline Men",
+      "introduction": "Mẫu Vaseline Men Body and Face Lotion dành cho bước chăm sóc da theo hướng dẫn của dòng sản phẩm. Bao bì dạng chai thuận tiện sử dụng trong sinh hoạt cá nhân.",
+      "usage": "Đọc nhãn để xác nhận vùng da sử dụng và thành phần của phiên bản thực tế. Thử lượng nhỏ trước; không dùng trên da đang tổn thương hoặc kích ứng."
+    },
+    {
+      "source_id": 121,
+      "source_title": "iPhone 5s",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/iphone-5s/thumbnail.webp",
+      "name": "Điện thoại Apple iPhone 5s",
+      "introduction": "Apple iPhone 5s là mẫu điện thoại thuộc dòng iPhone với thiết kế nhỏ gọn và nút Home. Có thể tham khảo hình dáng cùng tên model để đối chiếu khi lựa chọn thiết bị.",
+      "usage": "Kiểm tra dung lượng, tình trạng pin, khóa tài khoản và băng tần mạng. Đây là model đời cũ; cần xác nhận phiên bản iOS và ứng dụng còn hỗ trợ."
+    },
+    {
+      "source_id": 122,
+      "source_title": "iPhone 6",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/iphone-6/thumbnail.webp",
+      "name": "Điện thoại Apple iPhone 6",
+      "introduction": "Apple iPhone 6 có thiết kế màn hình cảm ứng kèm nút Home, thuộc nhóm model iPhone đời cũ. Tên mẫu giúp phân biệt với các phiên bản có kích thước khác.",
+      "usage": "Kiểm tra dung lượng, pin, khóa tài khoản và tình trạng linh kiện. Cần xác nhận hệ điều hành, mạng và ứng dụng hỗ trợ trước khi sử dụng."
+    },
+    {
+      "source_id": 123,
+      "source_title": "iPhone 13 Pro",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/iphone-13-pro/thumbnail.webp",
+      "name": "Điện thoại Apple iPhone 13 Pro",
+      "introduction": "Apple iPhone 13 Pro là mẫu điện thoại dòng Pro, có cụm camera sau đặc trưng. Phù hợp tham khảo theo tên model khi lựa chọn cấu hình và màu máy.",
+      "usage": "Dung lượng, màu, thị trường phân phối và tình trạng cần xác nhận riêng. Kiểm tra pin, khóa tài khoản, khả năng nhận SIM và bộ phụ kiện của máy thực tế."
+    },
+    {
+      "source_id": 124,
+      "source_title": "iPhone X",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/iphone-x/thumbnail.webp",
+      "name": "Điện thoại Apple iPhone X",
+      "introduction": "Apple iPhone X có màn hình với phần khuyết phía trên và thiết kế không dùng nút Home phía trước. Tên model là cơ sở để đối chiếu phụ kiện cùng kích thước máy.",
+      "usage": "Xác nhận dung lượng, tình trạng màn hình, pin và khóa tài khoản. Model đời cũ cần được kiểm tra khả năng cập nhật và ứng dụng còn tương thích."
+    },
+    {
+      "source_id": 125,
+      "source_title": "Oppo A57",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/oppo-a57/thumbnail.webp",
+      "name": "Điện thoại OPPO A57",
+      "introduction": "OPPO A57 là tên mẫu điện thoại thuộc dòng A của OPPO. Thiết kế điện thoại cảm ứng phù hợp tham khảo khi đối chiếu ngoại hình và phiên bản sản phẩm.",
+      "usage": "Tên A57 có thể được dùng cho các đời máy khác nhau; cần xác nhận năm, RAM, bộ nhớ và mạng hỗ trợ. Không suy đoán cấu hình hoặc phụ kiện từ tên ngắn."
+    },
+    {
+      "source_id": 126,
+      "source_title": "Oppo F19 Pro Plus",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/oppo-f19-pro-plus/thumbnail.webp",
+      "name": "Điện thoại OPPO F19 Pro+",
+      "introduction": "OPPO F19 Pro+ thuộc dòng F của OPPO, có thiết kế điện thoại cảm ứng với cụm camera sau. Mẫu catalog phục vụ tham khảo tên model và phong cách ngoại hình.",
+      "usage": "Kiểm tra RAM, dung lượng, tình trạng pin, băng tần và thị trường máy. Công suất sạc cùng bộ phụ kiện cần đối chiếu theo phiên bản thực tế."
+    },
+    {
+      "source_id": 127,
+      "source_title": "Oppo K1",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/oppo-k1/thumbnail.webp",
+      "name": "Điện thoại OPPO K1",
+      "introduction": "OPPO K1 là mẫu điện thoại dòng K, được giới thiệu với thiết kế màn hình cảm ứng. Tên model giúp lựa chọn đúng phụ kiện và kiểm tra thông tin phiên bản.",
+      "usage": "Xác nhận bộ nhớ, tình trạng màn hình, pin và mạng hỗ trợ trước khi chọn. Với model cũ, cần kiểm tra hệ điều hành và khả năng chạy ứng dụng mong muốn."
+    },
+    {
+      "source_id": 128,
+      "source_title": "Realme C35",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/realme-c35/thumbnail.webp",
+      "name": "Điện thoại realme C35",
+      "introduction": "realme C35 thuộc dòng C, có thiết kế màn hình cảm ứng và cụm camera phía sau. Phù hợp tham khảo khi tìm thiết bị theo tên model cụ thể.",
+      "usage": "Đối chiếu RAM, bộ nhớ, màu và tình trạng máy. Kiểm tra mạng hỗ trợ, tài khoản đang khóa và phụ kiện đi kèm trước khi quyết định."
+    },
+    {
+      "source_id": 129,
+      "source_title": "Realme X",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/realme-x/thumbnail.webp",
+      "name": "Điện thoại realme X",
+      "introduction": "realme X là mẫu điện thoại thuộc dòng X của realme. Hình ảnh trong catalog hỗ trợ nhận diện kiểu dáng khi đối chiếu với thiết bị thực tế.",
+      "usage": "Xác nhận dung lượng, RAM, tình trạng màn hình và cơ cấu camera theo máy. Cần kiểm tra phiên bản phần mềm, pin và ứng dụng còn tương thích."
+    },
+    {
+      "source_id": 130,
+      "source_title": "Realme XT",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/realme-xt/thumbnail.webp",
+      "name": "Điện thoại realme XT",
+      "introduction": "realme XT là tên mẫu điện thoại thuộc dòng XT, có màn hình cảm ứng và cụm camera sau. Thiết kế phù hợp tham khảo theo model khi so sánh các lựa chọn.",
+      "usage": "RAM, bộ nhớ, màu và tình trạng cần được xác nhận theo thiết bị. Kiểm tra pin, mạng và khả năng cập nhật trước khi sử dụng làm máy chính."
+    },
+    {
+      "source_id": 131,
+      "source_title": "Samsung Galaxy S7",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s7/thumbnail.webp",
+      "name": "Điện thoại Samsung Galaxy S7",
+      "introduction": "Samsung Galaxy S7 thuộc dòng Galaxy S, có thiết kế màn hình cảm ứng với nút Home phía trước. Đây là tên model để đối chiếu kiểu dáng và phụ kiện tương thích.",
+      "usage": "Kiểm tra thị trường máy, bộ nhớ, pin và tình trạng màn hình. Model đời cũ cần xác nhận ứng dụng, bản cập nhật và khả năng dùng mạng tại nơi sử dụng."
+    },
+    {
+      "source_id": 132,
+      "source_title": "Samsung Galaxy S8",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s8/thumbnail.webp",
+      "name": "Điện thoại Samsung Galaxy S8",
+      "introduction": "Samsung Galaxy S8 thuộc dòng Galaxy S, có thiết kế màn hình kéo dài và cạnh bo cong. Mẫu catalog hỗ trợ nhận diện tên model cùng ngoại hình sản phẩm.",
+      "usage": "Kiểm tra màn hình, pin, bộ nhớ và phiên bản theo thị trường. Không mặc định tình trạng chống nước của máy đã qua sử dụng; xác nhận ứng dụng còn hỗ trợ."
+    },
+    {
+      "source_id": 133,
+      "source_title": "Samsung Galaxy S10",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s10/thumbnail.webp",
+      "name": "Điện thoại Samsung Galaxy S10",
+      "introduction": "Samsung Galaxy S10 thuộc dòng Galaxy S, có cụm camera sau và màn hình cảm ứng. Có thể tham khảo khi tìm model với phong cách thiết kế của thế hệ S10.",
+      "usage": "Xác nhận cấu hình theo thị trường, bộ nhớ và tình trạng máy. Kiểm tra màn hình, pin, khóa tài khoản và phần mềm trước khi chọn."
+    },
+    {
+      "source_id": 134,
+      "source_title": "Vivo S1",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/vivo-s1/thumbnail.webp",
+      "name": "Điện thoại vivo S1",
+      "introduction": "vivo S1 là tên mẫu điện thoại thuộc dòng S của vivo. Thiết kế cảm ứng và cụm camera được thể hiện qua hình minh họa trong catalog.",
+      "usage": "Đối chiếu mã model, RAM, bộ nhớ và băng tần của máy thực tế. Tình trạng pin, phụ kiện và phiên bản phần mềm cần được xác nhận riêng."
+    },
+    {
+      "source_id": 135,
+      "source_title": "Vivo V9",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/vivo-v9/thumbnail.webp",
+      "name": "Điện thoại vivo V9",
+      "introduction": "vivo V9 thuộc dòng V, được giới thiệu theo tên model và kiểu dáng điện thoại cảm ứng. Có thể dùng thông tin này để đối chiếu ngoại hình cùng phụ kiện.",
+      "usage": "Kiểm tra dung lượng, tình trạng pin, màn hình và hỗ trợ mạng. Đây là model đời cũ nên cần xác nhận ứng dụng cùng bản cập nhật còn sử dụng được."
+    },
+    {
+      "source_id": 136,
+      "source_title": "Vivo X21",
+      "source_image": "https://cdn.dummyjson.com/product-images/smartphones/vivo-x21/thumbnail.webp",
+      "name": "Điện thoại vivo X21",
+      "introduction": "vivo X21 là mẫu điện thoại thuộc dòng X, với thiết kế màn hình cảm ứng và cụm camera sau. Tên model giúp phân biệt khi tham khảo các phiên bản trong cùng dòng.",
+      "usage": "Xác nhận mã máy, bộ nhớ, tình trạng và chức năng của phiên bản thực tế. Kiểm tra khả năng hỗ trợ phần mềm và mạng trước khi sử dụng."
+    },
+    {
+      "source_id": 137,
+      "source_title": "American Football",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/american-football/thumbnail.webp",
+      "name": "Bóng bầu dục Mỹ",
+      "introduction": "Bóng bầu dục Mỹ có hình dáng thuôn đặc trưng, dành cho thao tác chuyền và bắt theo môn thể thao này. Có thể tham khảo cho nhu cầu làm quen hoặc tập luyện phù hợp.",
+      "usage": "Đối chiếu kích cỡ, vật liệu, áp suất và độ tuổi sử dụng. Không mặc định bóng đạt chuẩn thi đấu; tránh dùng trên mặt sân có vật sắc nhọn."
+    },
+    {
+      "source_id": 138,
+      "source_title": "Baseball Ball",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/baseball-ball/thumbnail.webp",
+      "name": "Bóng chày",
+      "introduction": "Bóng chày có kiểu dáng tròn và đường may đặc trưng của bộ môn. Phù hợp tham khảo khi chuẩn bị dụng cụ tập ném, bắt và đánh bóng theo hướng dẫn.",
+      "usage": "Chọn loại bóng theo độ tuổi, cấp độ và mục đích tập. Kiểm tra vật liệu, kích thước và độ cứng; sử dụng đồ bảo hộ khi cần thiết."
+    },
+    {
+      "source_id": 139,
+      "source_title": "Baseball Glove",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/baseball-glove/thumbnail.webp",
+      "name": "Găng tay bóng chày",
+      "introduction": "Găng tay bóng chày hỗ trợ thao tác bắt bóng trong tập luyện và thi đấu phù hợp. Kết cấu lòng găng tạo vùng đón bóng theo vị trí sử dụng.",
+      "usage": "Chọn đúng tay đeo, cỡ và vị trí chơi. Kiểm tra vật liệu cùng hướng dẫn bảo quản, làm khô thoáng sau khi tập."
+    },
+    {
+      "source_id": 140,
+      "source_title": "Basketball",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/basketball/thumbnail.webp",
+      "name": "Bóng rổ dùng tập luyện",
+      "introduction": "Bóng rổ có bề mặt chia múi theo kiểu dáng quen thuộc của môn bóng rổ. Có thể tham khảo để lựa chọn dụng cụ tập dẫn bóng, chuyền và ném rổ.",
+      "usage": "Xác nhận size, vật liệu và mặt sân tương thích. Bơm theo áp suất công bố của sản phẩm thực tế, không mặc định đạt tiêu chuẩn giải đấu."
+    },
+    {
+      "source_id": 141,
+      "source_title": "Basketball Rim",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/basketball-rim/thumbnail.webp",
+      "name": "Vành rổ dùng lắp đặt tập luyện",
+      "introduction": "Vành rổ dùng làm bộ phận đích ném trong khu vực tập bóng rổ. Kết cấu và kiểu lắp cần phù hợp với bảng rổ hoặc giá đỡ được sử dụng.",
+      "usage": "Đối chiếu đường kính, vị trí bắt vít, tải trọng và phụ kiện thực tế. Cố định an toàn; không đu người nếu thiết bị không được thiết kế cho thao tác này."
+    },
+    {
+      "source_id": 142,
+      "source_title": "Cricket Ball",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/cricket-ball/thumbnail.webp",
+      "name": "Bóng cricket",
+      "introduction": "Bóng cricket có kiểu dáng và đường may đặc trưng, dùng trong bộ môn cricket theo loại bóng phù hợp. Có thể lựa chọn theo cấp độ làm quen hoặc tập luyện.",
+      "usage": "Kiểm tra vật liệu, khối lượng và độ cứng trước khi sử dụng. Dùng trang bị bảo hộ phù hợp; không mặc định bóng được chứng nhận thi đấu."
+    },
+    {
+      "source_id": 143,
+      "source_title": "Cricket Bat",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/cricket-bat/thumbnail.webp",
+      "name": "Gậy cricket",
+      "introduction": "Gậy cricket có mặt đánh rộng và phần tay cầm, dùng thực hiện kỹ thuật đánh bóng của bộ môn. Việc chọn gậy cần phù hợp chiều cao và trình độ người chơi.",
+      "usage": "Đối chiếu size, trọng lượng và vật liệu thực tế. Bảo dưỡng theo hướng dẫn của loại gậy, tránh dùng sai loại bóng hoặc va đập ngoài mục đích."
+    },
+    {
+      "source_id": 144,
+      "source_title": "Cricket Helmet",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/cricket-helmet/thumbnail.webp",
+      "name": "Mũ bảo hộ cricket",
+      "introduction": "Mũ cricket được giới thiệu theo kiểu bảo hộ khi chơi bộ môn này. Phần vỏ và lưới phía trước là các chi tiết cần kiểm tra khi lựa chọn trang bị.",
+      "usage": "Chỉ sử dụng khi xác minh được tiêu chuẩn an toàn và kích cỡ phù hợp. Hình minh họa không chứng minh khả năng bảo vệ; không dùng mũ hỏng hoặc đã va đập mạnh."
+    },
+    {
+      "source_id": 145,
+      "source_title": "Cricket Wicket",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/cricket-wicket/thumbnail.webp",
+      "name": "Bộ cọc wicket dùng chơi cricket",
+      "introduction": "Bộ wicket tạo mục tiêu trong môn cricket với các cọc và chi tiết đặt phía trên theo quy cách thực tế. Có thể tham khảo khi bố trí khu vực tập luyện.",
+      "usage": "Kiểm tra số chi tiết, chiều cao và cách cắm hoặc dựng cọc. Chọn vật liệu phù hợp mặt sân và độ tuổi, không mặc định đạt chuẩn thi đấu."
+    },
+    {
+      "source_id": 146,
+      "source_title": "Feather Shuttlecock",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/feather-shuttlecock/thumbnail.webp",
+      "name": "Quả cầu lông dạng lông vũ",
+      "introduction": "Quả cầu lông có cấu tạo thân cánh và đầu cầu theo kiểu lông vũ. Phù hợp tham khảo để chọn cầu cho các buổi tập và chơi giải trí.",
+      "usage": "Kiểm tra chất liệu, tốc độ và số lượng trong hộp thực tế. Giữ cầu khô thoáng, tránh đè ép phần cánh và chọn tốc độ theo điều kiện sân."
+    },
+    {
+      "source_id": 147,
+      "source_title": "Football",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/football/thumbnail.webp",
+      "name": "Bóng đá dùng tập luyện",
+      "introduction": "Bóng đá có thiết kế chia mảng, phục vụ các bài tập chuyền, dẫn và sút bóng khi chọn đúng loại. Có thể tham khảo cho nhu cầu chơi thể thao theo nhóm.",
+      "usage": "Đối chiếu size, chất liệu và loại sân phù hợp. Bơm theo áp suất thực tế được công bố, không suy đoán chứng nhận thi đấu từ hình ảnh."
+    },
+    {
+      "source_id": 148,
+      "source_title": "Golf Ball",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/golf-ball/thumbnail.webp",
+      "name": "Bóng golf",
+      "introduction": "Bóng golf có bề mặt lõm đặc trưng, dùng trong hoạt động tập luyện và chơi golf. Loại bóng cần chọn theo nhu cầu cùng đặc điểm của người chơi.",
+      "usage": "Xác nhận số lượng, cấu trúc và tình trạng bóng trên sản phẩm thực tế. Sử dụng tại khu vực chơi golf an toàn, tránh hướng đánh về người hoặc tài sản."
+    },
+    {
+      "source_id": 149,
+      "source_title": "Iron Golf",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/iron-golf/thumbnail.webp",
+      "name": "Gậy golf sắt",
+      "introduction": "Gậy golf sắt có phần đầu và cán theo thiết kế phục vụ kỹ thuật đánh golf. Việc chọn gậy cần căn cứ vào tay thuận, thể trạng và mục tiêu tập luyện.",
+      "usage": "Kiểm tra số gậy, góc loft, độ cứng cán và chiều dài thực tế. Không kết luận thông số từ ảnh; tập tại khu vực an toàn và bảo quản đầu gậy khô."
+    },
+    {
+      "source_id": 150,
+      "source_title": "Metal Baseball Bat",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/metal-baseball-bat/thumbnail.webp",
+      "name": "Gậy bóng chày kim loại",
+      "introduction": "Gậy bóng chày dạng kim loại dùng cho kỹ thuật đánh bóng khi chọn đúng quy cách. Thiết kế thân dài và tay cầm cần phù hợp thể trạng người sử dụng.",
+      "usage": "Xác nhận chiều dài, khối lượng, vật liệu và quy định sân chơi. Chỉ sử dụng đúng môn, giữ khoảng cách an toàn với người xung quanh."
+    },
+    {
+      "source_id": 151,
+      "source_title": "Tennis Ball",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/tennis-ball/thumbnail.webp",
+      "name": "Bóng tennis",
+      "introduction": "Bóng tennis có lớp phủ bề mặt đặc trưng, dùng cho các buổi tập và chơi tennis phù hợp. Có thể chọn theo loại sân và cấp độ người chơi.",
+      "usage": "Kiểm tra loại bóng, số lượng, độ nảy và tình trạng bao bì thực tế. Không mặc định đạt chứng nhận thi đấu hoặc phù hợp mọi mặt sân."
+    },
+    {
+      "source_id": 152,
+      "source_title": "Tennis Racket",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/tennis-racket/thumbnail.webp",
+      "name": "Vợt tennis",
+      "introduction": "Vợt tennis gồm khung, mặt dây và tay cầm, dành cho tập luyện hoặc chơi theo cấu hình phù hợp. Cần lựa chọn theo trình độ cùng thể trạng người chơi.",
+      "usage": "Xác nhận trọng lượng, cỡ mặt, cỡ cán và tình trạng căng dây. Bảo quản tránh nhiệt cao, không dùng khung nứt và chọn lực căng theo hướng dẫn."
+    },
+    {
+      "source_id": 153,
+      "source_title": "Volleyball",
+      "source_image": "https://cdn.dummyjson.com/product-images/sports-accessories/volleyball/thumbnail.webp",
+      "name": "Bóng chuyền",
+      "introduction": "Bóng chuyền có hình dáng tròn và các mảng ghép đặc trưng, dùng cho hoạt động tập luyện hoặc giải trí. Loại bóng cần phù hợp sân cùng người sử dụng.",
+      "usage": "Kiểm tra size, vật liệu, áp suất và mục đích trong nhà hoặc ngoài trời. Không mặc định đạt tiêu chuẩn thi đấu khi chưa có thông tin xác nhận."
+    },
+    {
+      "source_id": 154,
+      "source_title": "Black Sun Glasses",
+      "source_image": "https://cdn.dummyjson.com/product-images/sunglasses/black-sun-glasses/thumbnail.webp",
+      "name": "Kính mát gọng đen",
+      "introduction": "Kính mát tông đen dễ phối cùng nhiều phong cách trang phục. Kiểu gọng và tròng tạo điểm nhấn khi dùng như phụ kiện cá nhân.",
+      "usage": "Đối chiếu chiều rộng gọng và độ vừa vặn. Chỉ tin khả năng chống tia UV khi có thông số được xác minh; không dùng kính mát để nhìn trực tiếp mặt trời."
+    },
+    {
+      "source_id": 155,
+      "source_title": "Classic Sun Glasses",
+      "source_image": "https://cdn.dummyjson.com/product-images/sunglasses/classic-sun-glasses/thumbnail.webp",
+      "name": "Kính mát kiểu cổ điển",
+      "introduction": "Mẫu kính mát mang phong cách cổ điển, thuận tiện phối cùng trang phục hằng ngày. Thiết kế gọng giúp tạo điểm nhấn theo sở thích và dáng khuôn mặt.",
+      "usage": "Kiểm tra kích thước, vật liệu cùng thông số tròng thực tế. Khả năng chống UV hoặc phân cực không thể kết luận chỉ qua tên và hình ảnh."
+    },
+    {
+      "source_id": 156,
+      "source_title": "Green and Black Glasses",
+      "source_image": "https://cdn.dummyjson.com/product-images/sunglasses/green-and-black-glasses/thumbnail.webp",
+      "name": "Kính thời trang phối xanh đen",
+      "introduction": "Kính phối xanh và đen tạo điểm nhấn màu sắc cho phụ kiện đeo mặt. Có thể tham khảo khi cần kiểu gọng nổi bật cho bộ trang phục.",
+      "usage": "Chọn kích thước phù hợp khuôn mặt và kiểm tra loại tròng. Không mặc định là kính cận, kính bảo hộ hoặc có khả năng chống UV được chứng nhận."
+    },
+    {
+      "source_id": 157,
+      "source_title": "Party Glasses",
+      "source_image": "https://cdn.dummyjson.com/product-images/sunglasses/party-glasses/thumbnail.webp",
+      "name": "Kính phụ kiện dự tiệc",
+      "introduction": "Kính phụ kiện mang phong cách vui tươi, phù hợp phối đồ hoặc chụp ảnh trong dịp tụ họp. Kiểu dáng tạo điểm nhấn cho chủ đề trang phục.",
+      "usage": "Kiểm tra độ vừa vặn và vật liệu tiếp xúc da. Không sử dụng như kính bảo hộ hoặc kính chống nắng khi chưa xác minh được tính năng."
+    },
+    {
+      "source_id": 158,
+      "source_title": "Sunglasses",
+      "source_image": "https://cdn.dummyjson.com/product-images/sunglasses/sunglasses/thumbnail.webp",
+      "name": "Kính mát thời trang",
+      "introduction": "Kính mát là phụ kiện phối cùng trang phục khi ra ngoài hoặc chụp ảnh. Kiểu dáng và màu gọng cần lựa chọn theo sở thích cùng độ vừa vặn.",
+      "usage": "Xác nhận kích thước và thông số tròng trên sản phẩm thực tế. Không tự suy đoán chống UV, phân cực hay công dụng bảo vệ chuyên dụng."
+    },
+    {
+      "source_id": 159,
+      "source_title": "iPad Mini 2021 Starlight",
+      "source_image": "https://cdn.dummyjson.com/product-images/tablets/ipad-mini-2021-starlight/thumbnail.webp",
+      "name": "Máy tính bảng Apple iPad mini 2021 màu Starlight",
+      "introduction": "Mẫu iPad mini 2021 màu Starlight có thiết kế máy tính bảng gọn, phù hợp đọc nội dung và thao tác trên màn hình cảm ứng. Tên model giúp đối chiếu phụ kiện cùng thế hệ.",
+      "usage": "Xác nhận dung lượng, Wi-Fi hoặc Cellular, tình trạng pin và khóa tài khoản. Bút, bàn phím và phụ kiện không mặc định có trong bộ sản phẩm."
+    },
+    {
+      "source_id": 160,
+      "source_title": "Samsung Galaxy Tab S8 Plus Grey",
+      "source_image": "https://cdn.dummyjson.com/product-images/tablets/samsung-galaxy-tab-s8-plus-grey/thumbnail.webp",
+      "name": "Máy tính bảng Samsung Galaxy Tab S8+ màu xám",
+      "introduction": "Mẫu Galaxy Tab S8+ tông xám thuộc dòng máy tính bảng Samsung Galaxy Tab. Có thể tham khảo cho nhu cầu xem nội dung, ghi chú hoặc làm việc trên thiết bị tương thích.",
+      "usage": "Kiểm tra RAM, bộ nhớ, phiên bản kết nối và tình trạng thực tế. Bút, bàn phím cùng bộ sạc cần đối chiếu theo danh sách phụ kiện của từng máy."
+    },
+    {
+      "source_id": 161,
+      "source_title": "Samsung Galaxy Tab White",
+      "source_image": "https://cdn.dummyjson.com/product-images/tablets/samsung-galaxy-tab-white/thumbnail.webp",
+      "name": "Máy tính bảng Samsung Galaxy Tab màu trắng",
+      "introduction": "Mẫu máy tính bảng Samsung Galaxy Tab màu trắng được giới thiệu bằng tên dòng và hình dáng. Tên hiện tại chưa xác định đầy đủ model hoặc thế hệ máy.",
+      "usage": "Cần hỏi mã model trước khi xác nhận màn hình, cấu hình, mạng và phụ kiện. Không suy đoán thông số từ tên Galaxy Tab chung hoặc hình minh họa."
+    },
+    {
+      "source_id": 162,
+      "source_title": "Blue Frock",
+      "source_image": "https://cdn.dummyjson.com/product-images/tops/blue-frock/thumbnail.webp",
+      "name": "Váy liền màu xanh",
+      "introduction": "Váy liền tông xanh là lựa chọn phối trang phục theo phong cách nhẹ nhàng. Dáng váy cùng chi tiết đường may cần đối chiếu qua ảnh và phiên bản thực tế.",
+      "usage": "Chọn size theo số đo ngực, eo và chiều dài mong muốn. Kiểm tra chất liệu, lớp lót và hướng dẫn giặt trên nhãn trước khi sử dụng."
+    },
+    {
+      "source_id": 163,
+      "source_title": "Girl Summer Dress",
+      "source_image": "https://cdn.dummyjson.com/product-images/tops/girl-summer-dress/thumbnail.webp",
+      "name": "Váy bé gái phong cách mùa hè",
+      "introduction": "Mẫu váy bé gái theo phong cách mùa hè, thuận tiện phối cùng giày và phụ kiện phù hợp. Kiểu dáng được thể hiện qua ảnh minh họa của catalog.",
+      "usage": "Chọn theo chiều cao và số đo thực tế của bé, không chỉ dựa vào tuổi. Kiểm tra chất liệu, chi tiết nhỏ và hướng dẫn chăm sóc trên nhãn."
+    },
+    {
+      "source_id": 164,
+      "source_title": "Gray Dress",
+      "source_image": "https://cdn.dummyjson.com/product-images/tops/gray-dress/thumbnail.webp",
+      "name": "Váy liền màu xám",
+      "introduction": "Váy liền tông xám có màu trung tính, dễ phối với giày và phụ kiện theo nhiều phong cách. Dáng váy cần chọn theo số đo cùng hoàn cảnh sử dụng.",
+      "usage": "Đối chiếu bảng size, chiều dài, chất liệu và lớp lót trước khi chọn. Giặt theo nhãn chăm sóc; màu thực tế có thể khác do màn hình."
+    },
+    {
+      "source_id": 165,
+      "source_title": "Short Frock",
+      "source_image": "https://cdn.dummyjson.com/product-images/tops/short-frock/thumbnail.webp",
+      "name": "Váy liền dáng ngắn",
+      "introduction": "Váy liền dáng ngắn tạo phong cách gọn gàng, phù hợp kết hợp cùng phụ kiện theo sở thích. Chiều dài thực tế phụ thuộc kích cỡ và số đo người mặc.",
+      "usage": "Kiểm tra bảng size, chiều dài váy, chất liệu và lớp lót. Tuân theo nhãn chăm sóc, tránh tự suy đoán độ co giãn từ ảnh."
+    },
+    {
+      "source_id": 166,
+      "source_title": "Tartan Dress",
+      "source_image": "https://cdn.dummyjson.com/product-images/tops/tartan-dress/thumbnail.webp",
+      "name": "Váy liền họa tiết tartan",
+      "introduction": "Váy liền họa tiết tartan có bố cục kẻ ô tạo điểm nhấn cho trang phục. Có thể phối cùng phụ kiện trơn màu để làm nổi bật phần họa tiết.",
+      "usage": "Chọn size theo số đo thực tế và kiểm tra độ dài mong muốn. Giặt theo hướng dẫn trên nhãn để phù hợp màu và chất liệu."
+    },
+    {
+      "source_id": 172,
+      "source_title": "Blue Women's Handbag",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-bags/blue-women's-handbag/thumbnail.webp",
+      "name": "Túi xách nữ màu xanh",
+      "introduction": "Túi xách nữ tông xanh tạo điểm nhấn khi phối cùng trang phục thường ngày. Kết cấu quai và thân túi thuận tiện bố trí đồ cá nhân theo kích thước thực tế.",
+      "usage": "Kiểm tra kích thước, chất liệu, ngăn và phụ kiện đi kèm. Không để quá tải; vệ sinh theo vật liệu và tránh tiếp xúc nước nếu nhãn không cho phép."
+    },
+    {
+      "source_id": 173,
+      "source_title": "Heshe Women's Leather Bag",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-bags/heshe-women's-leather-bag/thumbnail.webp",
+      "name": "Túi xách nữ Heshe phong cách da",
+      "introduction": "Mẫu túi xách nữ Heshe mang phong cách da, phù hợp phối đồ theo hướng đơn giản và trang nhã. Kiểu dáng thuận tiện tham khảo khi chọn túi đựng đồ cá nhân.",
+      "usage": "Thành phần da thật hay vật liệu tổng hợp cần được xác nhận riêng. Kiểm tra kích thước, số ngăn và cách vệ sinh trước khi chọn."
+    },
+    {
+      "source_id": 174,
+      "source_title": "Prada Women Bag",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-bags/prada-women-bag/thumbnail.webp",
+      "name": "Túi xách nữ Prada",
+      "introduction": "Mẫu túi xách mang tên Prada tạo điểm nhấn cho bộ trang phục qua kiểu dáng và chi tiết nhận diện. Hình trong catalog dùng để tham khảo phong cách sản phẩm.",
+      "usage": "Xác minh mã mẫu, vật liệu, nguồn gốc và phụ kiện khi kinh doanh thật. Dữ liệu catalog không phải chứng nhận chính hãng hay cam kết bảo hành thương hiệu."
+    },
+    {
+      "source_id": 175,
+      "source_title": "White Faux Leather Backpack",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-bags/white-faux-leather-backpack/thumbnail.webp",
+      "name": "Balo thời trang giả da màu trắng",
+      "introduction": "Balo giả da màu trắng có kiểu dáng phù hợp mang theo đồ cá nhân trong sinh hoạt thường ngày. Tông màu sáng dễ phối cùng trang phục theo nhiều phong cách.",
+      "usage": "Kiểm tra kích thước, dây đeo và số ngăn trước khi chọn. Lau bằng phương pháp phù hợp với giả da, tránh nhiệt cao và không mang quá tải."
+    },
+    {
+      "source_id": 176,
+      "source_title": "Women Handbag Black",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-bags/women-handbag-black/thumbnail.webp",
+      "name": "Túi xách nữ màu đen",
+      "introduction": "Túi xách nữ tông đen dễ kết hợp cùng trang phục đi làm hoặc thường ngày. Phần quai cùng khoang chứa cần đối chiếu theo hình dáng và phiên bản thực tế.",
+      "usage": "Kiểm tra kích thước, ngăn, loại khóa và chất liệu. Không mặc định có dây đeo phụ; bảo quản khô và tránh để vật sắc nhọn trong túi."
+    },
+    {
+      "source_id": 177,
+      "source_title": "Black Women's Gown",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-dresses/black-women's-gown/thumbnail.webp",
+      "name": "Đầm nữ màu đen phong cách dạ tiệc",
+      "introduction": "Đầm nữ tông đen hướng đến phong cách dự tiệc hoặc sự kiện phù hợp. Kiểu dáng có thể phối cùng giày và phụ kiện tạo tổng thể theo sở thích.",
+      "usage": "Chọn theo số đo ngực, eo, hông và chiều dài thực tế. Kiểm tra lớp lót, chất liệu và cách làm sạch được ghi trên nhãn."
+    },
+    {
+      "source_id": 178,
+      "source_title": "Corset Leather With Skirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-dresses/corset-leather-with-skirt/thumbnail.webp",
+      "name": "Bộ áo corset phong cách da và chân váy",
+      "introduction": "Mẫu trang phục kết hợp áo corset phong cách da với chân váy, tạo bố cục phối đồ nổi bật. Kiểu dáng phù hợp tham khảo cho phong cách cá nhân hoặc dịp đặc biệt.",
+      "usage": "Xác nhận sản phẩm bán theo bộ hay từng món, chất liệu và bảng size thực tế. Điều chỉnh độ vừa vặn thoải mái, giặt theo nhãn chăm sóc."
+    },
+    {
+      "source_id": 179,
+      "source_title": "Corset With Black Skirt",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-dresses/corset-with-black-skirt/thumbnail.webp",
+      "name": "Bộ áo corset phối chân váy đen",
+      "introduction": "Mẫu trang phục có áo corset kết hợp chân váy đen, hướng đến phong cách phối đồ có điểm nhấn. Tông màu và dáng trang phục cần đối chiếu theo phiên bản thực tế.",
+      "usage": "Kiểm tra quy cách bán, số món trong bộ và các số đo trước khi chọn. Không siết corset gây khó chịu; vệ sinh theo chất liệu ghi trên nhãn."
+    },
+    {
+      "source_id": 180,
+      "source_title": "Dress Pea",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-dresses/dress-pea/thumbnail.webp",
+      "name": "Váy liền họa tiết Dress Pea",
+      "introduction": "Mẫu váy Dress Pea được giới thiệu theo tên trong dữ liệu nguồn, với kiểu dáng dành cho phối đồ thời trang. Có thể tham khảo ảnh để lựa chọn cách kết hợp phụ kiện.",
+      "usage": "Tên nguồn chưa xác nhận chất liệu hay thương hiệu; cần xem bảng size, chiều dài và chi tiết thực tế. Giặt theo nhãn chăm sóc phù hợp."
+    },
+    {
+      "source_id": 181,
+      "source_title": "Marni Red & Black Suit",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-dresses/marni-red-&-black-suit/thumbnail.webp",
+      "name": "Bộ trang phục Marni phối đỏ đen",
+      "introduction": "Mẫu trang phục Marni phối đỏ và đen tạo điểm nhấn tương phản trong bộ đồ. Kiểu dáng phù hợp tham khảo khi phối trang phục theo phong cách nổi bật.",
+      "usage": "Xác nhận quy cách bán, số món, bảng size và chất liệu trước khi chọn. Tên và ảnh nguồn không xác nhận tính chính hãng hoặc phụ kiện đi kèm."
+    },
+    {
+      "source_id": 182,
+      "source_title": "Green Crystal Earring",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-jewellery/green-crystal-earring/thumbnail.webp",
+      "name": "Bông tai đính đá trang trí màu xanh",
+      "introduction": "Bông tai đính chi tiết đá trang trí tông xanh, giúp tạo điểm nhấn cho gương mặt. Có thể phối cùng trang phục đơn giản để làm nổi bật màu phụ kiện.",
+      "usage": "Xác nhận vật liệu, kích thước, kiểu chốt và quy cách bán một chiếc hay một đôi. Không mặc định là đá quý hoặc kim loại quý; vệ sinh trước khi đeo."
+    },
+    {
+      "source_id": 183,
+      "source_title": "Green Oval Earring",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-jewellery/green-oval-earring/thumbnail.webp",
+      "name": "Bông tai dáng oval màu xanh",
+      "introduction": "Bông tai với chi tiết oval tông xanh tạo phong cách nhẹ nhàng, dễ phối cùng trang phục theo sở thích. Kiểu dáng làm điểm nhấn cho bộ phụ kiện cá nhân.",
+      "usage": "Kiểm tra vật liệu và loại chốt để phù hợp vị trí đeo. Không tự suy đoán loại đá hay độ an toàn với da nhạy cảm từ hình ảnh."
+    },
+    {
+      "source_id": 184,
+      "source_title": "Tropical Earring",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-jewellery/tropical-earring/thumbnail.webp",
+      "name": "Bông tai phong cách nhiệt đới",
+      "introduction": "Bông tai phong cách nhiệt đới tạo điểm nhấn màu sắc khi phối đồ đi chơi hoặc chụp ảnh. Họa tiết trang trí mang tinh thần tươi vui theo mẫu minh họa.",
+      "usage": "Xác nhận kích thước, trọng lượng, chất liệu và số lượng đi kèm. Tránh nước, hóa chất nếu chưa có hướng dẫn vật liệu; ngưng đeo khi gây kích ứng."
+    },
+    {
+      "source_id": 185,
+      "source_title": "Black & Brown Slipper",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-shoes/black-&-brown-slipper/thumbnail.webp",
+      "name": "Dép phối màu đen nâu",
+      "introduction": "Dép phối đen và nâu có kiểu dáng phù hợp đi lại thường ngày theo điều kiện sử dụng thực tế. Tông màu trung tính dễ kết hợp cùng trang phục đơn giản.",
+      "usage": "Chọn size theo chiều dài bàn chân, kiểm tra độ bám đế và vật liệu. Không mặc định dùng được ở khu vực trơn ướt; vệ sinh theo nhãn hướng dẫn."
+    },
+    {
+      "source_id": 186,
+      "source_title": "Calvin Klein Heel Shoes",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-shoes/calvin-klein-heel-shoes/thumbnail.webp",
+      "name": "Giày cao gót Calvin Klein",
+      "introduction": "Mẫu giày cao gót Calvin Klein hướng đến phong cách trang phục đi làm hoặc dự tiệc. Kiểu dáng giúp tạo điểm nhấn khi phối cùng váy hoặc quần phù hợp.",
+      "usage": "Đối chiếu size, chiều cao gót, chất liệu và độ vừa chân. Catalog không xác nhận tính chính hãng; kiểm tra đế và tập đi trên bề mặt ổn định."
+    },
+    {
+      "source_id": 187,
+      "source_title": "Golden Shoes Woman",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-shoes/golden-shoes-woman/thumbnail.webp",
+      "name": "Giày nữ tông vàng",
+      "introduction": "Giày nữ tông vàng tạo điểm nhấn ánh sắc khi phối cùng trang phục dự tiệc hoặc theo sở thích. Kiểu dáng và độ cao thực tế cần đối chiếu với phiên bản.",
+      "usage": "Kiểm tra size, độ cao gót, lớp lót và vật liệu. Không mặc định chi tiết tông vàng là kim loại quý; bảo quản tránh ẩm và cọ xát mạnh."
+    },
+    {
+      "source_id": 188,
+      "source_title": "Pampi Shoes",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-shoes/pampi-shoes/thumbnail.webp",
+      "name": "Giày nữ Pampi",
+      "introduction": "Mẫu giày nữ mang tên Pampi phù hợp tham khảo theo kiểu dáng trong catalog. Có thể kết hợp với váy hoặc quần theo phong cách cá nhân.",
+      "usage": "Xác nhận model, size, chất liệu và độ cao thực tế trước khi chọn. Tên nguồn không đủ để kết luận thương hiệu, xuất xứ hoặc tính năng chuyên dụng."
+    },
+    {
+      "source_id": 189,
+      "source_title": "Red Shoes",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-shoes/red-shoes/thumbnail.webp",
+      "name": "Giày nữ màu đỏ",
+      "introduction": "Giày nữ tông đỏ tạo điểm nhấn cho trang phục thường ngày hoặc dịp đặc biệt. Kiểu dáng và chi tiết hoàn thiện cần xem theo ảnh cùng phiên bản thực tế.",
+      "usage": "Đo bàn chân và đối chiếu bảng size, chiều cao gót cùng chất liệu. Làm sạch đúng hướng dẫn, tránh phơi ở nơi có nhiệt độ cao."
+    },
+    {
+      "source_id": 193,
+      "source_title": "Watch Gold for Women",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-watches/watch-gold-for-women/thumbnail.webp",
+      "name": "Đồng hồ nữ tông vàng",
+      "introduction": "Đồng hồ nữ tông vàng là phụ kiện cho cổ tay, dễ kết hợp với trang phục theo phong cách thanh lịch. Màu sắc mặt và dây tạo điểm nhấn cho tổng thể.",
+      "usage": "Kiểm tra kích thước, loại máy và vật liệu thực tế. Tông vàng không đồng nghĩa với vàng thật; không ngâm nước khi chưa xác nhận mức chống nước."
+    },
+    {
+      "source_id": 194,
+      "source_title": "Women's Wrist Watch",
+      "source_image": "https://cdn.dummyjson.com/product-images/womens-watches/women's-wrist-watch/thumbnail.webp",
+      "name": "Đồng hồ đeo tay nữ",
+      "introduction": "Mẫu đồng hồ nữ giúp kết hợp nhu cầu xem giờ với phụ kiện thời trang. Thiết kế mặt và dây phù hợp tham khảo theo sở thích cùng kích thước cổ tay.",
+      "usage": "Xác nhận đường kính mặt, độ dài dây, loại máy và tình trạng hoạt động. Không mặc định có khả năng chống nước hay bảo hành khi chưa được công bố."
+    }
+  ]
+}

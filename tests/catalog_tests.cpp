@@ -1,4 +1,5 @@
 #include "catalog.h"
+#include "catalog_copy.h"
 #include "domain.h"
 #include "security.h"
 #include <fstream>
@@ -33,6 +34,13 @@ int main(int argc, char **) {
     file >> doc;
     auto normalized = normalizeDemoCatalog(doc);
     check(normalized.size() == 30 && normalized[0]["is_demo"] == true, "normalize fixture");
+    check(normalized[0]["name"] == "Mascara Essence Lash Princess", "reviewed Vietnamese import name");
+    auto editorial = loadCatalogCopy("database/catalog-copy.vi.json");
+    check(editorial.at("products").size() == 177, "complete reviewed original catalog");
+    auto changedSource = doc;
+    changedSource["products"][0]["title"] = "A different product from provider";
+    check(normalizeDemoCatalog(changedSource)[0]["name"] == "A different product from provider",
+          "changed provider title never receives mismatched copy");
     auto bad = doc;
     bad["source"] = "Shopee";
     rejects([&] { normalizeDemoCatalog(bad); }, "invalid_demo_catalog");
@@ -63,7 +71,9 @@ int main(int argc, char **) {
         check(expandedIds.insert(p.at("id")).second, "unique generated product identities");
         if (p["source"] == "ShoppeDemo") {
             ++generated;
-            check(p.at("name").get<std::string>().find("Mẫu demo") != std::string::npos, "visible generated label");
+            check(p.value("is_demo", false) &&
+                      p.at("description").get<std::string>().find("mô phỏng") != std::string::npos,
+                  "generated provenance remains explicit without a title suffix");
         }
     }
     check(generated == 270, "retain truthful source attribution");
@@ -137,6 +147,36 @@ int main(int argc, char **) {
     auto repeat600 = stageDemoCatalog(r, user, expanded600);
     auto skipped600 = commitDemoCatalog(r, user, repeat600.at("preview_token"));
     check(skipped600["imported"] == 0 && skipped600["skipped"] == 600, "repeat 600 never duplicates or restocks");
+    auto beforeCopy = r.list("products");
+    auto beforeCopyVariants = r.list("variants");
+    auto copyPlan = prepareCatalogCopy(beforeCopy, editorial);
+    check(copyPlan.at("count") == 600, "copy covers all 600 listings");
+    auto conflict = beforeCopy[1];
+    conflict["description"] = "Concurrent seller edit";
+    r.save("products", conflict);
+    rejects([&] { applyCatalogCopy(r, copyPlan); }, "catalog_copy_conflict");
+    check(r.get("products", beforeCopy[0].at("id")) == beforeCopy[0],
+          "copy preflight fails before any earlier row is written");
+    r.save("products", beforeCopy[1]);
+    auto copied = applyCatalogCopy(r, copyPlan);
+    check(copied.at("updated").get<int>() > 0 && copied.at("total") == 600, "copy updates existing edits explicitly");
+    auto replay = applyCatalogCopy(r, copyPlan);
+    check(replay.at("updated") == 0 && replay.at("skipped") == 600, "copy apply is idempotent");
+    for (const auto &p : beforeCopy) {
+        auto after = r.get("products", p.at("id"));
+        check(after.at("description").get<std::string>().find("không cung cấp hàng thật") != std::string::npos,
+              "copy preserves visible demonstration disclosure");
+        after["name"] = p.at("name");
+        after["description"] = p.at("description");
+        check(after == p, "copy changes only name and description");
+    }
+    check(r.list("variants") == beforeCopyVariants, "copy never changes variant price or stock");
+    auto duplicateCopy = copyPlan;
+    duplicateCopy["changes"].push_back(duplicateCopy["changes"][0]);
+    rejects([&] { applyCatalogCopy(r, duplicateCopy); }, "invalid_catalog_copy");
+    auto missingCopy = editorial;
+    missingCopy["products"].erase(missingCopy["products"].begin());
+    rejects([&] { prepareCatalogCopy(beforeCopy, missingCopy); }, "catalog_copy_conflict");
     tx->rollback();
     std::cout
         << "Catalog validation, scoped preview, expiry, replay, price and stock preservation passed.\n";
