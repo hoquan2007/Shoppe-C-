@@ -63,6 +63,11 @@ int main(int argc, char **argv) {
         server.set_read_timeout(15);
         server.set_write_timeout(15);
         server.new_task_queue = [] { return new httplib::ThreadPool(4); };
+        // cpp-httplib dedicates a worker to each accepted connection, including idle
+        // keep-alive waits. The platform handles public HTTP/2 connection reuse;
+        // release our bounded worker after each upstream request instead of letting
+        // four idle sockets block every subsequent shopper. Database pooling stays.
+        server.set_keep_alive_max_count(1);
         server.set_pre_routing_handler([](const httplib::Request &req, httplib::Response &res) {
             if (std::regex_match(req.path, std::regex(R"(/assets/[^/]+-[A-Za-z0-9_-]{8}\.(js|css))")))
                 res.set_header("Cache-Control", "public, max-age=31536000, immutable");

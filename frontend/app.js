@@ -420,6 +420,9 @@ async function home() {
     )}</div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng</a></section>`;
 }
 async function searchPage(shopId = "") {
+  const catalogPath = shopId
+    ? "/shop/" + encodeURIComponent(shopId)
+    : "/search";
   const params = new URLSearchParams(location.search);
   if (shopId) params.set("shop", shopId);
   const [{ products: list, total, page, page_size: pageSize, pages }] =
@@ -455,7 +458,7 @@ async function searchPage(shopId = "") {
         : params.get("category") || "Khám phá sản phẩm",
       `${total} lựa chọn đang chờ bạn khám phá`,
     ) +
-    `<div class="catalog-layout"><aside class="filter-panel"><button class="filter-toggle" type="button" data-action="toggle-filters" aria-expanded="false" aria-controls="catalog-filters">${icon("settings", 18)} Bộ lọc sản phẩm</button><div class="filter-content" id="catalog-filters"><h3>Danh mục</h3><a class="category-link" href="/search">Tất cả sản phẩm</a>${(state.meta.categories || []).map((c) => `<a class="category-link ${params.get("category") === c ? "active" : ""}" href="/search?category=${encodeURIComponent(c)}">${esc(c)}</a>`).join("")}<form data-form="filter-price"><input type="hidden" name="category" value="${esc(params.get("category") || "")}"><input type="hidden" name="q" value="${esc(params.get("q") || "")}"><label class="field"><span>Giá từ</span><input type="number" name="min" min="0" placeholder="0" value="${esc(params.get("min") || "")}"></label><label class="field"><span>Đến</span><input type="number" name="max" min="0" placeholder="Không giới hạn" value="${esc(params.get("max") || "")}"></label><button class="btn full">Áp dụng</button></form></div></aside><div class="catalog-results"><div class="catalog-toolbar"><span>${total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} / ${total} sản phẩm` : "Chọn điều bạn yêu"}</span><select class="sort-select" id="sort-products" aria-label="Sắp xếp">${[
+    `<div class="catalog-layout"><aside class="filter-panel"><button class="filter-toggle" type="button" data-action="toggle-filters" aria-expanded="false" aria-controls="catalog-filters">${icon("settings", 18)} Bộ lọc sản phẩm</button><div class="filter-content" id="catalog-filters"><h3>Danh mục</h3><a class="category-link" href="${catalogPath}">Tất cả sản phẩm</a>${(state.meta.categories || []).map((c) => `<a class="category-link ${params.get("category") === c ? "active" : ""}" href="${catalogPath}?category=${encodeURIComponent(c)}">${esc(c)}</a>`).join("")}<form data-form="filter-price"><input type="hidden" name="category" value="${esc(params.get("category") || "")}"><input type="hidden" name="q" value="${esc(params.get("q") || "")}"><label class="field"><span>Giá từ</span><input type="number" name="min" min="0" placeholder="0" value="${esc(params.get("min") || "")}"></label><label class="field"><span>Đến</span><input type="number" name="max" min="0" placeholder="Không giới hạn" value="${esc(params.get("max") || "")}"></label><button class="btn full">Áp dụng</button></form></div></aside><div class="catalog-results"><div class="catalog-toolbar"><span>${total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} / ${total} sản phẩm` : "Chọn điều bạn yêu"}</span><select class="sort-select" id="sort-products" aria-label="Sắp xếp">${[
       ["new", "Mới nhất"],
       ["price", "Giá thấp đến cao"],
       ["price-desc", "Giá cao đến thấp"],
@@ -1540,7 +1543,7 @@ document.addEventListener("change", (e) => {
   if (e.target.id !== "catalog-page") return;
   const q = new URLSearchParams(location.search);
   q.set("page", e.target.value);
-  go("/search?" + q);
+  go(location.pathname + "?" + q);
 });
 document.addEventListener("change", async (e) => {
   try {
@@ -1557,7 +1560,7 @@ document.addEventListener("change", async (e) => {
       const q = new URLSearchParams(location.search);
       q.set("sort", e.target.value);
       q.delete("page");
-      go("/search?" + q);
+      go(location.pathname + "?" + q);
     }
     if (e.target.id === "checkout-address") await quoteCheckout();
     if (e.target.id === "csv-upload" && e.target.files[0]) {
@@ -1612,7 +1615,7 @@ document.addEventListener("submit", async (e) => {
     if (kind === "search" || kind === "filter-price") {
       const q = new URLSearchParams();
       for (const [k, v] of Object.entries(data)) if (v) q.set(k, v);
-      go("/search?" + q);
+      go((kind === "search" ? "/search" : location.pathname) + "?" + q);
     } else if (kind === "auth") {
       const type = form.dataset.kind;
       const body = { ...data };

@@ -966,3 +966,25 @@ test("public catalog uses server pagination, bounded input and private preview i
   const me = await buyer.request("/auth/me");
   assert.match(me.headers.get("cache-control"), /private.*no-store/);
 });
+
+test("idle HTTP keep-alive does not exhaust the bounded C++ worker pool", async () => {
+  const started = performance.now();
+  const responses = await Promise.all(
+    Array.from({ length: 20 }, async (_, i) => {
+      const response = await fetch(
+        base + "/api/products?page=" + ((i % 2) + 1),
+        {
+          signal: AbortSignal.timeout(3000),
+        },
+      );
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).products.length, 12);
+      assert.equal(response.headers.get("connection"), "close");
+    }),
+  );
+  assert.equal(responses.length, 20);
+  assert.ok(
+    performance.now() - started < 2500,
+    "readers must not queue behind idle sockets",
+  );
+});

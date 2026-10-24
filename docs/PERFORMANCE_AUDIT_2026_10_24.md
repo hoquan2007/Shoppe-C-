@@ -121,3 +121,7 @@ Chưa cần key mới, đổi ảnh, nâng Vercel hoặc nâng Supabase để l�
 - [Web Vitals](https://web.dev/articles/vitals): mục tiêu và sự khác biệt đo lab/field.
 
 Raw số đo HTTP và ảnh nằm trong `artifacts/performance-*-2026-10-24.json` (Git ignore). Các file này không chứa key/token/cookie. Đây là dữ liệu của đợt đo nhỏ tại thời điểm kiểm tra, không đại diện mọi thiết bị hoặc mọi mạng.
+
+## Phát hiện bổ sung khi triển khai
+
+Bài đọc 20 request đồng thời local phát hiện `cpp-httplib` giữ worker theo kết nối HTTP, kể cả lúc socket keep-alive nhàn rỗi. Với 4 worker, p95 của đợt thử lên 12.079 ms dù handler từng request chỉ vài ms. Đã đổi upstream server sang một request/kết nối để nhả worker; HTTP/2/TLS công khai do Vercel quản lý, pool database và khóa tồn kho giữ nguyên. Cùng bài local sau sửa: 20/20 đúng, p95 41 ms, tối đa 43 ms. Đây là so sánh local có kiểm soát, không phải p95 người dùng Production. Có test hồi quy tự động 20 GET để bắt lại lỗi này.
