@@ -31,4 +31,38 @@ Không so thời gian local với Production như một mức tăng tốc đư�
 
 ## Phát hành
 
-Chỉ phát hành sau kiểm tra CI Linux/container. Đối chiếu domain, tổng catalog, pagination, cache HIT, asset/deep links, auth riêng tư và lỗi runtime sau phát hành. Không benchmark bằng đơn hoặc thanh toán thật. Số đo Production và deployment ID sẽ được ghi bổ sung sau khi nghiệm thu.
+Đã phát hành và nghiệm thu domain công khai **https://shoppec.vercel.app** ngày 24/10/2026. Không benchmark bằng đơn hoặc thanh toán thật.
+
+- Commit chạy Production: `51a653317e47f4170ff8df8743664ce361e0b683` (bao gồm thay đổi chính ở `47fa1ed`).
+- Deployment: `dpl_BfnDkNnhh89sFP26GQwfEVvDcVTP`, target Production, trạng thái READY, region `sin1`; alias `shoppec.vercel.app` đã gắn đúng deployment.
+- [GitHub Actions 40073896176](https://github.com/hoquan2007/Shoppe-C-/actions/runs/40073896176): hai job SQLite/PostgreSQL đều thành công, gồm C++/CTest, API, build container và kiểm tra frontend/container.
+- Đối chiếu checksum cả ba migration hiện tại với ledger Supabase trước phát hành: khớp. Không chạy DDL, seed hay sửa catalog Production. Không cần key hoặc migration mới.
+
+## Kết quả trên Production
+
+Mẫu 36 yêu cầu HTTP công khai từ một máy đo; 20 lượt catalog trong cùng mẫu được gọi tuần tự. TTFB gồm mạng/CDN/platform, không phải riêng thời gian C++. Byte bên dưới là sau giải nén, không phải lượng truyền Brotli.
+
+| Phép đo | Kết quả sau phát hành |
+|---|---|
+| `/api/products` | 12/600 sản phẩm, **14.109 byte**; giảm khoảng **98%** so với baseline 707.281 byte trả cả catalog |
+| `/api/home` | **16.287 byte**, đủ metadata, đại diện danh mục và 12 sản phẩm |
+| 20 lượt catalog tuần tự | **19/20 cache HIT**, TTFB trung vị **65,5 ms**, p95 mẫu **131 ms**, max **311 ms** |
+| JS/CSS gọi lần hai | Cache HIT, TTFB **61/70 ms**, `max-age=31536000, immutable` |
+| Handler catalog trên cache MISS | Server-Timing app khoảng **29–30 ms**, DB khoảng **29 ms** |
+| Burst 20 GET công khai sau làm nóng cache | **20/20 đúng và HIT**, tổng **278 ms**, p95 mẫu **275 ms**, max **277 ms** |
+
+Đã đối chiếu trang 1/trang 2 không trùng ID, trang cuối 50 đủ 12 sản phẩm, giá tăng đúng theo biến thể đang hoạt động; query sai trả 422/private/no-store; chi tiết hàng công khai trả 200; giỏ hàng chưa đăng nhập trả 401/private/no-store. Cả 36 status trong mẫu chính đều đúng (asset không tồn tại trả 404). Vercel bỏ `s-maxage` khỏi header trả về trình duyệt sau khi sử dụng tại CDN; các lượt HIT và Age đã xác nhận cache hoạt động.
+
+Trang chủ, search, deep link sản phẩm, login và assets đều trả thành công. Browser xác nhận trang 2 hiển thị **13–24/600**, nút Google GIS tải được, không có lỗi/warning console trong các trang đã xem. Mobile viewport 390×844 có document clientWidth/scrollWidth cùng **375 px**, không tràn ngang, ảnh hero/danh mục tải thành công. Ảnh chụp: `artifacts/performance-production-mobile.png` (local, ignored).
+
+`/api/meta` báo payment/storage/google đều đã cấu hình; đây chỉ là kiểm tra cấu hình, **không phải** chứng nhận thanh toán thật hay đăng nhập Google trọn luồng. Log runtime khởi động ghi `schema_mode=verify`, phần khởi động ứng dụng khoảng **47–56 ms**; truy vấn log error trong cửa sổ nghiệm thu 10 phút không có kết quả.
+
+## Giới hạn còn lại và bước tiếp theo
+
+- **Cold start vẫn hiện hữu:** lần gọi backend đầu tiên trong mẫu mất khoảng **4.044 ms**, dù handler chỉ khoảng 12 ms; một burst vào URL catalog chưa có cache mất tối đa **4.995 ms** và 0 HIT. Đây là phần chờ ngoài handler mà tối ưu SQL không loại bỏ được. Không coi các số đo cache HIT là tốc độ mọi lượt truy cập. Cần thu thập thêm log platform để tách chính xác mạng, điều phối và khởi động container; chưa khẳng định mọi giây chờ đều do một nguyên nhân duy nhất.
+- Mẫu cũ catalog chỉ có ba lượt (trung vị khoảng 1.012 ms) và số đo sau có cache/mẫu lớn hơn, nên không tuyên bố đây là tỷ lệ tăng tốc đồng nhất cho mọi người dùng. Chưa đo LCP/INP/CLS hoặc p95 thực địa.
+- Ưu tiên tiếp theo: đo Web Vitals trên thiết bị thật và đối chiếu request ID/cache MISS với log; theo dõi cache hit rate, tải lần đầu và route riêng tư. Nếu cold start vẫn gây khó chịu, dùng bằng chứng để chọn cách giảm gói khởi động hoặc thay đổi cấu hình vận hành phù hợp ngân sách. Không tự nâng gói hay cài dịch vụ trả phí.
+- Cache công khai tối đa 15s (meta 30s); giao dịch vẫn kiểm tra giá/kho trực tiếp. Chưa thêm cơ chế purge CDN tức thời. Trang admin vẫn có API danh sách riêng cần phân trang khi dữ liệu tăng; bản này tập trung đường mua sắm công khai.
+- Preview được giữ bảo vệ: công cụ kiểm tra protected Preview bị automatic approval review từ chối vì tạo link chia sẻ tạm/mở thêm quyền truy cập. Không tạo share link và không vượt bảo vệ; thay bằng local/CI và nghiệm thu Production công khai đã được phép phát hành.
+
+Dữ liệu đo local nằm trong các file ignored `artifacts/performance-*.json`. Bộ đo Production dùng GET, không chứa credential/phiên. Một bản kiểm tra phụ ban đầu đọc nhầm `product.price` thay vì giá biến thể; đã sửa bộ đo theo hợp đồng API và chạy lại toàn bộ kiểm tra phụ thành công, không sửa mã ứng dụng vì lỗi bộ đo đó.
