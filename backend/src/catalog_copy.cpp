@@ -1,4 +1,5 @@
 #include "catalog_copy.h"
+#include "catalog.h"
 #include "domain.h"
 #include <algorithm>
 #include <fstream>
@@ -53,7 +54,7 @@ Json catalogCopyText(const Json &entry) {
 }
 Json prepareCatalogCopy(const Json &products, const Json &editorial) {
     validateEditorial(editorial);
-    if (!products.is_array() || products.empty() || products.size() > 600)
+    if (!products.is_array() || products.empty() || products.size() > demoCatalogLimit)
         throw Error(422, "invalid_catalog_copy", "Danh sách sản phẩm không hợp lệ.");
     std::map<int, Json> entries;
     for (const auto &entry : editorial.at("products"))
@@ -80,7 +81,7 @@ Json prepareCatalogCopy(const Json &products, const Json &editorial) {
 }
 Json catalogCopyRows(Repository &r, const Json &plan) {
     if (!plan.is_object() || plan.value("version", 0) != 1 || !plan.contains("changes") ||
-        !plan.at("changes").is_array() || plan.at("changes").empty() || plan.at("changes").size() > 600)
+        !plan.at("changes").is_array() || plan.at("changes").empty() || plan.at("changes").size() > demoCatalogLimit)
         throw Error(422, "invalid_catalog_copy", "Kế hoạch cập nhật không hợp lệ.");
     Params params;
     std::string binds;

@@ -58,7 +58,7 @@ int main(int argc, char **) {
         categories.push_back(item["category"]);
     auto chosen = selectDemoCatalog(categories, {{"products", doc["products"]}}, 12);
     check(chosen["products"].size() == 12, "bounded category selection");
-    rejects([&] { selectDemoCatalog(categories, {{"products", doc["products"]}}, 601); },
+    rejects([&] { selectDemoCatalog(categories, {{"products", doc["products"]}}, 1001); },
             "invalid_catalog_limit");
     auto expanded = selectDemoCatalog(categories, {{"products", doc["products"]}}, 300);
     auto expandedProducts = normalizeDemoCatalog(expanded);
@@ -78,7 +78,8 @@ int main(int argc, char **) {
     }
     check(generated == 270, "retain truthful source attribution");
     auto expanded600 = selectDemoCatalog(categories, {{"products", doc["products"]}}, 600);
-    auto oversized = expanded600;
+    auto expanded1000 = selectDemoCatalog(categories, {{"products", doc["products"]}}, 1000);
+    auto oversized = expanded1000;
     oversized["products"].push_back(oversized["products"][0]);
     rejects([&] { normalizeDemoCatalog(oversized); }, "invalid_demo_catalog");
     rejects(
@@ -177,6 +178,24 @@ int main(int argc, char **) {
     auto missingCopy = editorial;
     missingCopy["products"].erase(missingCopy["products"].begin());
     rejects([&] { prepareCatalogCopy(beforeCopy, missingCopy); }, "catalog_copy_conflict");
+    auto preserved600 = r.list("products"), preserved600Variants = r.list("variants");
+    auto preview1000 = stageDemoCatalog(r, user, expanded1000);
+    check(preview1000["existing"] == 600 && preview1000["new_products"] == 400,
+          "1000 preview adds exactly 400 to existing 600");
+    auto imported1000 = commitDemoCatalog(r, user, preview1000.at("preview_token"));
+    check(imported1000["imported"] == 400 && imported1000["skipped"] == 600 &&
+              r.list("products").size() == 1000,
+          "incremental import reaches 1000 without replacing existing listings");
+    for (const auto &p : preserved600)
+        check(r.get("products", p.at("id")) == p, "1000 retains every existing product and copy");
+    for (const auto &v : preserved600Variants)
+        check(r.get("variants", v.at("id")) == v, "1000 retains every existing variant price and stock");
+    auto replay1000 = stageDemoCatalog(r, user, expanded1000);
+    auto skipped1000 = commitDemoCatalog(r, user, replay1000.at("preview_token"));
+    check(skipped1000["imported"] == 0 && skipped1000["skipped"] == 1000,
+          "repeat 1000 cannot duplicate products or reset stock");
+    check(prepareCatalogCopy(r.list("products"), editorial).at("count") == 1000,
+          "editorial maintenance supports the expanded catalog");
     tx->rollback();
     std::cout
         << "Catalog validation, scoped preview, expiry, replay, price and stock preservation passed.\n";
