@@ -32,7 +32,9 @@ Repository có `Dockerfile.vercel`, frontend được build bằng Node và back
 5. Deploy và kiểm tra `/api/health` trả `engine=C++20`, `database=postgresql`.
 6. Tạo người dùng/shop/sản phẩm; khởi động lại hoặc deploy lại rồi kiểm tra dữ liệu vẫn còn.
 
-`vercel.json` khai báo rõ service `shoppe` với `runtime=container`, `root=.` và `entrypoint=Dockerfile.vercel`, rồi route toàn bộ request vào service này. Cấu hình này cần thiết vì bản triển khai chỉ có Dockerfile ở root đã bị build thành frontend tĩnh: trang chủ HTTP 200 nhưng `/api/health` HTTP 404. Chỉ coi triển khai đầy đủ thành công sau khi health trả C++20/PostgreSQL và danh mục tải từ database.
+`vercel.json` tách service `frontend` (Vite tĩnh, root `frontend`) và `shoppe` (C++ container, root `.`, entrypoint `Dockerfile.vercel`). `/api/*` vào C++, các đường giao diện vào frontend CDN. Services hiện là Beta trên Vercel. Kiểm tra cả link sâu `/search`, `/product/:id`, asset và `/api/health` sau deploy; health phải trả C++20/PostgreSQL.
+
+Runtime Production **chỉ kiểm tra schema/checksum**, không tạo schema hoặc bootstrap mỗi cold start. Với database mới hoặc migration mới, chạy binary cùng phiên bản bằng `shoppe --initialize` trong môi trường quản trị tin cậy đã cấu hình biến môi trường, trước khi chuyển traffic. Không truyền connection string/key vào tham số lệnh hoặc commit file `.env`. Không cần chạy initialize cho bản tối ưu 24/10 vì không thêm migration và schema Production đã có phiên bản 3. Nếu ledger thiếu/sai checksum, runtime từ chối khởi động thay vì tự sửa schema.
 
 Source hiện nằm ở nhánh `codex/deployment-payment-readiness`; không deploy nhánh `main` đang chỉ có README. Production đã được tạo tường minh từ nhánh này. Push lên nhánh tính năng có thể tạo Preview tự động; khóa Production không được cấp cho Preview.
 
@@ -57,7 +59,7 @@ Không bật dữ liệu/tài khoản demo công khai trong production. Các bi�
 
 ### Admin đầu tiên
 
-Đặt tạm `BOOTSTRAP_ADMIN_EMAIL` và `BOOTSTRAP_ADMIN_PASSWORD` (ít nhất 12 ký tự), deploy một lần rồi xóa hai biến này. Backend chỉ tạo admin nếu email chưa tồn tại, không nâng quyền tài khoản đã đăng ký cùng email. Bootstrap phải dùng email mới do bạn kiểm soát.
+Đặt tạm `BOOTSTRAP_ADMIN_EMAIL` và `BOOTSTRAP_ADMIN_PASSWORD` (ít nhất 12 ký tự), chạy `shoppe --initialize` một lần trong môi trường quản trị rồi xóa hai biến này. Backend chỉ tạo admin nếu email chưa tồn tại, không nâng quyền tài khoản đã đăng ký cùng email. Bootstrap phải dùng email mới do bạn kiểm soát.
 
 Admin có thể mở shop tại `/seller`, duyệt shop trong `/admin/shops`, rồi thêm hàng trong `/admin/products`. Hoặc người dùng đăng ký shop để admin xét duyệt.
 

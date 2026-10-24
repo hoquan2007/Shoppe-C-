@@ -117,3 +117,7 @@ npm run preflight -- --env-file=.env.vercel --production --online
 Đã xác minh deploy container Vercel, database Supabase, 14 kịch bản API trên mỗi adapter và các API Production; upload Supabase đã thử ở đợt thiết lập. **Chưa nghiệm thu email thật hoặc giao dịch ngân hàng thật**. Vercel connector đã kết nối; CLI tại máy vẫn chưa đăng nhập. Kết quả hiện tại và giới hạn được ghi trong báo cáo audit ở trên, thay cho các trạng thái chưa cấu hình trong báo cáo lịch sử.
 
 Thiết kế hướng đến quy mô demo bài tập lớn: transaction được tuần tự hóa bằng mutex SQLite hoặc PostgreSQL advisory lock để bảo toàn tồn kho/voucher trên nhiều instance. Danh sách và dashboard dùng cách đọc đơn giản phù hợp tập dữ liệu nhỏ; cần pagination/aggregation ở database, connection pool và worker chuyên dụng trước khi phục vụ tải thương mại lớn.
+
+### Hiệu năng catalog (24/10/2026)
+
+Frontend Vite được phục vụ tĩnh trên CDN Vercel, `/api/*` vẫn là backend C++20. Catalog mặc định 12 sản phẩm/trang; tìm kiếm, giá và sắp xếp chạy trên server. Production kiểm tra schema nhanh; database mới/migration mới cần chạy `shoppe --initialize` trước deploy. Xem [chẩn đoán và kế hoạch](docs/PERFORMANCE_AUDIT_2026_10_24.md) và [hướng dẫn triển khai](docs/DEPLOYMENT.md).

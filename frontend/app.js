@@ -135,25 +135,109 @@ function toast(message) {
   clearTimeout(state.toastTimer);
   state.toastTimer = setTimeout(() => el.classList.remove("show"), 4300);
 }
+const publicCache = new Map();
+let cacheEpoch = 0;
 async function api(path, options = {}) {
-  const response = await fetch("/api" + path, {
-    credentials: "same-origin",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(state.csrf ? { "X-CSRF-Token": state.csrf } : {}),
-      ...options.headers,
-    },
-    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
-  });
-  const data = await response.json();
-  if (!response.ok || data.error) {
-    const e = new Error(data.error?.message || "Không thể hoàn tất yêu cầu.");
-    e.status = response.status;
-    e.code = data.error?.code;
-    throw e;
+  const method = options.method || "GET";
+  const publicRead =
+    method === "GET" && /^\/(meta|home|products)(?:\?|$)/.test(path);
+  if (method !== "GET") {
+    publicCache.clear();
+    cacheEpoch++;
   }
-  return data;
+  const epoch = cacheEpoch;
+  const cached = publicRead && publicCache.get(path);
+  if (cached && cached.until > Date.now()) return structuredClone(cached.data);
+  const routeRead =
+    method === "GET" && /^\/(home|products|shops)(?:[/?]|$)/.test(path);
+  const external =
+    options.signal || (routeRead ? state.requestController?.signal : null);
+  for (let attempt = 0; attempt < (method === "GET" ? 2 : 1); attempt++) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    external?.addEventListener("abort", abort, { once: true });
+    if (external?.aborted) controller.abort();
+    const timer = setTimeout(abort, 12000);
+    try {
+      const response = await fetch("/api" + path, {
+        ...options,
+        method,
+        credentials: publicRead ? "omit" : "same-origin",
+        signal: controller.signal,
+        headers: {
+          ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+          ...(!publicRead && state.csrf ? { "X-CSRF-Token": state.csrf } : {}),
+          ...options.headers,
+        },
+        ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        const e = new Error(
+          data.error?.message || "Không thể hoàn tất yêu cầu.",
+        );
+        e.status = response.status;
+        e.code = data.error?.code;
+        throw e;
+      }
+      if (publicRead && epoch === cacheEpoch) {
+        if (publicCache.size >= 32)
+          publicCache.delete(publicCache.keys().next().value);
+        publicCache.set(path, {
+          until: Date.now() + 15000,
+          data: structuredClone(data),
+        });
+      }
+      if (method !== "GET") {
+        publicCache.clear();
+        cacheEpoch++;
+      }
+      return data;
+    } catch (e) {
+      if (external?.aborted) throw e;
+      if (e.name === "AbortError") {
+        const timeout = new Error(
+          "Kết nối quá thời gian chờ. Bạn thử lại nhé.",
+        );
+        timeout.status = 504;
+        e = timeout;
+      }
+      if (
+        attempt ||
+        method !== "GET" ||
+        (e.status && ![502, 503, 504].includes(e.status))
+      )
+        throw e;
+    } finally {
+      clearTimeout(timer);
+      external?.removeEventListener("abort", abort);
+    }
+  }
+}
+async function ensureMeta() {
+  if (!state.metaPromise)
+    state.metaPromise = api("/meta")
+      .then((meta) => (state.meta = meta))
+      .catch((e) => {
+        state.metaPromise = null;
+        throw e;
+      });
+  return state.metaPromise;
+}
+function refreshHeader() {
+  const current = $(".masthead");
+  if (!current) return;
+  const template = document.createElement("div");
+  template.innerHTML = header();
+  current
+    .querySelector(".head-actions")
+    .replaceWith($(".head-actions", template));
+  current.querySelector(".navrow").replaceWith($(".navrow", template));
+  $$(".mobile-nav a").forEach((a) =>
+    a.getAttribute("href") === location.pathname
+      ? a.setAttribute("aria-current", "page")
+      : a.removeAttribute("aria-current"),
+  );
 }
 const post = (path, body = {}) => api(path, { method: "POST", body });
 let googleScript;
@@ -267,6 +351,7 @@ function requireUser() {
 async function refreshUser() {
   const me = await api("/auth/me");
   Object.assign(state, me);
+  state.sessionError = null;
 }
 function header() {
   const cartCount = state.cart.reduce((n, i) => n + i.quantity, 0);
@@ -297,19 +382,12 @@ function card(p) {
 const cards = (products, home = false) =>
   `<div class="products ${home ? "home-products" : ""}">${products.map(card).join("")}</div>`;
 async function home() {
-  const [{ products }, meta] = await Promise.all([
-    api("/products"),
-    api("/meta"),
-  ]);
+  const { products, meta, category_previews } = await api("/home");
   state.products = products;
-  const categories = state.meta.categories || [];
-  const original = products.filter((p) => !p.demo_series);
-  const pick = (category) =>
-    original.find(
-      (p) => p.category === category && p.image?.startsWith("https://"),
-    ) ||
-    original.find((p) => p.category === category) ||
-    products[0];
+  state.meta = meta;
+  state.metaPromise = Promise.resolve(meta);
+  const categories = meta.categories || [];
+  const pick = (category) => category_previews[category] || products[0];
   const featured = pick("Điện tử"),
     homeProduct = pick("Nhà cửa & Đời sống"),
     accessory = pick("Phụ kiện");
@@ -341,31 +419,21 @@ async function home() {
       "",
     )}</div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng</a></section>`;
 }
-async function searchPage() {
+async function searchPage(shopId = "") {
   const params = new URLSearchParams(location.search);
-  const { products } = await api("/products?" + params);
-  const min = Number(params.get("min") || 0),
-    max = Number(params.get("max") || Infinity);
-  const price = (p) =>
-    Math.min(...p.variants.filter((v) => v.active).map((v) => v.price));
-  const list = products.filter((p) => price(p) >= min && price(p) <= max);
+  if (shopId) params.set("shop", shopId);
+  const [{ products: list, total, page, page_size: pageSize, pages }] =
+    await Promise.all([api("/products?" + params), ensureMeta()]);
   const sort = params.get("sort") || "new";
-  list.sort(
-    sort === "price"
-      ? (a, b) => price(a) - price(b)
-      : sort === "price-desc"
-        ? (a, b) => price(b) - price(a)
-        : (a, b) => b.created_at - a.created_at,
-  );
-  const pages = Math.ceil(list.length / 12),
-    page = Math.max(
-      1,
-      Math.min(pages || 1, Math.floor(Number(params.get("page")) || 1)),
-    );
   const link = (i) => {
     const q = new URLSearchParams(params);
     q.set("page", i);
-    return "/search?" + esc(q);
+    if (shopId) q.delete("shop");
+    return (
+      (shopId ? "/shop/" + encodeURIComponent(shopId) : "/search") +
+      "?" +
+      esc(q)
+    );
   };
   const visible = [
     ...new Set([
@@ -385,9 +453,9 @@ async function searchPage() {
       params.get("q")
         ? `Kết quả cho “${params.get("q")}”`
         : params.get("category") || "Khám phá sản phẩm",
-      `${list.length} lựa chọn đang chờ bạn khám phá`,
+      `${total} lựa chọn đang chờ bạn khám phá`,
     ) +
-    `<div class="catalog-layout"><aside class="filter-panel"><button class="filter-toggle" type="button" data-action="toggle-filters" aria-expanded="false" aria-controls="catalog-filters">${icon("settings", 18)} Bộ lọc sản phẩm</button><div class="filter-content" id="catalog-filters"><h3>Danh mục</h3><a class="category-link" href="/search">Tất cả sản phẩm</a>${state.meta.categories.map((c) => `<a class="category-link ${params.get("category") === c ? "active" : ""}" href="/search?category=${encodeURIComponent(c)}">${esc(c)}</a>`).join("")}<form data-form="filter-price"><input type="hidden" name="category" value="${esc(params.get("category") || "")}"><input type="hidden" name="q" value="${esc(params.get("q") || "")}"><label class="field"><span>Giá từ</span><input type="number" name="min" min="0" placeholder="0" value="${esc(params.get("min") || "")}"></label><label class="field"><span>Đến</span><input type="number" name="max" min="0" placeholder="Không giới hạn" value="${esc(params.get("max") || "")}"></label><button class="btn full">Áp dụng</button></form></div></aside><div class="catalog-results"><div class="catalog-toolbar"><span>${list.length ? `${(page - 1) * 12 + 1}–${Math.min(page * 12, list.length)} / ${list.length} sản phẩm` : "Chọn điều bạn yêu"}</span><select class="sort-select" id="sort-products" aria-label="Sắp xếp">${[
+    `<div class="catalog-layout"><aside class="filter-panel"><button class="filter-toggle" type="button" data-action="toggle-filters" aria-expanded="false" aria-controls="catalog-filters">${icon("settings", 18)} Bộ lọc sản phẩm</button><div class="filter-content" id="catalog-filters"><h3>Danh mục</h3><a class="category-link" href="/search">Tất cả sản phẩm</a>${(state.meta.categories || []).map((c) => `<a class="category-link ${params.get("category") === c ? "active" : ""}" href="/search?category=${encodeURIComponent(c)}">${esc(c)}</a>`).join("")}<form data-form="filter-price"><input type="hidden" name="category" value="${esc(params.get("category") || "")}"><input type="hidden" name="q" value="${esc(params.get("q") || "")}"><label class="field"><span>Giá từ</span><input type="number" name="min" min="0" placeholder="0" value="${esc(params.get("min") || "")}"></label><label class="field"><span>Đến</span><input type="number" name="max" min="0" placeholder="Không giới hạn" value="${esc(params.get("max") || "")}"></label><button class="btn full">Áp dụng</button></form></div></aside><div class="catalog-results"><div class="catalog-toolbar"><span>${total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} / ${total} sản phẩm` : "Chọn điều bạn yêu"}</span><select class="sort-select" id="sort-products" aria-label="Sắp xếp">${[
       ["new", "Mới nhất"],
       ["price", "Giá thấp đến cao"],
       ["price-desc", "Giá cao đến thấp"],
@@ -398,7 +466,7 @@ async function searchPage() {
       )
       .join(
         "",
-      )}</select></div>${list.length ? cards(list.slice((page - 1) * 12, page * 12)) : empty("Chưa tìm thấy sản phẩm", "Bạn thử từ khóa hoặc khoảng giá khác nhé.")}${paging}</div></div>`
+      )}</select></div>${list.length ? cards(list) : empty("Chưa tìm thấy sản phẩm", "Bạn thử từ khóa hoặc khoảng giá khác nhé.")}${paging}</div></div>`
   );
 }
 async function productPage(id) {
@@ -427,11 +495,8 @@ async function productPage(id) {
 }
 
 async function shopPage(id) {
-  const [{ shop }, { products }] = await Promise.all([
-    api("/shops/" + id),
-    api("/products?shop=" + id),
-  ]);
-  return `<div class="panel shop-strip"><div class="avatar">${esc(shop.name[0])}</div><div><h1 style="font-size:24px">${esc(shop.name)}</h1><p class="muted small-text">${esc(shop.description)}</p><small class="muted">${esc(shop.region)}</small></div><button class="btn outline" style="margin-left:auto" data-action="start-chat" data-id="${esc(id)}">${icon("chat", 16)} Nhắn tin</button></div>${title("Góc mua sắm của shop", `${products.length} sản phẩm được chọn lọc`)}${products.length ? cards(products) : empty("Shop chưa đăng sản phẩm", "Hãy quay lại sau nhé.")}`;
+  const { shop } = await api("/shops/" + id);
+  return `<div class="panel shop-strip"><div class="avatar">${esc(shop.name[0])}</div><div><h1 style="font-size:24px">${esc(shop.name)}</h1><p class="muted small-text">${esc(shop.description)}</p><small class="muted">${esc(shop.region)}</small></div><button class="btn outline" style="margin-left:auto" data-action="start-chat" data-id="${esc(id)}">${icon("chat", 16)} Nhắn tin</button></div>${await searchPage(id)}`;
 }
 function authPage(kind) {
   const register = kind === "register",
@@ -1061,11 +1126,26 @@ async function renderRoute() {
   const version = ++state.route;
   document.body.dataset.page = location.pathname.split("/")[1] || "home";
   clearInterval(state.timer);
-  shell();
+  state.requestController?.abort();
+  state.requestController = new AbortController();
+  if (!$("#content")) shell();
+  else {
+    refreshHeader();
+    $("#content").innerHTML =
+      '<div class="loading" role="status"><span class="spinner"></span><span>Đang tải nội dung…</span></div>';
+  }
   window.scrollTo(0, 0);
   const parts = location.pathname.split("/").filter(Boolean);
   let content = "";
   try {
+    if (parts.length && !["search", "product", "shop"].includes(parts[0])) {
+      await Promise.all([state.sessionReady, ensureMeta()]);
+      if (
+        state.sessionError &&
+        !["login", "register", "forgot", "reset", "verify"].includes(parts[0])
+      )
+        throw state.sessionError;
+    }
     if (!parts.length) content = await home();
     else if (parts[0] === "search") content = await searchPage();
     else if (parts[0] === "product") content = await productPage(parts[1]);
@@ -1139,7 +1219,7 @@ async function renderRoute() {
         }
       }, 7000);
   } catch (e) {
-    if (version !== state.route) return;
+    if (version !== state.route || e.name === "AbortError") return;
     if (e.status === 401 && state.user) {
       state.user = null;
       state.csrf = "";
@@ -1172,14 +1252,16 @@ async function refreshMessages() {
 }
 async function refreshCart() {
   if (state.user) {
+    const revision = state.cartRevision || 0;
     const { cart } = await api("/cart");
-    state.cart = cart.items;
+    if (revision === (state.cartRevision || 0)) state.cart = cart.items;
   } else state.cart = [];
   $$(".head-icon .count").forEach(
     (el) => (el.textContent = state.cart.reduce((n, i) => n + i.quantity, 0)),
   );
 }
 async function writeCart(items) {
+  state.cartRevision = (state.cartRevision || 0) + 1;
   const result = await api("/cart", {
     method: "PUT",
     body: {
@@ -1253,15 +1335,14 @@ document.addEventListener("click", async (e) => {
       $$(".discovery .chip").forEach((el) =>
         el.classList.toggle("active", el === button),
       );
-      const list = [...state.products];
-      if (value === "price")
-        list.sort(
-          (a, b) =>
-            Math.min(...a.variants.map((v) => v.price)) -
-            Math.min(...b.variants.map((v) => v.price)),
-        );
-      if (value === "new") list.sort((a, b) => b.created_at - a.created_at);
-      $("#home-products").innerHTML = cards(list.slice(0, 12), true);
+      const version = state.route;
+      const { products } = await api(
+        "/products?sort=" + (value === "price" ? "price" : "new"),
+      );
+      if (version === state.route && location.pathname === "/") {
+        state.products = products;
+        $("#home-products").innerHTML = cards(products, true);
+      }
     } else if (action === "variant") {
       state.variant = state.product.variants.find((v) => v.id === id);
       $$(".variant").forEach((el) =>
@@ -1731,13 +1812,18 @@ document.addEventListener("submit", async (e) => {
 });
 window.addEventListener("popstate", renderRoute);
 async function start() {
-  try {
-    [state.meta] = await Promise.all([api("/meta"), refreshUser()]);
-    await refreshCart();
-    await renderRoute();
-  } catch (e) {
-    $("#app").innerHTML =
-      `<main class="wrap" style="padding-top:60px">${empty("Chưa kết nối được hệ thống", "Khởi động backend C++ rồi tải lại trang. " + e.message)}</main>`;
-  }
+  shell();
+  state.sessionReady = refreshUser().catch((e) => {
+    state.sessionError = e;
+  });
+  void state.sessionReady
+    .then(async () => {
+      refreshHeader();
+      if (!state.sessionError) await refreshCart();
+    })
+    .catch(() => {
+      /* Cart badge can refresh on the next user action. */
+    });
+  await renderRoute();
 }
 start();

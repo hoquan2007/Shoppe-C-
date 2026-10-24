@@ -1,0 +1,12 @@
+{
+  "name": "shoppe-static-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build --outDir dist"
+  },
+  "devDependencies": {
+    "vite": "7.3.7"
+  }
+}

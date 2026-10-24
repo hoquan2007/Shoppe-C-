@@ -27,6 +27,23 @@ int main() {
         tx->commit();
     }
     {
+        Database db("", file.string(), schema.string(), false);
+        auto tx = db.begin(true);
+        check(tx->query("SELECT id FROM fixture").front().at("id") == "42",
+              "verify-only runtime keeps existing schema and data");
+        tx->commit();
+    }
+    std::ofstream(directory / "migrations/0003_pending.sql")
+        << "CREATE TABLE pending_migration(id INTEGER);";
+    bool pendingRejected = false;
+    try {
+        Database db("", file.string(), schema.string(), false);
+    } catch (...) {
+        pendingRejected = true;
+    }
+    check(pendingRejected, "runtime never applies pending migrations");
+    fs::remove(directory / "migrations/0003_pending.sql");
+    {
         Database db("", file.string(), schema.string());
         auto tx = db.begin();
         check(tx->query("SELECT id FROM fixture").front().at("id") == "42", "restart preserves data");

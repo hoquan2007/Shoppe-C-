@@ -49,6 +49,7 @@ int main() {
     {
         auto writer = db.begin();
         auto reader = std::async(std::launch::async, [&] {
+            Database runtime(url, "", "database/schema.sql", false);
             auto tx = db.begin(true);
             tx->query("SELECT 1");
             tx->commit();

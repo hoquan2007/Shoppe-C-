@@ -18,10 +18,18 @@ Nguồn: `backend/src/application.cpp`, bản catalog API C++ ngày 22/10/2026. 
 | ------ | -------------------- | -------------------------------------- | ----------------------------------------------------------- | ------------------- |
 | GET    | `/health`            | Công khai                              | Health C++20/PostgreSQL                                     | application.cpp:843 |
 | GET    | `/meta`              | Công khai                              | Danh mục, banner, cờ readiness dịch vụ; không trả key       | application.cpp:846 |
-| GET    | `/products`          | Công khai                              | q, category, shop; trả toàn bộ tập phù hợp, chưa phân trang | application.cpp:955 |
+| GET    | `/products`          | Công khai                              | q, category, shop, min/max, sort, page, page_size/limit (1–48); trả products + total/page/page_size/pages | application.cpp:955 |
 | GET    | `/products/:id`      | Công khai hoặc quyền xem hàng chưa bán | Sản phẩm, biến thể, shop, đánh giá                          | application.cpp:976 |
 | GET    | `/shops/:id`         | Công khai hoặc chủ shop/admin          | Shop approved; shop chưa hoạt động bị hạn chế               | application.cpp:988 |
 | GET    | `/vouchers`          | Công khai                              | Voucher active và còn thời hạn                              | application.cpp:995 |
+
+### Cập nhật hiệu năng 24/10/2026
+
+- `GET /home`: dữ liệu trang chủ từ C++ gồm 12 sản phẩm, tổng số, metadata và ảnh đại diện theo danh mục; không tải toàn catalog.
+- `GET /products`: phân trang thật mặc định 12, tối đa 48; `sort=new|price|price-desc`; thứ tự ổn định có ID phụ, lọc giá và tìm tiếng Việt ở server. Khách gọi API cũ cần chuyển sang đọc các trang thay vì giả định một response chứa mọi sản phẩm.
+- Catalog công khai cache CDN tối đa 15s; meta 30s. API riêng tư, preview có phiên và lỗi tiếp tục `private, no-store`. Giá/kho tại checkout luôn lấy từ database.
+- Response C++ có `X-Request-Id` và `Server-Timing` (`db_pool`, `db`, `app`); header của response cache phản ánh lần tạo response tại origin.
+- Bảng kiểm kê phía trên là baseline lịch sử; có thêm một operation GET `/home` so với bản đó.
 
 ## Tài khoản
 

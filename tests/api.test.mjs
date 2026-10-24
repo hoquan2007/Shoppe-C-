@@ -900,3 +900,69 @@ test("admin imports public demo catalog without duplicate stock or overwriting e
   assert.equal(saved.name, product.name);
   assert.equal(saved.variants[0].stock, 7);
 });
+
+test("public catalog uses server pagination, bounded input and private preview isolation", async () => {
+  const publicClient = client();
+  const first = await ok(publicClient, "/products?page=1&page_size=12");
+  const second = await ok(publicClient, "/products?page=2&page_size=12");
+  assert.ok(first.total > 24);
+  assert.equal(first.products.length, 12);
+  assert.equal(second.products.length, 12);
+  assert.equal(second.page, 2);
+  assert.equal(second.total, first.total);
+  assert.equal(
+    new Set([...first.products, ...second.products].map((p) => p.id)).size,
+    24,
+  );
+  const response = await publicClient.request("/products?limit=12");
+  assert.match(response.headers.get("cache-control"), /s-maxage=15/);
+  assert.doesNotMatch(
+    response.headers.get("cache-control"),
+    /private|no-store/,
+  );
+  assert.match(
+    response.headers.get("server-timing"),
+    /db_pool;dur=.*db;dur=.*app;dur=/,
+  );
+  assert.ok(response.headers.get("x-request-id"));
+  for (const query of [
+    "page=0",
+    "page=-1",
+    "page_size=49",
+    "min=20&max=10",
+    "sort=invalid",
+  ]) {
+    assert.equal(
+      (await publicClient.request("/products?" + query)).status,
+      422,
+    );
+  }
+  const home = await ok(publicClient, "/home");
+  assert.equal(home.products.length, 12);
+  assert.equal(home.total, first.total);
+  assert.ok(home.meta.categories.length);
+  assert.ok(Object.keys(home.category_previews).length);
+  assert.ok(Buffer.byteLength(JSON.stringify(home)) < 30000);
+  const owned = (await ok(admin, "/admin/products")).products[0];
+  const input = {
+    ...owned,
+    name: "Private catalog draft fixture",
+    active: false,
+    variants: [{ name: "Private fixture", price: 30000, stock: 1 }],
+  };
+  delete input.id;
+  const { product } = await ok(admin, "/admin/products", "POST", input);
+  const preview = await admin.request("/products/" + product.id);
+  assert.equal(preview.status, 200);
+  assert.match(preview.headers.get("cache-control"), /private.*no-store/);
+  const hidden = await publicClient.request("/products/" + product.id);
+  assert.equal(hidden.status, 404);
+  assert.match(hidden.headers.get("cache-control"), /private.*no-store/);
+  assert.equal(
+    (await ok(publicClient, "/products?q=Private%20catalog%20draft%20fixture"))
+      .total,
+    0,
+  );
+  const me = await buyer.request("/auth/me");
+  assert.match(me.headers.get("cache-control"), /private.*no-store/);
+});

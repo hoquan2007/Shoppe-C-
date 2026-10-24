@@ -2,6 +2,7 @@
 #include "database.h"
 #include <cstdint>
 namespace shoppe {
+std::string searchKey(const std::string &text);
 std::int64_t now();
 std::string env(const char *key, const std::string &fallback = "");
 std::string randomId(std::size_t bytes = 16);

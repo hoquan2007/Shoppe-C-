@@ -15,6 +15,15 @@
 
 namespace shoppe {
 namespace {
+thread_local Database::Metrics requestMetrics;
+struct SqlTimer {
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    ~SqlTimer() {
+        requestMetrics.sqlMs +=
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        ++requestMetrics.queries;
+    }
+};
 const std::map<std::string, std::vector<std::string>> columns = {
     {"users", {"email", "role"}},
     {"shops", {"owner_id", "status"}},
@@ -73,7 +82,13 @@ std::string pgSql(const std::string &sql) {
 }
 #endif
 } // namespace
-Database::Database(std::string url, std::string path, const std::string &schemaPath)
+void Database::resetMetrics() {
+    requestMetrics = {};
+}
+Database::Metrics Database::metrics() {
+    return requestMetrics;
+}
+Database::Database(std::string url, std::string path, const std::string &schemaPath, bool initialize)
     : url_(std::move(url)), path_(std::move(path)) {
     std::ifstream file(schemaPath);
     if (!file)
@@ -84,9 +99,19 @@ Database::Database(std::string url, std::string path, const std::string &schemaP
         auto parent = std::filesystem::path(path_).parent_path();
         if (!parent.empty())
             std::filesystem::create_directories(parent);
-        if (sqlite3_open(path_.c_str(), &sqlite_) != SQLITE_OK)
+        if (sqlite3_open_v2(path_.c_str(), &sqlite_,
+                            SQLITE_OPEN_READWRITE | (initialize ? SQLITE_OPEN_CREATE : 0),
+                            nullptr) != SQLITE_OK)
             throw std::runtime_error("Cannot open SQLite");
         sqlite3_busy_timeout(sqlite_, 10000);
+        sqlite3_create_function_v2(
+            sqlite_, "shoppe_search", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr,
+            [](sqlite3_context *ctx, int, sqlite3_value **args) {
+                const auto *raw = sqlite3_value_text(args[0]);
+                auto key = searchKey(raw ? reinterpret_cast<const char *>(raw) : "");
+                sqlite3_result_text(ctx, key.c_str(), -1, SQLITE_TRANSIENT);
+            },
+            nullptr, nullptr, nullptr);
         char *error = nullptr;
         if (sqlite3_exec(sqlite_, "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;", nullptr, nullptr,
                          &error) != SQLITE_OK) {
@@ -96,30 +121,33 @@ Database::Database(std::string url, std::string path, const std::string &schemaP
         }
     } else {
 #ifdef SHOPPE_POSTGRES
-        auto conn = PQconnectdb(url_.c_str());
-        if (PQstatus(conn) != CONNECTION_OK) {
+        if (initialize) {
+            auto conn = PQconnectdb(url_.c_str());
+            if (PQstatus(conn) != CONNECTION_OK) {
+                PQfinish(conn);
+                throw std::runtime_error("Cannot connect to PostgreSQL; check DATABASE_URL/TLS.");
+            }
+            // Keep business data outside Supabase's exposed public schema. Serialize first-run DDL.
+            auto migration = "BEGIN; SELECT pg_advisory_xact_lock(72134001); "
+                             "CREATE SCHEMA IF NOT EXISTS shoppe; "
+                             "REVOKE ALL ON SCHEMA shoppe FROM PUBLIC; "
+                             "COMMIT;";
+            auto result = PQexec(conn, migration);
+            auto ok = PQresultStatus(result) == PGRES_COMMAND_OK;
+            PQclear(result);
             PQfinish(conn);
-            throw std::runtime_error("Cannot connect to PostgreSQL; check DATABASE_URL/TLS.");
+            if (!ok)
+                throw std::runtime_error("PostgreSQL schema initialization failed.");
         }
-        // Keep business data outside Supabase's exposed public schema. Serialize first-run DDL.
-        auto migration = "BEGIN; SELECT pg_advisory_xact_lock(72134001); "
-                         "CREATE SCHEMA IF NOT EXISTS shoppe; "
-                         "REVOKE ALL ON SCHEMA shoppe FROM PUBLIC; "
-                         "COMMIT;";
-        auto result = PQexec(conn, migration);
-        auto ok = PQresultStatus(result) == PGRES_COMMAND_OK;
-        PQclear(result);
-        PQfinish(conn);
-        if (!ok)
-            throw std::runtime_error("PostgreSQL schema initialization failed.");
 #else
         throw std::runtime_error("Rebuild with SHOPPE_POSTGRES=ON to use DATABASE_URL.");
 #endif
     }
     try {
-        auto tx = begin();
-        tx->execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, "
-                    "name TEXT NOT NULL, checksum TEXT NOT NULL, applied_at BIGINT NOT NULL)");
+        auto tx = begin(!initialize);
+        if (initialize)
+            tx->execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, "
+                        "name TEXT NOT NULL, checksum TEXT NOT NULL, applied_at BIGINT NOT NULL)");
         std::vector<std::pair<int, std::filesystem::path>> files{{1, schemaPath}};
         auto directory = std::filesystem::path(schemaPath).parent_path() / "migrations";
         if (std::filesystem::exists(directory))
@@ -137,6 +165,9 @@ Database::Database(std::string url, std::string path, const std::string &schemaP
                 files.push_back({version, entry.path()});
             }
         std::sort(files.begin(), files.end());
+        std::map<int, std::string> applied;
+        for (const auto &row : tx->query("SELECT version,checksum FROM schema_migrations"))
+            applied.emplace(std::stoi(row.at("version")), row.at("checksum"));
         int previous = 0;
         for (const auto &[version, path] : files) {
             if (version != previous + 1)
@@ -149,21 +180,21 @@ Database::Database(std::string url, std::string path, const std::string &schemaP
             // Keep checksums stable across Windows/Linux Git line endings.
             sql.erase(std::remove(sql.begin(), sql.end(), '\r'), sql.end());
             auto checksum = sha256(sql);
-            auto existing = tx->query("SELECT checksum FROM schema_migrations WHERE version = ?",
-                                      {std::to_string(version)});
-            if (!existing.empty()) {
-                if (existing.front().at("checksum") != checksum)
+            auto existing = applied.find(version);
+            if (existing != applied.end()) {
+                if (existing->second != checksum)
                     throw std::runtime_error("Applied migration checksum mismatch: " +
                                              path.filename().string());
                 continue;
             }
+            if (!initialize)
+                throw std::runtime_error("Run shoppe --initialize before starting this schema version.");
             tx->executeScript(sql);
             tx->execute(
                 "INSERT INTO schema_migrations(version,name,checksum,applied_at) VALUES(?,?,?,?)",
                 {std::to_string(version), path.filename().string(), checksum, std::to_string(now())});
         }
-        auto newest = tx->query("SELECT MAX(version) AS version FROM schema_migrations");
-        if (!newest.empty() && std::stoi(newest.front().at("version")) > previous)
+        if (!applied.empty() && applied.rbegin()->first > previous)
             throw std::runtime_error("Database schema is newer than this application");
         tx->commit();
     } catch (...) {
@@ -233,7 +264,11 @@ Database::Transaction::Transaction(Database &db, bool readOnly)
     if (db.postgres()) {
 #ifdef SHOPPE_POSTGRES
         for (int attempt = 0; attempt < 2; ++attempt) {
+            auto acquireStarted = std::chrono::steady_clock::now();
             pg_ = db.acquireConnection();
+            requestMetrics.poolMs += std::chrono::duration<double, std::milli>(
+                                         std::chrono::steady_clock::now() - acquireStarted)
+                                         .count();
             try {
                 // One network round trip. Readers use a consistent snapshot without the write lock.
                 // Mutations retain the cross-instance lock protecting stock and voucher reservations.
@@ -271,6 +306,7 @@ Database::Transaction::~Transaction() {
 Rows Database::Transaction::query(const std::string &sql, const Params &params) {
     if (done_)
         throw std::logic_error("Transaction already closed");
+    SqlTimer timer;
     Rows rows;
 #ifdef SHOPPE_POSTGRES
     if (pg_) {
@@ -326,6 +362,7 @@ void Database::Transaction::execute(const std::string &sql, const Params &params
     query(sql, params);
 }
 void Database::Transaction::executeScript(const std::string &sql) {
+    SqlTimer timer;
 #ifdef SHOPPE_POSTGRES
     if (pg_) {
         auto result = PQexec(static_cast<PGconn *>(pg_), sql.c_str());

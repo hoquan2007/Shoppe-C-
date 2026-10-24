@@ -23,6 +23,12 @@ class Database {
     void releaseConnection(void *connection);
 
   public:
+    struct Metrics {
+        double poolMs = 0, sqlMs = 0;
+        int queries = 0;
+    };
+    static void resetMetrics();
+    static Metrics metrics();
     class Transaction {
         Database &db_;
         std::unique_lock<std::mutex> lock_;
@@ -39,8 +45,11 @@ class Database {
         void executeScript(const std::string &sql);
         void commit();
         void rollback();
+        bool postgres() const {
+            return db_.postgres();
+        }
     };
-    Database(std::string url, std::string path, const std::string &schemaPath);
+    Database(std::string url, std::string path, const std::string &schemaPath, bool initialize = true);
     ~Database();
     Database(const Database &) = delete;
     Database &operator=(const Database &) = delete;
@@ -54,6 +63,12 @@ class Repository {
 
   public:
     explicit Repository(Database::Transaction &tx) : tx_(tx) {}
+    Rows query(const std::string &sql, const Params &params = {}) {
+        return tx_.query(sql, params);
+    }
+    bool postgres() const {
+        return tx_.postgres();
+    }
     Json list(const std::string &table, const std::string &where = "", const Params &params = {});
     Json get(const std::string &table, const std::string &id);
     Json one(const std::string &table, const std::string &where, const Params &params);

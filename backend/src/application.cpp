@@ -1,9 +1,11 @@
 #include "application.h"
 #include "catalog.h"
+#include "catalog_query.h"
 #include "domain.h"
 #include "payments.h"
 #include "security.h"
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -21,6 +23,7 @@ void validateMethod(const httplib::Request &req, httplib::Response &res) {
     static const std::vector<std::pair<std::regex, std::string>> rules = {
         {std::regex(R"(^/api/health$)"), "GET"},
         {std::regex(R"(^/api/meta$)"), "GET"},
+        {std::regex(R"(^/api/home$)"), "GET"},
         {std::regex(R"(^/api/products$)"), "GET"},
         {std::regex(R"(^/api/vouchers$)"), "GET, POST"},
         {std::regex(R"(^/api/auth/me$)"), "GET"},
@@ -321,6 +324,18 @@ Json siteSettings(Repository &r) {
         defaults.update(saved);
     return defaults;
 }
+bool gatewayReady();
+Json publicMeta(Repository &r) {
+    auto settings = siteSettings(r);
+    return {{"payment_configured", gatewayReady()},
+            {"google_configured", googleReady()},
+            {"google_client_id", googleReady() ? env("GOOGLE_CLIENT_ID") : ""},
+            {"email_configured", !env("RESEND_API_KEY").empty() && !env("EMAIL_FROM").empty()},
+            {"storage_configured", !env("SUPABASE_URL").empty() && !env("SUPABASE_SERVICE_KEY").empty()},
+            {"development", env("APP_ENV") != "production"},
+            {"categories", settings["categories"]},
+            {"settings", settings}};
+}
 void notify(Repository &r, const std::string &uid, const std::string &title, const std::string &message,
             const std::string &link = "/orders") {
     r.save("notifications", {{"id", randomId()},
@@ -380,37 +395,6 @@ std::string upper(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
     return s;
-}
-std::string searchKey(const std::string &s) {
-    const std::vector<std::pair<char, std::string>> groups = {
-        {'a', "áàảãạăắằẳẵặâấầẩẫậÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬ"},
-        {'e', "éèẻẽẹêếềểễệÉÈẺẼẸÊẾỀỂỄỆ"},
-        {'i', "íìỉĩịÍÌỈĨỊ"},
-        {'o', "óòỏõọôốồổỗộơớờởỡợÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢ"},
-        {'u', "úùủũụưứừửữựÚÙỦŨỤƯỨỪỬỮỰ"},
-        {'y', "ýỳỷỹỵÝỲỶỸỴ"},
-        {'d', "đĐ"}};
-    std::string result;
-    for (std::size_t i = 0; i < s.size();) {
-        auto c = static_cast<unsigned char>(s[i]);
-        std::size_t length = c < 128 ? 1 : (c < 224 ? 2 : (c < 240 ? 3 : 4));
-        auto piece = s.substr(i, length);
-        bool found = false;
-        if (length == 1) {
-            result += static_cast<char>(std::tolower(c));
-            found = true;
-        } else
-            for (const auto &[base, accents] : groups)
-                if (accents.find(piece) != std::string::npos) {
-                    result += base;
-                    found = true;
-                    break;
-                }
-        if (!found)
-            result += piece;
-        i += length;
-    }
-    return result;
 }
 Json gatewayCall(const std::string &method, const std::string &path, const Json &body = Json()) {
     httplib::SSLClient client("api-merchant.payos.vn");
@@ -655,7 +639,36 @@ void Application::expire(Repository &r) {
         cancelGroup(r, group, "expired", "system");
 }
 void Application::handle(const httplib::Request &req, httplib::Response &res) {
-    res.set_header("Cache-Control", "no-store");
+    res.status = 200;
+    struct Trace {
+        const httplib::Request &req;
+        httplib::Response &res;
+        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        std::string id = randomId(8);
+        ~Trace() {
+            try {
+                const auto m = Database::metrics();
+                const auto ms =
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
+                        .count();
+                res.set_header("X-Request-Id", id);
+                res.set_header("Server-Timing", "db_pool;dur=" + std::to_string(m.poolMs) +
+                                                    ", db;dur=" + std::to_string(m.sqlMs) +
+                                                    ", app;dur=" + std::to_string(ms));
+                std::cout << Json{{"event", "request"},   {"request_id", id},
+                                  {"method", req.method}, {"path", req.path},
+                                  {"status", res.status}, {"duration_ms", ms},
+                                  {"db_ms", m.sqlMs},     {"pool_ms", m.poolMs},
+                                  {"queries", m.queries}, {"response_bytes", res.body.size()}}
+                                 .dump()
+                          << '\n';
+            } catch (...) { /* Observability must never fail the response. */
+            }
+        }
+    };
+    Database::resetMetrics();
+    Trace trace{req, res};
+    res.set_header("Cache-Control", "private, no-store");
     try {
         validateMethod(req, res);
         Json body = Json::object();
@@ -760,15 +773,21 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             auto challenge = nonce.empty() ? Json() : r.get("auth_challenges", sha256(nonce));
             if (challenge.is_null() || challenge.value("expires_at", 0LL) <= now() ||
                 challenge.value("client_id", "") != env("GOOGLE_CLIENT_ID") ||
-                challenge.value("user_id", "") != (user.is_null() ? "" : user.at("id").get<std::string>()) ||
-                challenge.value("session_id", "") != (session.is_null() ? "" : session.at("id").get<std::string>()))
-                throw Error(401, "google_challenge_expired", "Phiên đăng nhập Google đã hết hạn. Vui lòng thử lại.");
+                challenge.value("user_id", "") !=
+                    (user.is_null() ? "" : user.at("id").get<std::string>()) ||
+                challenge.value("session_id", "") !=
+                    (session.is_null() ? "" : session.at("id").get<std::string>()))
+                throw Error(401, "google_challenge_expired",
+                            "Phiên đăng nhập Google đã hết hạn. Vui lòng thử lại.");
             // Consume once and release the database before fetching Google's verification keys.
             if (tx->query("DELETE FROM auth_challenges WHERE id = ? RETURNING id",
-                          {challenge.at("id").get<std::string>()}).empty())
-                throw Error(401, "google_challenge_expired", "Phiên đăng nhập Google đã được sử dụng. Vui lòng thử lại.");
-            res.set_header("Set-Cookie", "shoppe_google_login=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0" +
-                                             (production_ ? std::string("; Secure") : ""));
+                          {challenge.at("id").get<std::string>()})
+                    .empty())
+                throw Error(401, "google_challenge_expired",
+                            "Phiên đăng nhập Google đã được sử dụng. Vui lòng thử lại.");
+            res.set_header("Set-Cookie",
+                           "shoppe_google_login=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0" +
+                               (production_ ? std::string("; Secure") : ""));
         } else if (req.path == "/api/admin/catalog/preview" && req.method == "POST") {
             adminRequired(user);
             numberField(body, "limit", 1, demoCatalogLimit);
@@ -795,7 +814,8 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             if (!user.is_null()) {
                 auto currentSession = repo.get("sessions", session.at("id"));
                 if (currentSession.is_null() || currentSession.value("expires_at", 0LL) <= now())
-                    throw Error(401, "unauthenticated", "Vui lòng đăng nhập lại trước khi liên kết Google.");
+                    throw Error(401, "unauthenticated",
+                                "Vui lòng đăng nhập lại trước khi liên kết Google.");
                 user = required(repo.get("users", user.at("id")));
                 activeUser(user);
             }
@@ -805,31 +825,45 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             if (!linked.is_null()) {
                 account = required(repo.get("users", linked.at("user_id")));
                 if (!user.is_null() && account.at("id") != user.at("id"))
-                    throw Error(409, "google_already_linked", "Google này đã liên kết với tài khoản khác.");
+                    throw Error(409, "google_already_linked",
+                                "Google này đã liên kết với tài khoản khác.");
             } else {
                 auto existing = repo.one("users", "email = ?", {identity.email});
                 if (user.is_null() && !existing.is_null())
-                    throw Error(409, "google_link_required", "Email đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết Google trong Tài khoản của tôi.");
+                    throw Error(409, "google_link_required",
+                                "Email đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết "
+                                "Google trong Tài khoản của tôi.");
                 if (!user.is_null()) {
                     if (user.value("email", "") != identity.email ||
-                        !repo.one("auth_identities", "user_id = ? AND provider = ?", {user.at("id"), "google"}).is_null())
-                        throw Error(409, "google_link_conflict", "Hãy chọn Google cùng email với tài khoản đang đăng nhập và chưa liên kết.");
+                        !repo.one("auth_identities", "user_id = ? AND provider = ?",
+                                  {user.at("id"), "google"})
+                             .is_null())
+                        throw Error(
+                            409, "google_link_conflict",
+                            "Hãy chọn Google cùng email với tài khoản đang đăng nhập và chưa liên kết.");
                     account = user;
                 } else {
-                    account = {{"id", randomId()}, {"email", identity.email}, {"name", identity.name},
-                               {"role", "buyer"}, {"active", true}, {"verified", true}, {"created_at", now()}};
+                    account = {{"id", randomId()},   {"email", identity.email}, {"name", identity.name},
+                               {"role", "buyer"},    {"active", true},          {"verified", true},
+                               {"created_at", now()}};
                 }
                 account["verified"] = true;
                 repo.save("users", account);
-                repo.save("auth_identities", {{"id", identityId}, {"user_id", account.at("id")},
-                                              {"provider", "google"}, {"subject", identity.subject}, {"created_at", now()}});
+                repo.save("auth_identities", {{"id", identityId},
+                                              {"user_id", account.at("id")},
+                                              {"provider", "google"},
+                                              {"subject", identity.subject},
+                                              {"created_at", now()}});
             }
             activeUser(account);
-            if (!session.is_null()) repo.erase("sessions", session.at("id"));
+            if (!session.is_null())
+                repo.erase("sessions", session.at("id"));
             auto sessionToken = randomId(32);
             auto csrf = randomId(24);
-            repo.save("sessions", {{"id", sha256(sessionToken)}, {"user_id", account.at("id")},
-                                   {"csrf", csrf}, {"expires_at", now() + 7 * 86400}});
+            repo.save("sessions", {{"id", sha256(sessionToken)},
+                                   {"user_id", account.at("id")},
+                                   {"csrf", csrf},
+                                   {"expires_at", now() + 7 * 86400}});
             res.set_header("Set-Cookie", "shoppe_session=" + sessionToken +
                                              "; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800" +
                                              (production_ ? std::string("; Secure") : ""));
@@ -837,7 +871,8 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             write->commit();
         }
         if (req.path == "/api/admin/catalog/preview" && req.method == "POST") {
-            auto document = fetchDemoCatalog(static_cast<int>(numberField(body, "limit", 1, demoCatalogLimit)));
+            auto document =
+                fetchDemoCatalog(static_cast<int>(numberField(body, "limit", 1, demoCatalogLimit)));
             auto write = db_.begin();
             Repository repo(*write);
             // Recheck privileges after network I/O, before storing a server-owned snapshot.
@@ -889,6 +924,13 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
         }
         if (res.get_header_value("Content-Type").find("text/csv") == std::string::npos)
             res.set_content(result.dump(), "application/json; charset=utf-8");
+        if (!writing && res.status == 200 &&
+            (req.path == "/api/meta" || req.path == "/api/home" || req.path == "/api/products" ||
+             (req.path.rfind("/api/products/", 0) == 0 && sid(req).empty()))) {
+            res.headers.erase("Cache-Control");
+            res.set_header("Cache-Control", req.path == "/api/meta" ? "public, max-age=0, s-maxage=30"
+                                                                    : "public, max-age=0, s-maxage=15");
+        }
         if (writing && req.path != "/api/checkout/quote")
             for (int i = 0; i < 4; ++i)
                 processMail();
@@ -921,17 +963,14 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     if (path == "/api/health")
         return {
             {"ok", true}, {"engine", "C++20"}, {"database", db_.postgres() ? "postgresql" : "sqlite"}};
-    if (path == "/api/meta") {
-        auto settings = siteSettings(r);
-        return {
-            {"payment_configured", gatewayReady()},
-            {"google_configured", googleReady()},
-            {"google_client_id", googleReady() ? env("GOOGLE_CLIENT_ID") : ""},
-            {"email_configured", !env("RESEND_API_KEY").empty() && !env("EMAIL_FROM").empty()},
-            {"storage_configured", !env("SUPABASE_URL").empty() && !env("SUPABASE_SERVICE_KEY").empty()},
-            {"development", !production_},
-            {"categories", settings["categories"]},
-            {"settings", settings}};
+    if (path == "/api/meta")
+        return publicMeta(r);
+    if (path == "/api/home") {
+        auto meta = publicMeta(r);
+        auto page = publicCatalog(r, Json::object());
+        page["meta"] = meta;
+        page["category_previews"] = catalogHighlights(r, meta["categories"]);
+        return page;
     }
     if (path == "/api/auth/me")
         return {{"user", safeUser(u)},
@@ -942,12 +981,15 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             throw Error(503, "google_not_configured", "Chưa cấu hình đăng nhập Google.");
         rateLimit(r, "google-challenge:" + req.remote_addr, 30, 900);
         auto previous = googleNonce(req);
-        if (!previous.empty()) r.erase("auth_challenges", sha256(previous));
+        if (!previous.empty())
+            r.erase("auth_challenges", sha256(previous));
         auto nonce = randomId(32);
-        r.save("auth_challenges", {{"id", sha256(nonce)}, {"expires_at", now() + 600},
-                                  {"user_id", u.is_null() ? "" : u.at("id").get<std::string>()},
-                                  {"session_id", session.is_null() ? "" : session.at("id").get<std::string>()},
-                                  {"client_id", env("GOOGLE_CLIENT_ID")}});
+        r.save("auth_challenges",
+               {{"id", sha256(nonce)},
+                {"expires_at", now() + 600},
+                {"user_id", u.is_null() ? "" : u.at("id").get<std::string>()},
+                {"session_id", session.is_null() ? "" : session.at("id").get<std::string>()},
+                {"client_id", env("GOOGLE_CLIENT_ID")}});
         res.set_header("Set-Cookie", "shoppe_google_login=" + nonce +
                                          "; Path=/; HttpOnly; SameSite=Lax; Max-Age=600" +
                                          (production_ ? std::string("; Secure") : ""));
@@ -1049,25 +1091,12 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         return {{"ok", true}};
     }
     if (path == "/api/products" && method == "GET") {
-        Json result = Json::array();
-        auto q = req.get_param_value("q"), category = req.get_param_value("category"),
-             shop = req.get_param_value("shop");
-        if (q.size() > 200)
-            throw Error(422, "search_too_long", "Từ khóa tìm kiếm quá dài.");
-        for (auto product : productViews(r, r.list("products", "active = ?", {"1"}))) {
-            auto s = product["shop"];
-            if (s.is_null() || s.value("status", "") != "approved")
-                continue;
-            if (!q.empty() &&
-                searchKey(product.value("name", "")).find(searchKey(q)) == std::string::npos)
-                continue;
-            if (!category.empty() && product["category"] != category)
-                continue;
-            if (!shop.empty() && product["shop_id"] != shop)
-                continue;
-            result.push_back(product);
-        }
-        return {{"products", result}};
+        Json options = Json::object();
+        for (const char *key :
+             {"q", "category", "shop", "sort", "min", "max", "page", "page_size", "limit"})
+            if (req.has_param(key))
+                options[key] = req.get_param_value(key);
+        return publicCatalog(r, options);
     }
     if (p.size() == 3 && p[1] == "products" && method == "GET") {
         auto product = required(r.get("products", p[2]));

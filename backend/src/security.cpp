@@ -141,4 +141,35 @@ std::string csvCell(const std::string &v) {
     }
     return out + '\"';
 }
+std::string searchKey(const std::string &s) {
+    const std::vector<std::pair<char, std::string>> groups = {
+        {'a', "áàảãạăắằẳẵặâấầẩẫậÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬ"},
+        {'e', "éèẻẽẹêếềểễệÉÈẺẼẸÊẾỀỂỄỆ"},
+        {'i', "íìỉĩịÍÌỈĨỊ"},
+        {'o', "óòỏõọôốồổỗộơớờởỡợÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢ"},
+        {'u', "úùủũụưứừửữựÚÙỦŨỤƯỨỪỬỮỰ"},
+        {'y', "ýỳỷỹỵÝỲỶỸỴ"},
+        {'d', "đĐ"}};
+    std::string result;
+    for (std::size_t i = 0; i < s.size();) {
+        auto c = static_cast<unsigned char>(s[i]);
+        std::size_t length = c < 128 ? 1 : (c < 224 ? 2 : (c < 240 ? 3 : 4));
+        auto piece = s.substr(i, length);
+        bool found = false;
+        if (length == 1) {
+            result += static_cast<char>(std::tolower(c));
+            found = true;
+        } else
+            for (const auto &[base, accents] : groups)
+                if (accents.find(piece) != std::string::npos) {
+                    result += base;
+                    found = true;
+                    break;
+                }
+        if (!found)
+            result += piece;
+        i += length;
+    }
+    return result;
+}
 } // namespace shoppe
