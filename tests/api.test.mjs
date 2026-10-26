@@ -1089,7 +1089,7 @@ test("HTTP reuse stays bounded and reports time before the application handler",
             assert.match(response.headers["keep-alive"], /timeout=2/);
             assert.match(
               response.headers["server-timing"],
-              /socket_to_headers;dur=/,
+              /socket_to_headers;dur=.*request_to_headers;dur=/,
             );
             if (request.reusedSocket) reused++;
             response.resume();

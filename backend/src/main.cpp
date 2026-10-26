@@ -83,7 +83,8 @@ int main(int argc, char **argv) {
             res.set_header("Server-Timing", timing + (timing.empty() ? "" : ", ") +
                 "socket_queue;dur=" + std::to_string(HttpTiming::ms(httpTiming.worker, httpTiming.accepted)) +
                 ", socket_to_request;dur=" + std::to_string(HttpTiming::ms(httpTiming.ready, httpTiming.worker)) +
-                ", socket_to_headers;dur=" + std::to_string(HttpTiming::ms(routed, httpTiming.worker)));
+                ", socket_to_headers;dur=" + std::to_string(HttpTiming::ms(routed, httpTiming.worker)) +
+                ", request_to_headers;dur=" + std::to_string(HttpTiming::ms(routed, httpTiming.ready)));
         });
         server.set_logger([](const httplib::Request &req, const httplib::Response &res) {
             if (req.path.rfind("/api/", 0) != 0) return;
@@ -93,6 +94,9 @@ int main(int argc, char **argv) {
                 {"status", res.status}, {"path", req.path},
                 {"socket_queue_ms", HttpTiming::ms(httpTiming.worker, httpTiming.accepted)},
                 {"socket_to_headers_ms", HttpTiming::ms(done, httpTiming.worker)},
+                // Socket age includes idle time on a reused connection. This phase
+                // starts after request parsing and excludes that idle wait.
+                {"request_to_headers_ms", HttpTiming::ms(done, httpTiming.ready)},
                 {"header_serialization_ms", HttpTiming::ms(done, httpTiming.routed)}});
             // A reused connection starts a new request after this response; do not count its age as queueing.
             httpTiming.accepted = httpTiming.worker = done;
