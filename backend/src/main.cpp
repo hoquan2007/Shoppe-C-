@@ -1,5 +1,6 @@
 #include "application.h"
 #include "http_runtime.h"
+#include "request_log.h"
 #include "security.h"
 #include <chrono>
 #include <filesystem>
@@ -87,12 +88,12 @@ int main(int argc, char **argv) {
         server.set_logger([](const httplib::Request &req, const httplib::Response &res) {
             if (req.path.rfind("/api/", 0) != 0) return;
             const auto done = HttpTiming::Clock::now();
-            std::osyncstream(std::cout) << Json{{"event", "http_response"},
+            requestLog().submit(Json{{"event", "http_headers_ready"},
                 {"request_id", res.get_header_value("X-Request-Id")},
                 {"status", res.status}, {"path", req.path},
                 {"socket_queue_ms", HttpTiming::ms(httpTiming.worker, httpTiming.accepted)},
-                {"socket_to_done_ms", HttpTiming::ms(done, httpTiming.worker)},
-                {"write_ms", HttpTiming::ms(done, httpTiming.routed)}}.dump() << std::endl;
+                {"socket_to_headers_ms", HttpTiming::ms(done, httpTiming.worker)},
+                {"header_serialization_ms", HttpTiming::ms(done, httpTiming.routed)}});
             // A reused connection starts a new request after this response; do not count its age as queueing.
             httpTiming.accepted = httpTiming.worker = done;
         });

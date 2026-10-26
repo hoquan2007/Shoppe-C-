@@ -1,4 +1,5 @@
 #include "application.h"
+#include "request_log.h"
 #include "catalog.h"
 #include "catalog_query.h"
 #include "domain.h"
@@ -733,16 +734,13 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
                 res.set_header("Server-Timing", "db_pool;dur=" + std::to_string(m.poolMs) +
                                                     ", db;dur=" + std::to_string(m.sqlMs) +
                                                     ", app;dur=" + std::to_string(ms));
-                std::osyncstream(std::cout)
-                    << Json{{"event", "request"},   {"request_id", id},
+                requestLog().submit(Json{{"event", "request"},   {"request_id", id},
                             {"method", req.method}, {"path", req.path},
                             {"status", res.status}, {"duration_ms", ms},
                             {"db_ms", m.sqlMs},     {"pool_ms", m.poolMs},
                             {"queries", m.queries}, {"response_bytes", res.body.size()},
                             {"instance_id", instance}, {"instance_age_ms", age},
-                            {"instance_request", ordinal}}
-                           .dump()
-                    << std::endl;
+                            {"instance_request", ordinal}});
             } catch (...) { /* Observability must never fail the response. */
             }
         }
