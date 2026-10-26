@@ -1,5 +1,6 @@
 #include "catalog_query.h"
 #include "domain.h"
+#include "read_models.h"
 #include "security.h"
 #include <algorithm>
 #include <map>
@@ -63,12 +64,15 @@ Json views(Repository &r, const Rows &rows) {
         const auto id = s.at("id").get<std::string>();
         shops[id] = std::move(s);
     }
-    for (const auto &review : r.list("reviews", "product_id IN (" + binds + ")", ids))
-        if (!review.value("hidden", false)) {
-            auto &rating = ratings[review.at("product_id").get<std::string>()];
-            rating.first += review.value("rating", 0);
-            ++rating.second;
-        }
+    const auto hidden = "COALESCE(CAST(" + field(r, "rv", "hidden") + " AS TEXT),'" +
+                        (r.postgres() ? "false" : "0") + "')='" + (r.postgres() ? "false" : "0") + "'";
+    for (const auto &row : r.query(
+             "SELECT rv.product_id,SUM(CAST(" + field(r, "rv", "rating") +
+                 " AS DOUBLE PRECISION)) AS rating_sum,COUNT(*) AS review_count FROM reviews rv WHERE " +
+                 "rv.product_id IN (" + binds + ") AND " + hidden + " GROUP BY rv.product_id",
+             ids))
+        ratings[row.at("product_id")] = {std::stod(row.at("rating_sum")),
+                                         std::stoi(row.at("review_count"))};
     for (auto &p : result) {
         auto id = p.at("id").get<std::string>();
         p["variants"] = variants.contains(id) ? variants.at(id) : Json::array();
@@ -76,6 +80,9 @@ Json views(Repository &r, const Rows &rows) {
         auto [sum, count] = ratings[id];
         p["rating"] = count ? sum / count : 0;
         p["review_count"] = count;
+        // Lists are card summaries; full editorial copy is loaded only by the detail/editor route.
+        p.erase("description");
+        p.erase("source_description");
     }
     return result;
 }
@@ -95,10 +102,15 @@ Json publicCatalog(Repository &r, const Json &o) {
     const auto min = integer(o, "min", 0, 100000000), max = integer(o, "max", 100000000, 100000000);
     if (max < min)
         throw Error(422, "invalid_catalog_query", "Khoảng giá không hợp lệ.");
-    const auto price =
-        "(SELECT MIN(v.price) FROM variants v WHERE v.product_id=p.id AND " + activeVariant(r) + ")";
-    std::string where =
-        " FROM products p JOIN shops s ON s.id=p.shop_id WHERE p.active=1 AND s.status='approved'";
+    const std::string price = "vp.min_price";
+    const bool needPrice = sort != "new" ||
+                           (o.contains("min") && !o.at("min").get<std::string>().empty()) ||
+                           (o.contains("max") && !o.at("max").get<std::string>().empty());
+    std::string where = " FROM products p JOIN shops s ON s.id=p.shop_id";
+    if (needPrice)
+        where += " LEFT JOIN (SELECT v.product_id,MIN(v.price) AS min_price FROM variants v WHERE " +
+                 activeVariant(r) + " GROUP BY v.product_id) vp ON vp.product_id=p.id";
+    where += " WHERE p.active=1 AND s.status='approved'";
     Params params;
     if (!q.empty()) {
         std::string escaped;

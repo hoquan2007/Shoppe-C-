@@ -1,10 +1,12 @@
 #include "application.h"
+#include "http_runtime.h"
 #include "security.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <syncstream>
 
 namespace {
 void loadEnv() {
@@ -62,13 +64,40 @@ int main(int argc, char **argv) {
         server.set_payload_max_length(5 * 1024 * 1024);
         server.set_read_timeout(15);
         server.set_write_timeout(15);
-        server.new_task_queue = [] { return new httplib::ThreadPool(4); };
+        // API responses often split headers/body into small writes; avoid Nagle delaying the body.
+        server.set_tcp_nodelay(true);
+        server.new_task_queue = [] { return new HttpTaskQueue(); };
         // cpp-httplib dedicates a worker to each accepted connection, including idle
         // keep-alive waits. The platform handles public HTTP/2 connection reuse;
-        // release our bounded worker after each upstream request instead of letting
-        // four idle sockets block every subsequent shopper. Database pooling stays.
-        server.set_keep_alive_max_count(1);
+        // allow bounded reuse with spare workers for new requests. Two seconds also
+        // leave room for Node agents' default one-second keep-alive safety buffer.
+        server.set_keep_alive_max_count(64);
+        server.set_keep_alive_timeout(2);
+        server.set_post_routing_handler([](const httplib::Request &, httplib::Response &res) {
+            const auto routed = HttpTiming::Clock::now();
+            httpTiming.routed = routed;
+            if (httpTiming.worker == HttpTiming::Clock::time_point{}) return;
+            auto timing = res.get_header_value("Server-Timing");
+            res.headers.erase("Server-Timing");
+            res.set_header("Server-Timing", timing + (timing.empty() ? "" : ", ") +
+                "socket_queue;dur=" + std::to_string(HttpTiming::ms(httpTiming.worker, httpTiming.accepted)) +
+                ", socket_to_request;dur=" + std::to_string(HttpTiming::ms(httpTiming.ready, httpTiming.worker)) +
+                ", socket_to_headers;dur=" + std::to_string(HttpTiming::ms(routed, httpTiming.worker)));
+        });
+        server.set_logger([](const httplib::Request &req, const httplib::Response &res) {
+            if (req.path.rfind("/api/", 0) != 0) return;
+            const auto done = HttpTiming::Clock::now();
+            std::osyncstream(std::cout) << Json{{"event", "http_response"},
+                {"request_id", res.get_header_value("X-Request-Id")},
+                {"status", res.status}, {"path", req.path},
+                {"socket_queue_ms", HttpTiming::ms(httpTiming.worker, httpTiming.accepted)},
+                {"socket_to_done_ms", HttpTiming::ms(done, httpTiming.worker)},
+                {"write_ms", HttpTiming::ms(done, httpTiming.routed)}}.dump() << std::endl;
+            // A reused connection starts a new request after this response; do not count its age as queueing.
+            httpTiming.accepted = httpTiming.worker = done;
+        });
         server.set_pre_routing_handler([](const httplib::Request &req, httplib::Response &res) {
+            httpTiming.ready = HttpTiming::Clock::now();
             if (std::regex_match(req.path, std::regex(R"(/assets/[^/]+-[A-Za-z0-9_-]{8}\.(js|css))")))
                 res.set_header("Cache-Control", "public, max-age=31536000, immutable");
             res.set_header("X-Content-Type-Options", "nosniff");
@@ -118,7 +147,7 @@ int main(int argc, char **argv) {
             std::string html((std::istreambuf_iterator<char>(file)), {});
             res.set_content(html, "text/html; charset=utf-8");
         });
-        std::cout << Json{{"event", "startup"},
+        std::cout << Json{{"event", "startup"}, {"instance_id", app.instanceId()},
                           {"duration_ms", std::chrono::duration<double, std::milli>(
                                               std::chrono::steady_clock::now() - startupStarted)
                                               .count()},
@@ -126,6 +155,7 @@ int main(int argc, char **argv) {
                          .dump()
                   << std::endl;
         auto port = std::stoi(env("PORT", "8080"));
+        app.startMailWorker();
         std::cout << "Shoppe C++ listening on port " << port << " ("
                   << (db.postgres() ? "PostgreSQL" : "SQLite development") << ")" << std::endl;
         if (!server.listen("0.0.0.0", port))

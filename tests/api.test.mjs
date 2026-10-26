@@ -70,8 +70,33 @@ async function ready(url) {
 function client(url = base) {
   let cookie = "",
     csrf = "";
+  const quotes = new Map();
   return {
-    async request(route, method = "GET", body, headers = {}) {
+    async request(route, method = "GET", body, headers = {}, prepare = true) {
+      if (
+        prepare &&
+        route === "/cart" &&
+        method === "PUT" &&
+        body &&
+        !Object.hasOwn(body, "expected_revision")
+      ) {
+        const current = await this.request("/cart");
+        body = { ...body, expected_revision: current.data.cart.revision };
+      }
+      if (
+        prepare &&
+        route === "/checkout" &&
+        method === "POST" &&
+        !body?.quote_token
+      ) {
+        let token = quotes.get(body.idempotency_key);
+        if (!token) {
+          const quoted = await this.request("/checkout/quote", "POST", body);
+          if (quoted.status !== 200) return quoted;
+          token = quoted.data.quote_token;
+        }
+        body = { ...body, quote_token: token };
+      }
       const res = await fetch(url + "/api" + route, {
         method,
         headers: {
@@ -88,6 +113,8 @@ function client(url = base) {
       const type = res.headers.get("content-type") || "";
       const data = type.includes("json") ? await res.json() : await res.text();
       if (data.csrf) csrf = data.csrf;
+      if (route === "/checkout/quote" && data.quote_token)
+        quotes.set(body.idempotency_key, data.quote_token);
       return { status: res.status, data, headers: res.headers };
     },
     async login(email) {
@@ -968,23 +995,271 @@ test("public catalog uses server pagination, bounded input and private preview i
 });
 
 test("idle HTTP keep-alive does not exhaust the bounded C++ worker pool", async () => {
+  const net = await import("node:net");
+  const idle = await Promise.all(
+    Array.from(
+      { length: 20 },
+      () =>
+        new Promise((resolve, reject) => {
+          const socket = net.createConnection({
+            host: "127.0.0.1",
+            port: testPort,
+          });
+          socket.on("error", reject);
+          socket.once("connect", () => resolve(socket));
+        }),
+    ),
+  );
   const started = performance.now();
-  const responses = await Promise.all(
-    Array.from({ length: 20 }, async (_, i) => {
-      const response = await fetch(
-        base + "/api/products?page=" + ((i % 2) + 1),
-        {
-          signal: AbortSignal.timeout(3000),
-        },
-      );
-      assert.equal(response.status, 200);
-      assert.equal((await response.json()).products.length, 12);
-      assert.equal(response.headers.get("connection"), "close");
-    }),
+  try {
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, async (_, i) => {
+        const response = await fetch(
+          base + "/api/products?page=" + ((i % 2) + 1),
+          {
+            signal: AbortSignal.timeout(3000),
+          },
+        );
+        assert.equal(response.status, 200);
+        assert.equal((await response.json()).products.length, 12);
+        assert.match(
+          response.headers.get("server-timing"),
+          /socket_queue;dur=/,
+        );
+      }),
+    );
+    assert.equal(responses.length, 20);
+    assert.ok(
+      performance.now() - started < 2500,
+      "readers must not queue behind idle sockets",
+    );
+  } finally {
+    idle.forEach((socket) => socket.destroy());
+  }
+});
+
+test("HTTP reuse stays bounded and reports time before the application handler", async () => {
+  const http = await import("node:http");
+  const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+  let reused = 0;
+  try {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((resolve, reject) => {
+        const request = http.get(
+          base + "/api/health",
+          { agent },
+          (response) => {
+            assert.equal(response.statusCode, 200);
+            assert.match(response.headers["keep-alive"], /timeout=2/);
+            assert.match(
+              response.headers["server-timing"],
+              /socket_to_headers;dur=/,
+            );
+            if (request.reusedSocket) reused++;
+            response.resume();
+            response.on("end", resolve);
+          },
+        );
+        request.on("error", reject);
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    assert.equal(reused, 4);
+  } finally {
+    agent.destroy();
+  }
+});
+
+test("stale cart revisions cannot overwrite another session's additions", async () => {
+  const second = client();
+  await second.login("buyer@shoppe.local");
+  await ok(buyer, "/cart", "PUT", cartBody([["product-1-0", 1]]));
+  const before = (await ok(second, "/cart")).cart;
+  await ok(
+    buyer,
+    "/cart",
+    "PUT",
+    cartBody([
+      ["product-1-0", 1],
+      ["product-2-0", 1],
+    ]),
   );
-  assert.equal(responses.length, 20);
+  const stale = await second.request("/cart", "PUT", {
+    ...cartBody([
+      ["product-1-0", 1],
+      ["product-3-0", 1],
+    ]),
+    expected_revision: before.revision,
+  });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.data.error.code, "cart_conflict");
   assert.ok(
-    performance.now() - started < 2500,
-    "readers must not queue behind idle sockets",
+    (await ok(buyer, "/cart")).lines.some(
+      (line) => line.variant_id === "product-2-0",
+    ),
   );
+  const missing = await second.request("/cart", "PUT", cartBody([]), {}, false);
+  assert.equal(missing.status, 409);
+});
+
+test("checkout rejects cart changes after quote without reserving stock or creating orders", async () => {
+  await ok(buyer, "/cart", "PUT", cartBody([["product-1-0", 1]]));
+  const input = {
+    address_id: "demo-address",
+    method: "cod",
+    voucher: "",
+    shop_vouchers: {},
+    idempotency_key: randomUUID(),
+  };
+  const quote = await ok(buyer, "/checkout/quote", "POST", input);
+  const count = (await ok(buyer, "/orders")).total;
+  const stock = (await ok(buyer, "/products/product-1")).product.variants[0]
+    .stock;
+  await ok(buyer, "/cart", "PUT", cartBody([["product-1-0", 3]]));
+  const result = await buyer.request("/checkout", "POST", {
+    ...input,
+    quote_token: quote.quote_token,
+  });
+  assert.equal(result.status, 409);
+  assert.equal(result.data.error.code, "quote_changed");
+  assert.equal((await ok(buyer, "/orders")).total, count);
+  assert.equal(
+    (await ok(buyer, "/products/product-1")).product.variants[0].stock,
+    stock,
+  );
+  assert.equal((await ok(buyer, "/cart")).lines[0].quantity, 3);
+});
+
+test("checkout binds voucher, price and address, and accepts a later confirmed quote once", async () => {
+  await ok(buyer, "/cart", "PUT", cartBody([["product-1-0", 1]]));
+  const input = {
+    address_id: "demo-address",
+    method: "cod",
+    voucher: "CHAO10",
+    shop_vouchers: {},
+    idempotency_key: randomUUID(),
+  };
+  const quote = await ok(buyer, "/checkout/quote", "POST", input);
+  const changedVoucher = await buyer.request("/checkout", "POST", {
+    ...input,
+    voucher: "",
+    quote_token: quote.quote_token,
+  });
+  assert.equal(changedVoucher.status, 409);
+  assert.equal(changedVoucher.data.error.code, "quote_changed");
+  const product = (await ok(admin, "/products/product-1")).product;
+  const variants = product.variants.map((v, i) =>
+    i ? v : { ...v, price: v.price + 1000 },
+  );
+  await ok(admin, "/admin/products/" + product.id, "PUT", {
+    ...product,
+    variants,
+  });
+  assert.equal(
+    (
+      await buyer.request("/checkout", "POST", {
+        ...input,
+        quote_token: quote.quote_token,
+      })
+    ).data.error.code,
+    "quote_changed",
+  );
+  const address = (
+    await ok(buyer, "/addresses", "POST", {
+      name: "Local quote test",
+      phone: "0900000000",
+      street: "Only isolated fixture",
+      city: "Ha Noi",
+      region: "Miền Bắc",
+    })
+  ).address;
+  assert.equal(
+    (
+      await buyer.request("/checkout", "POST", {
+        ...input,
+        address_id: address.id,
+        quote_token: quote.quote_token,
+      })
+    ).data.error.code,
+    "quote_changed",
+  );
+  const fresh = await ok(buyer, "/checkout/quote", "POST", input);
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  const created = await ok(buyer, "/checkout", "POST", {
+    ...input,
+    quote_token: fresh.quote_token,
+  });
+  assert.equal(created.checkout.total, fresh.checkout.total);
+  const again = await ok(buyer, "/checkout", "POST", {
+    ...input,
+    quote_token: "expired-or-missing",
+  });
+  assert.equal(again.checkout.id, created.checkout.id);
+});
+
+test("checkout requires a valid unexpired session-bound quote", async () => {
+  await ok(buyer, "/cart", "PUT", cartBody([["product-1-0", 1]]));
+  const input = {
+    address_id: "demo-address",
+    method: "cod",
+    voucher: "",
+    shop_vouchers: {},
+    idempotency_key: randomUUID(),
+  };
+  const missing = await buyer.request("/checkout", "POST", input, {}, false);
+  assert.equal(missing.status, 409);
+  assert.equal(missing.data.error.code, "quote_required");
+  const quote = await ok(buyer, "/checkout/quote", "POST", input);
+  const expired = await buyer.request("/checkout", "POST", {
+    ...input,
+    quote_token: "1." + quote.quote_token.split(".")[1],
+  });
+  assert.equal(expired.data.error.code, "quote_expired");
+  const second = client();
+  await second.login("buyer@shoppe.local");
+  const wrongSession = await second.request("/checkout", "POST", {
+    ...input,
+    quote_token: quote.quote_token,
+  });
+  assert.equal(wrongSession.data.error.code, "quote_changed");
+});
+
+test("CSV export streams every variant across multiple bounded database chunks", async () => {
+  for (let batch = 0; batch < 6; batch++) {
+    const csv =
+      "name,category,description,variant,price,stock,weight\n" +
+      Array.from(
+        { length: 200 },
+        (_, n) =>
+          `Export fixture ${batch}-${n},Phụ kiện,"Only fixture, multiline\nexport row",Default,10000,3,200`,
+      ).join("\n");
+    assert.equal(
+      (await ok(seller, "/seller/import", "POST", { csv, commit: true }))
+        .imported,
+      200,
+    );
+  }
+  let expected = 0;
+  for (let n = 1; ; n++) {
+    const page = await ok(admin, "/admin/products?page_size=100&page=" + n);
+    expected += page.products.reduce(
+      (total, product) => total + product.variants.length,
+      0,
+    );
+    if (n >= page.pages) break;
+  }
+  const response = await admin.request("/admin/export?kind=products");
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/csv/);
+  let quoted = false,
+    rows = 0;
+  for (let n = 0; n < response.data.length; n++) {
+    const c = response.data[n];
+    if (c === '"') {
+      if (quoted && response.data[n + 1] === '"') n++;
+      else quoted = !quoted;
+    } else if (c === "\n" && !quoted) rows++;
+  }
+  assert.equal(rows - 1, expected);
+  assert.ok(expected > 1000, "fixture must exercise at least six chunks");
 });

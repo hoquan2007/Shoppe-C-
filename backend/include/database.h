@@ -73,6 +73,7 @@ class Repository {
     Json get(const std::string &table, const std::string &id);
     Json one(const std::string &table, const std::string &where, const Params &params);
     Json save(const std::string &table, Json doc);
+    void saveMany(const std::string &table, const Json &documents);
     void erase(const std::string &table, const std::string &id);
 };
 } // namespace shoppe

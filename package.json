@@ -7,8 +7,9 @@
     "start": "node scripts/start.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test tests/api.test.mjs",
-    "check": "node --check frontend/app.js",
+    "test": "node --test tests/api.test.mjs tests/frontend-api.test.mjs tests/cart-state.test.mjs tests/google-session.test.mjs",
+    "test:browser": "playwright test",
+    "check": "node --check frontend/app.js && node --check frontend/api.js && node --check frontend/cart-state.js && node --check frontend/performance.js && node --check frontend/google-session.js && node --check frontend/render-scheduling.js",
     "preflight": "node scripts/preflight.mjs",
     "services:check": "node scripts/check-services.mjs",
     "catalog:refresh": "node scripts/refresh-demo-catalog.mjs",
@@ -16,7 +17,11 @@
     "secrets:check": "node scripts/check-secrets.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "prettier": "3.6.2",
     "vite": "7.3.7"
+  },
+  "dependencies": {
+    "web-vitals": "6.2.3"
   }
 }

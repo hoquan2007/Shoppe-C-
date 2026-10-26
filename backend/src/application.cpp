@@ -3,6 +3,7 @@
 #include "catalog_query.h"
 #include "domain.h"
 #include "payments.h"
+#include "read_models.h"
 #include "security.h"
 #include <algorithm>
 #include <chrono>
@@ -15,6 +16,7 @@
 #include <regex>
 #include <set>
 #include <sstream>
+#include <syncstream>
 
 namespace shoppe {
 namespace {
@@ -170,33 +172,31 @@ void activeUser(const Json &u) {
 Json productView(Repository &r, Json p) {
     p["variants"] = r.list("variants", "product_id = ?", {p.at("id")});
     p["shop"] = r.get("shops", p.at("shop_id"));
-    auto reviews = r.list("reviews", "product_id = ?", {p.at("id")});
-    double rating = 0;
-    int count = 0;
-    for (auto &review : reviews)
-        if (!review.value("hidden", false)) {
-            rating += review.value("rating", 0);
-            ++count;
-        }
-    p["rating"] = count ? rating / count : 0;
-    p["review_count"] = count;
+    const auto summary = r.query(
+        "SELECT COUNT(*) AS count,COALESCE(AVG(CAST(" + jsonField(r, "t", "rating") +
+        " AS REAL)),0) AS rating FROM reviews t WHERE t.product_id=? AND COALESCE(CAST(" +
+        jsonField(r, "t", "hidden") + " AS TEXT),'false') NOT IN ('true','1')", {p.at("id")}).front();
+    p["rating"] = std::stod(summary.at("rating"));
+    p["review_count"] = std::stoll(summary.at("count"));
     return p;
 }
+Json relatedRows(Repository &r, const std::string &table, const std::string &column, const Json &parents,
+                 const std::string &key = "id");
 Json productViews(Repository &r, Json products) {
     // Batch related rows: database round trips must not grow with card count.
     std::map<std::string, Json> variants, shops;
     std::map<std::string, std::pair<double, int>> ratings;
-    for (auto variant : r.list("variants")) {
+    for (auto variant : relatedRows(r, "variants", "product_id", products)) {
         auto id = variant.at("product_id").get<std::string>();
         if (!variants.contains(id))
             variants[id] = Json::array();
         variants[id].push_back(std::move(variant));
     }
-    for (auto shop : r.list("shops")) {
+    for (auto shop : relatedRows(r, "shops", "id", products, "shop_id")) {
         auto id = shop.at("id").get<std::string>();
         shops.emplace(id, std::move(shop));
     }
-    for (const auto &review : r.list("reviews"))
+    for (const auto &review : relatedRows(r, "reviews", "product_id", products))
         if (!review.value("hidden", false)) {
             auto &rating = ratings[review.at("product_id").get<std::string>()];
             rating.first += review.value("rating", 0);
@@ -225,7 +225,7 @@ Json orderView(Repository &r, Json o) {
 }
 // Restrict batches to authorized parent rows. Placeholders keep identifiers out of SQL text.
 Json relatedRows(Repository &r, const std::string &table, const std::string &column, const Json &parents,
-                 const std::string &key = "id") {
+                 const std::string &key) {
     std::set<std::string> ids;
     for (const auto &parent : parents)
         ids.insert(parent.at(key).get<std::string>());
@@ -250,6 +250,44 @@ Json relatedRows(Repository &r, const std::string &table, const std::string &col
     if (!parameters.empty())
         flush();
     return rows;
+}
+Json cartLines(Repository &r, const Json &items, bool requireVariants = false) {
+    auto variants = relatedRows(r, "variants", "id", items, "variant_id");
+    auto products = relatedRows(r, "products", "id", variants, "product_id");
+    auto shops = relatedRows(r, "shops", "id", products, "shop_id");
+    std::map<std::string, Json> variantById, productById, shopById;
+    for (auto &v : variants) {
+        auto id = v.at("id").get<std::string>();
+        variantById[id] = std::move(v);
+    }
+    for (auto &p : products) {
+        auto id = p.at("id").get<std::string>();
+        productById[id] = std::move(p);
+    }
+    for (auto &s : shops) {
+        auto id = s.at("id").get<std::string>();
+        shopById[id] = std::move(s);
+    }
+    Json lines = Json::array();
+    for (auto item : items) {
+        auto variant = variantById.find(item.at("variant_id").get<std::string>());
+        if (variant == variantById.end()) {
+            if (requireVariants)
+                throw Error(404, "not_found", "Không tìm thấy phân loại sản phẩm.");
+            continue;
+        }
+        auto product = productById.find(variant->second.at("product_id").get<std::string>());
+        if (product == productById.end())
+            continue;
+        auto shop = shopById.find(product->second.at("shop_id").get<std::string>());
+        if (shop == shopById.end())
+            continue;
+        item["variant"] = variant->second;
+        item["product"] = product->second;
+        item["shop"] = shop->second;
+        lines.push_back(std::move(item));
+    }
+    return lines;
 }
 Json orderViews(Repository &r, Json orders) {
     if (orders.empty())
@@ -527,7 +565,7 @@ void recordPaymentSnapshot(Repository &r, Json group, const Json &snapshot) {
     }
 }
 std::int64_t discountFor(Repository &r, const std::string &code, const std::string &shop,
-                         std::int64_t subtotal, const std::string &group) {
+                         std::int64_t subtotal, const std::string &group, Json &reservations) {
     if (code.empty())
         return 0;
     auto v = required(r.one("vouchers", "code = ?", {upper(code)}));
@@ -535,14 +573,17 @@ std::int64_t discountFor(Repository &r, const std::string &code, const std::stri
         v.value("starts_at", 0LL) > now() || v.value("ends_at", 0LL) < now() ||
         subtotal < v.value("minimum", 0LL))
         throw Error(422, "invalid_voucher", "Voucher không áp dụng cho đơn hàng này.");
-    auto used = r.list("redemptions", "voucher_id = ?", {v.at("id")}).size();
+    auto used =
+        std::stoll(r.query("SELECT COUNT(*) AS total FROM redemptions WHERE voucher_id=?", {v.at("id")})
+                       .front()
+                       .at("total"));
     if (used >= v.value("limit", 0U))
         throw Error(409, "voucher_used_up", "Voucher đã hết lượt sử dụng.");
     auto d = v.value("type", "") == "percent" ? subtotal * v.value("value", 0LL) / 100
                                               : v.value("value", 0LL);
     d = std::min<std::int64_t>({d, subtotal, v.value("max_discount", subtotal)});
-    r.save("redemptions",
-           {{"id", randomId()}, {"voucher_id", v.at("id")}, {"checkout_id", group}, {"amount", d}});
+    reservations.push_back(
+        {{"id", randomId()}, {"voucher_id", v.at("id")}, {"checkout_id", group}, {"amount", d}});
     return d;
 }
 Json saveProduct(Repository &r, const Json &u, const Json &b, const std::string &id) {
@@ -628,12 +669,43 @@ Json parseCsv(const std::string &source) {
     return rows;
 }
 } // namespace
-Application::Application(Database &db, GoogleVerifier verifier)
+Application::Application(Database &db, GoogleVerifier verifier, MailSender mailSender)
     : db_(db), production_(env("APP_ENV") == "production"),
-      appUrl_(env("APP_URL", "http://localhost:5173")), googleVerifier_(std::move(verifier)) {}
+      appUrl_(env("APP_URL", "http://localhost:5173")), googleVerifier_(std::move(verifier)),
+      mailSender_(std::move(mailSender)), instanceId_(randomId(8)) {}
+Application::~Application() {
+    mailWorker_.request_stop();
+    mailWake_.notify_all();
+    if (mailWorker_.joinable())
+        mailWorker_.join();
+}
+void Application::wakeMailWorker() {
+    {
+        std::lock_guard lock(mailMutex_);
+        mailPending_ = true;
+    }
+    mailWake_.notify_one();
+}
+void Application::startMailWorker() {
+    if ((!mailSender_ && (env("RESEND_API_KEY").empty() || env("EMAIL_FROM").empty())) ||
+        mailWorker_.joinable())
+        return;
+    // The durable outbox owns delivery state. A restarted/scaled-in container can resume it;
+    // the protected maintenance job remains a recovery path, not the user request.
+    mailWorker_ = std::jthread([this](std::stop_token stop) {
+        while (!stop.stop_requested()) {
+            for (int n = 0; n < 4 && !stop.stop_requested(); ++n)
+                if (!processMail())
+                    break;
+            std::unique_lock lock(mailMutex_);
+            mailWake_.wait_for(lock, std::chrono::seconds(5),
+                               [&] { return stop.stop_requested() || mailPending_; });
+            mailPending_ = false;
+        }
+    });
+}
 void Application::expire(Repository &r) {
-    for (const auto &challenge : r.list("auth_challenges", "expires_at < ?", {std::to_string(now())}))
-        r.erase("auth_challenges", challenge.at("id"));
+    r.query("DELETE FROM auth_challenges WHERE expires_at<?", {std::to_string(now())});
     for (auto group :
          r.list("checkouts", "status = ? AND expires_at < ?", {"pending", std::to_string(now())}))
         cancelGroup(r, group, "expired", "system");
@@ -643,6 +715,9 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
     struct Trace {
         const httplib::Request &req;
         httplib::Response &res;
+        const std::string &instance;
+        std::chrono::steady_clock::time_point born;
+        std::uint64_t ordinal;
         std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
         std::string id = randomId(8);
         ~Trace() {
@@ -652,22 +727,28 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
                         .count();
                 res.set_header("X-Request-Id", id);
+                res.set_header("X-App-Instance", instance);
+                const auto age = std::chrono::duration<double, std::milli>(start - born).count();
+                res.set_header("X-App-Age-Ms", std::to_string(age));
                 res.set_header("Server-Timing", "db_pool;dur=" + std::to_string(m.poolMs) +
                                                     ", db;dur=" + std::to_string(m.sqlMs) +
                                                     ", app;dur=" + std::to_string(ms));
-                std::cout << Json{{"event", "request"},   {"request_id", id},
-                                  {"method", req.method}, {"path", req.path},
-                                  {"status", res.status}, {"duration_ms", ms},
-                                  {"db_ms", m.sqlMs},     {"pool_ms", m.poolMs},
-                                  {"queries", m.queries}, {"response_bytes", res.body.size()}}
-                                 .dump()
-                          << '\n';
+                std::osyncstream(std::cout)
+                    << Json{{"event", "request"},   {"request_id", id},
+                            {"method", req.method}, {"path", req.path},
+                            {"status", res.status}, {"duration_ms", ms},
+                            {"db_ms", m.sqlMs},     {"pool_ms", m.poolMs},
+                            {"queries", m.queries}, {"response_bytes", res.body.size()},
+                            {"instance_id", instance}, {"instance_age_ms", age},
+                            {"instance_request", ordinal}}
+                           .dump()
+                    << std::endl;
             } catch (...) { /* Observability must never fail the response. */
             }
         }
     };
     Database::resetMetrics();
-    Trace trace{req, res};
+    Trace trace{req, res, instanceId_, instanceStarted_, requests_.fetch_add(1) + 1};
     res.set_header("Cache-Control", "private, no-store");
     try {
         validateMethod(req, res);
@@ -724,15 +805,49 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             if (origin != appUrl_)
                 throw Error(403, "invalid_origin", "Nguồn yêu cầu không hợp lệ.");
         }
-        // Only reads that expose time-sensitive checkout state or mark chat as read need writes.
-        bool statefulRead =
-            req.path == "/api/dashboard" || req.path == "/api/orders" ||
-            req.path.rfind("/api/orders/", 0) == 0 || req.path.rfind("/api/payments/", 0) == 0 ||
-            req.path == "/api/seller/orders" || req.path == "/api/admin/orders" ||
-            req.path == "/api/admin/payments" ||
-            (req.path.rfind("/api/conversations/", 0) == 0 && req.path.ends_with("/messages"));
-        auto tx = db_.begin(!writing && !statefulRead);
-        if (!writing && !statefulRead &&
+        Json passwordWork = Json::object();
+        const bool login = req.path == "/api/auth/login" && writing;
+        const bool registration = req.path == "/api/auth/register" && writing;
+        const bool reset = req.path == "/api/auth/reset" && writing;
+        if (login || registration || reset) {
+            const auto password = textField(body, "password", 128);
+            Json account;
+            {
+                auto prepare = db_.begin(reset);
+                Repository repo(*prepare);
+                if (login || registration) {
+                    auto email = textField(body, "email", 254);
+                    validateEmail(email);
+                    rateLimit(repo,
+                              login ? "login:" + email + ":" + req.remote_addr
+                                    : "register:" + req.remote_addr,
+                              login ? 10 : 8, login ? 900 : 3600);
+                    account = repo.one("users", "email=?", {email});
+                    if (registration && !account.is_null())
+                        throw Error(409, "email_exists", "Email đã được sử dụng.");
+                } else {
+                    auto token =
+                        required(repo.get("email_tokens", sha256(textField(body, "token", 100))));
+                    if (token.value("purpose", "") != "reset" || token.value("expires_at", 0LL) < now())
+                        throw Error(422, "expired_token", "Liên kết không hợp lệ hoặc đã hết hạn.");
+                    account = required(repo.get("users", token.at("user_id")));
+                }
+                prepare->commit();
+            }
+            // PBKDF2 is intentionally expensive. It must not hold the global stock/write lock.
+            if (login) {
+                if (account.is_null() || !passwordVerify(password, account.value("password_hash", "")))
+                    throw Error(401, "invalid_credentials", "Email hoặc mật khẩu không đúng.");
+                passwordWork = {{"id", account.at("id")}, {"before", account.at("password_hash")}};
+            } else {
+                passwordWork["hash"] = passwordHash(password);
+                if (reset)
+                    passwordWork["before"] = account.value("password_hash", "");
+            }
+        }
+        const bool readOnly = !writing || req.path == "/api/checkout/quote";
+        auto tx = db_.begin(readOnly);
+        if (readOnly &&
             !tx->query("SELECT id FROM checkouts WHERE status = ? AND expires_at < ? LIMIT 1",
                        {"pending", std::to_string(now())})
                  .empty()) {
@@ -742,13 +857,18 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             tx = db_.begin();
             Repository expired(*tx);
             expire(expired);
+            tx->commit();
+            tx = db_.begin(true);
         }
         Repository r(*tx);
-        if (writing || statefulRead)
+        if (!readOnly)
             expire(r);
         Json session;
         Json user;
-        auto token = sid(req);
+        const bool publicRequest =
+            req.path == "/api/home" || req.path == "/api/meta" || req.path == "/api/products" ||
+            (req.path.rfind("/api/products/", 0) == 0 && req.get_param_value("view") == "public");
+        auto token = publicRequest ? std::string() : sid(req);
         if (!token.empty()) {
             session = r.get("sessions", sha256(token));
             if (!session.is_null() && session.value("expires_at", 0LL) > now()) {
@@ -802,11 +922,27 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             }
             result = Json::object();
         } else
-            result = route(r, req, res, body, user, session);
+            result = route(r, req, res, body, user, session, passwordWork);
         if (req.path == "/api/checkout/quote")
             tx->rollback();
         else
             tx->commit();
+        if (!writing && req.path.rfind("/api/conversations/", 0) == 0 &&
+            req.path.ends_with("/messages") && result.contains("conversation")) {
+            auto conversation = result.at("conversation");
+            const char *field =
+                conversation.at("buyer_id") == user.at("id") ? "buyer_read_at" : "seller_read_at";
+            if (conversation.value(field, 0LL) < conversation.value("updated_at", 0LL)) {
+                auto marker = db_.begin();
+                Repository repo(*marker);
+                auto current = required(repo.get("conversations", conversation.at("id")));
+                // Mark only the snapshot actually returned, never messages sent after that snapshot.
+                current[field] =
+                    std::max(current.value(field, 0LL), conversation.value("updated_at", 0LL));
+                repo.save("conversations", current);
+                marker->commit();
+            }
+        }
         if (googleLogin) {
             auto identity = googleVerifier_(body.at("credential").get<std::string>(), nonce);
             auto write = db_.begin();
@@ -926,14 +1062,15 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
             res.set_content(result.dump(), "application/json; charset=utf-8");
         if (!writing && res.status == 200 &&
             (req.path == "/api/meta" || req.path == "/api/home" || req.path == "/api/products" ||
-             (req.path.rfind("/api/products/", 0) == 0 && sid(req).empty()))) {
+             (req.path.rfind("/api/products/", 0) == 0 && (sid(req).empty() || publicRequest)))) {
             res.headers.erase("Cache-Control");
-            res.set_header("Cache-Control", req.path == "/api/meta" ? "public, max-age=0, s-maxage=30"
-                                                                    : "public, max-age=0, s-maxage=15");
+            res.set_header("Cache-Control",
+                           req.path == "/api/meta"
+                               ? "public, max-age=0, s-maxage=30, stale-while-revalidate=30"
+                               : "public, max-age=0, s-maxage=15, stale-while-revalidate=15");
         }
         if (writing && req.path != "/api/checkout/quote")
-            for (int i = 0; i < 4; ++i)
-                processMail();
+            wakeMailWorker();
     } catch (const Error &e) {
         res.status = e.status;
         res.set_content(Json{{"error", {{"code", e.code}, {"message", e.what()}}}}.dump(),
@@ -956,7 +1093,7 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
     }
 }
 Json Application::route(Repository &r, const httplib::Request &req, httplib::Response &res,
-                        const Json &b, const Json &u, const Json &session) {
+                        const Json &b, const Json &u, const Json &session, const Json &passwordWork) {
     auto p = segments(req.path);
     auto method = req.method == "HEAD" ? "GET" : req.method;
     auto path = req.path;
@@ -996,7 +1133,6 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         return {{"nonce", nonce}, {"client_id", env("GOOGLE_CLIENT_ID")}};
     }
     if (path == "/api/auth/register" && method == "POST") {
-        rateLimit(r, "register:" + req.remote_addr, 8, 3600);
         auto email = textField(b, "email", 254);
         validateEmail(email);
         if (!r.one("users", "email = ?", {email}).is_null())
@@ -1004,7 +1140,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         auto user = Json{{"id", randomId()},
                          {"email", email},
                          {"name", textField(b, "name", 100)},
-                         {"password_hash", passwordHash(textField(b, "password", 128))},
+                         {"password_hash", passwordWork.at("hash")},
                          {"role", "buyer"},
                          {"active", true},
                          {"verified", false},
@@ -1024,10 +1160,9 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     if (path == "/api/auth/login" && method == "POST") {
         auto email = textField(b, "email", 254);
         validateEmail(email);
-        rateLimit(r, "login:" + email + ":" + req.remote_addr, 10, 900);
         auto user = r.one("users", "email = ?", {email});
-        auto password = textField(b, "password", 128);
-        if (user.is_null() || !passwordVerify(password, user.value("password_hash", ""))) {
+        if (user.is_null() || user.at("id") != passwordWork.at("id") ||
+            user.value("password_hash", "") != passwordWork.at("before").get<std::string>()) {
             // Commit failed-attempt accounting by returning an error response rather than
             // throwing/rolling it back.
             res.status = 401;
@@ -1081,7 +1216,10 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             throw Error(422, "expired_token", "Liên kết không hợp lệ hoặc đã hết hạn.");
         auto user = required(r.get("users", token.at("user_id")));
         if (std::string(purpose) == "reset") {
-            user["password_hash"] = passwordHash(textField(b, "password", 128));
+            if (user.value("password_hash", "") != passwordWork.at("before").get<std::string>())
+                throw Error(409, "password_changed",
+                            "Mật khẩu đã thay đổi. Vui lòng yêu cầu liên kết mới.");
+            user["password_hash"] = passwordWork.at("hash");
             for (auto s : r.list("sessions", "user_id = ?", {user.at("id")}))
                 r.erase("sessions", s.at("id"));
         } else
@@ -1096,7 +1234,20 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
              {"q", "category", "shop", "sort", "min", "max", "page", "page_size", "limit"})
             if (req.has_param(key))
                 options[key] = req.get_param_value(key);
-        return publicCatalog(r, options);
+        auto page = publicCatalog(r, options);
+        if (req.get_param_value("include") == "meta") {
+            page["meta"] = publicMeta(r);
+            const auto shopId = req.get_param_value("shop");
+            if (!shopId.empty()) {
+                const auto shop = required(r.get("shops", shopId));
+                if (shop.value("status", "") != "approved")
+                    throw Error(404, "not_found", "Shop chưa hoạt động.");
+                page["shop"] = {{"id", shop.at("id")}, {"name", shop.at("name")},
+                                {"description", shop.value("description", "")},
+                                {"region", shop.value("region", "")}};
+            }
+        }
+        return page;
     }
     if (p.size() == 3 && p[1] == "products" && method == "GET") {
         auto product = required(r.get("products", p[2]));
@@ -1104,11 +1255,12 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         if ((!product.value("active", false) || shop.value("status", "") != "approved") && !admin(u) &&
             (u.is_null() || shop["owner_id"] != u["id"]))
             throw Error(404, "not_found", "Sản phẩm không khả dụng.");
-        Json reviews = Json::array();
-        for (auto review : r.list("reviews", "product_id = ?", {p[2]}))
-            if (!review.value("hidden", false))
-                reviews.push_back(review);
-        return {{"product", productView(r, product)}, {"reviews", reviews}};
+        auto page = pageList(r, "reviews", req,
+            "t.product_id=? AND COALESCE(CAST(" + jsonField(r, "t", "hidden") +
+            " AS TEXT),'false') NOT IN ('true','1')", {p[2]}, 20);
+        auto reviews = page.at("items");
+        page.erase("items");
+        return {{"product", productView(r, product)}, {"reviews", reviews}, {"review_page", page}};
     }
     if (p.size() == 3 && p[1] == "shops" && method == "GET") {
         auto shop = required(r.get("shops", p[2]));
@@ -1118,11 +1270,23 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         return {{"shop", shop}};
     }
     if (path == "/api/vouchers" && method == "GET") {
-        Json list = Json::array();
-        for (auto v : r.list("vouchers", "active = ?", {"1"}))
-            if (v.value("starts_at", 0LL) <= now() && v.value("ends_at", 0LL) >= now())
-                list.push_back(v);
-        return {{"vouchers", list}};
+        std::string filter = "t.active=1 AND CAST(" + jsonField(r, "t", "starts_at") +
+            " AS BIGINT)<=? AND CAST(" + jsonField(r, "t", "ends_at") + " AS BIGINT)>=?";
+        Params params{std::to_string(now()), std::to_string(now())};
+        if (req.has_param("scope")) {
+            loginRequired(u);
+            if (req.get_param_value("scope") == "admin") {
+                adminRequired(u);
+                filter += " AND (t.shop_id IS NULL OR t.shop_id='')";
+            } else if (req.get_param_value("scope") == "seller") {
+                auto shop = required(userShop(r, u));
+                filter += " AND t.shop_id=?";
+                params.push_back(shop.at("id"));
+            } else throw Error(422, "invalid_scope", "Phạm vi không hợp lệ.");
+        }
+        auto page = pageList(r, "vouchers", req, filter, params, 20, "", {"code"});
+        page["vouchers"] = page.at("items"); page.erase("items");
+        return page;
     }
     loginRequired(u);
     if (path == "/api/account" && method == "PATCH") {
@@ -1164,14 +1328,17 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         auto cart = r.one("carts", "user_id = ?", {u.at("id")});
         if (cart.is_null())
             cart = {{"id", randomId()}, {"user_id", u["id"]}, {"items", Json::array()}};
+        cart["revision"] = cart.value("revision", 0LL);
         if (method == "PUT") {
+            if (!b.contains("expected_revision") ||
+                numberField(b, "expected_revision", 0, 9007199254740991LL) != cart["revision"])
+                throw Error(409, "cart_conflict", "Giỏ hàng đã thay đổi ở nơi khác. Vui lòng tải lại.");
             if (!b.contains("items") || !b["items"].is_array() || b["items"].size() > 50)
                 throw Error(422, "invalid_cart", "Giỏ hàng không hợp lệ (tối đa 50 mặt hàng).");
             std::set<std::string> seen;
             Json items = Json::array();
             for (auto input : b["items"]) {
                 auto id = textField(input, "variant_id", 64);
-                required(r.get("variants", id));
                 if (!seen.insert(id).second)
                     throw Error(422, "duplicate_variant", "Biến thể bị trùng.");
                 items.push_back({{"variant_id", id},
@@ -1179,31 +1346,23 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                                  {"selected", input.value("selected", true)}});
             }
             cart["items"] = items;
+            cart["revision"] = cart.value("revision", 0LL) + 1;
             r.save("carts", cart);
         }
-        Json lines = Json::array();
-        for (auto item : cart["items"]) {
-            auto v = r.get("variants", item.at("variant_id"));
-            if (v.is_null())
-                continue;
-            auto product = r.get("products", v.at("product_id"));
-            if (product.is_null())
-                continue;
-            item["variant"] = v;
-            item["product"] = product;
-            item["shop"] = r.get("shops", product.at("shop_id"));
-            lines.push_back(item);
-        }
+        auto lines = cartLines(r, cart["items"], method == "PUT");
         return {{"cart", cart}, {"lines", lines}};
     }
     if (path == "/api/wishlist" && method == "GET") {
         Json products = Json::array();
-        for (auto w : r.list("wishlists", "user_id = ?", {u.at("id")})) {
-            auto product = r.get("products", w.at("product_id"));
-            if (!product.is_null() && product.value("active", false))
-                products.push_back(productView(r, product));
-        }
-        return {{"products", products}};
+        auto page = pageList(r, "wishlists", req,
+            "t.user_id=? AND EXISTS (SELECT 1 FROM products p JOIN shops s ON s.id=p.shop_id "
+            "WHERE p.id=t.product_id AND p.active=1 AND s.status='approved')", {u.at("id")});
+        auto saved = page.at("items");
+        for (auto product : relatedRows(r, "products", "id", saved, "product_id"))
+            if (product.value("active", false))
+                products.push_back(std::move(product));
+        page["products"] = productViews(r, products); page.erase("items");
+        return page;
     }
     if (p.size() == 3 && p[1] == "wishlist" && (method == "POST" || method == "DELETE")) {
         required(r.get("products", p[2]));
@@ -1236,8 +1395,11 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     }
     if (path == "/api/seller/products" && method == "GET") {
         auto shop = required(userShop(r, u));
-        auto list = productViews(r, r.list("products", "shop_id = ?", {shop.at("id")}));
-        return {{"products", list}, {"shop", shop}};
+        auto page = pageList(r, "products", req, "t.shop_id=?", {shop.at("id")});
+        page["products"] = productViews(r, page.at("items"));
+        page.erase("items");
+        page["shop"] = shop;
+        return page;
     }
     if (path == "/api/seller/products" && method == "POST")
         return {{"product", saveProduct(r, u, b, "")}};
@@ -1346,6 +1508,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         return {{"ok", true}};
     }
     if ((path == "/api/checkout" || path == "/api/checkout/quote") && method == "POST") {
+        const bool quoteOnly = path == "/api/checkout/quote";
         auto key = textField(b, "idempotency_key", 100);
         if (key.size() < 16)
             throw Error(422, "invalid_key", "Thiếu mã chống đặt đơn lặp.");
@@ -1364,20 +1527,35 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         if (payment->requiresGateway() && !gatewayReady())
             throw Error(503, "payment_not_configured",
                         "Chưa thiết lập kênh payOS. Bạn có thể chọn COD.");
+        const auto token = textField(b, "quote_token", 160, false);
+        std::int64_t quoteExpires = now() + 300;
+        if (!quoteOnly) {
+            const auto dot = token.find('.');
+            if (dot == std::string::npos || dot > 12 || dot == 0 || token.size() - dot != 65 ||
+                !std::all_of(token.begin(), token.begin() + dot,
+                             [](unsigned char c) { return c >= '0' && c <= '9'; }))
+                throw Error(409, "quote_required", "Vui lòng tính lại và xác nhận tổng tiền.");
+            quoteExpires = std::stoll(token.substr(0, dot));
+            if (quoteExpires <= now() || quoteExpires > now() + 300)
+                throw Error(409, "quote_expired", "Báo giá đã hết hạn. Vui lòng tính lại.");
+        }
         auto address = required(r.get("addresses", textField(b, "address_id", 64)));
         if (address["user_id"] != u["id"])
             throw Error(403, "forbidden", "Địa chỉ không thuộc bạn.");
         auto cart = required(r.one("carts", "user_id = ?", {u.at("id")}));
         std::map<std::string, Json> grouped;
+        Json reservedVariants = Json::array(), reservedVouchers = Json::array();
         std::vector<Json> remaining;
-        for (auto item : cart["items"]) {
+        for (auto item : cartLines(r, cart["items"], true)) {
             if (!item.value("selected", true)) {
-                remaining.push_back(item);
+                remaining.push_back({{"variant_id", item.at("variant_id")},
+                                     {"quantity", item.at("quantity")},
+                                     {"selected", false}});
                 continue;
             }
-            auto v = required(r.get("variants", item.at("variant_id")));
-            auto product = required(r.get("products", v.at("product_id")));
-            auto shop = required(r.get("shops", v.at("shop_id")));
+            auto v = item.at("variant");
+            auto product = item.at("product");
+            auto shop = item.at("shop");
             auto quantity = item.value("quantity", 0);
             if (!product.value("active", false) || !v.value("active", false) ||
                 shop.value("status", "") != "approved")
@@ -1397,7 +1575,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                                    {"unit_price", v["price"]},
                                    {"weight", product["weight"]}});
             v["stock"] = v.value("stock", 0) - quantity;
-            r.save("variants", v);
+            reservedVariants.push_back(v);
         }
         if (grouped.empty())
             throw Error(422, "empty_cart", "Chưa chọn sản phẩm để đặt hàng.");
@@ -1414,7 +1592,6 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                    {"expires_at", expires},
                    {"total", 0},
                    {"created_at", now()}};
-        r.save("checkouts", group);
         Json orders = Json::array();
         std::vector<std::int64_t> bases;
         auto settings = siteSettings(r);
@@ -1433,7 +1610,8 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             auto subtotal = snapshot.total();
             auto shop = required(r.get("shops", shopId));
             auto coupons = b.value("shop_vouchers", Json::object());
-            auto discount = discountFor(r, coupons.value(shopId, ""), shopId, subtotal.value(), gid);
+            auto discount =
+                discountFor(r, coupons.value(shopId, ""), shopId, subtotal.value(), gid, reservedVouchers);
             auto ship = shipping.calculate(weight, address["region"] == shop["region"]).value();
             auto allocation = allocateDiscount(
                 [&] {
@@ -1465,7 +1643,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             bases.push_back(subtotal.value() - discount);
         }
         auto allBase = std::accumulate(bases.begin(), bases.end(), 0LL);
-        auto global = discountFor(r, textField(b, "voucher", 30, false), "", allBase, gid);
+        auto global = discountFor(r, textField(b, "voucher", 30, false), "", allBase, gid, reservedVouchers);
         auto allocated = allocateDiscount(bases, global);
         Money total;
         for (std::size_t i = 0; i < orders.size(); ++i) {
@@ -1479,25 +1657,57 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             auto perLine = allocateDiscount(amounts, allocated[i]);
             auto items = order["items"];
             order.erase("items");
-            r.save("orders", order);
             for (std::size_t n = 0; n < items.size(); ++n) {
                 items[n]["discount"] = items[n].value("discount", 0LL) + perLine[n];
                 items[n]["order_id"] = order["id"];
-                r.save("order_items", items[n]);
             }
             total = total + Money(order["total"]);
             order["items"] = items;
-            notify(r, u.at("id"), "Đặt hàng thành công",
-                   "Đơn " + order["id"].get<std::string>().substr(0, 8) + " đã được tạo.");
-            auto shop = required(r.get("shops", order.at("shop_id")));
-            notify(r, shop.at("owner_id"), "Có đơn hàng mới", "Shop vừa nhận đơn hàng mới.",
-                   "/seller/orders");
         }
         group["total"] = total.value();
-        r.save("checkouts", group);
-        cart["items"] = remaining;
-        r.save("carts", cart);
-        return {{"checkout", group}, {"orders", orders}};
+        // Bind confirmation to stable, server-calculated values, never client-supplied totals.
+        // Session IDs are hashed HttpOnly credentials, shared through the database across instances.
+        Json snapshot{{"buyer_id", u.at("id")}, {"method", pay},
+                      {"cart_revision", cart.value("revision", 0LL)},
+                      {"voucher", upper(textField(b, "voucher", 30, false))},
+                      {"shop_vouchers", b.value("shop_vouchers", Json::object())},
+                      {"total", total.value()}, {"orders", Json::array()}};
+        for (auto order : orders) {
+            for (const char *field : {"id", "checkout_id", "created_at", "updated_at", "history"})
+                order.erase(field);
+            for (auto &item : order["items"])
+                for (const char *field : {"id", "order_id"})
+                    item.erase(field);
+            snapshot["orders"].push_back(order);
+        }
+        const auto expiryText = std::to_string(quoteExpires);
+        const auto expected = expiryText + "." +
+            hmac(session.at("id"), "checkout-v1|" + expiryText + "|" + snapshot.dump());
+        if (!quoteOnly && !constantEqual(token, expected))
+            throw Error(409, "quote_changed", "Giỏ hàng hoặc tổng tiền đã đổi. Vui lòng xác nhận lại.");
+        if (!quoteOnly) {
+            r.saveMany("variants", reservedVariants);
+            r.save("checkouts", group);
+            r.saveMany("redemptions", reservedVouchers);
+            for (auto order : orders) {
+                auto items = order.at("items");
+                order.erase("items");
+                r.save("orders", order);
+                r.saveMany("order_items", items);
+                notify(r, u.at("id"), "Đặt hàng thành công",
+                       "Đơn " + order["id"].get<std::string>().substr(0, 8) + " đã được tạo.");
+                auto shop = required(r.get("shops", order.at("shop_id")));
+                notify(r, shop.at("owner_id"), "Có đơn hàng mới", "Shop vừa nhận đơn hàng mới.",
+                       "/seller/orders");
+            }
+            cart["items"] = remaining;
+            cart["revision"] = cart.value("revision", 0LL) + 1;
+            r.save("carts", cart);
+        }
+        Json result{{"checkout", group}, {"orders", orders}};
+        if (quoteOnly)
+            result["quote_token"] = expected;
+        return result;
     }
     if (p.size() >= 3 && p[1] == "payments") {
         auto g = required(r.get("checkouts", p[2]));
@@ -1516,16 +1726,29 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     }
     if ((path == "/api/orders" || path == "/api/seller/orders" || path == "/api/admin/orders") &&
         method == "GET") {
-        Json records;
-        if (path == "/api/admin/orders") {
+        std::string where;
+        Params params;
+        if (path == "/api/admin/orders")
             adminRequired(u);
-            records = r.list("orders");
-        } else if (path == "/api/seller/orders") {
+        else if (path == "/api/seller/orders") {
             auto shop = required(userShop(r, u));
-            records = r.list("orders", "shop_id = ?", {shop.at("id")});
-        } else
-            records = r.list("orders", "buyer_id = ?", {u.at("id")});
-        return {{"orders", orderViews(r, records)}};
+            where = "t.shop_id=?";
+            params.push_back(shop.at("id"));
+        } else {
+            where = "t.buyer_id=?";
+            params.push_back(u.at("id"));
+        }
+        auto status = req.get_param_value("status");
+        if (status.size() > 40)
+            throw Error(422, "invalid_status", "Trạng thái không hợp lệ.");
+        if (!status.empty()) {
+            where += where.empty() ? "t.status=?" : " AND t.status=?";
+            params.push_back(status);
+        }
+        auto page = pageList(r, "orders", req, where, params, 20);
+        page["orders"] = orderViews(r, page.at("items"));
+        page.erase("items");
+        return page;
     }
     if (p.size() >= 3 && p[1] == "orders") {
         auto o = required(r.get("orders", p[2]));
@@ -1714,10 +1937,15 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         if (method == "GET") {
             Json list = Json::array();
             auto shop = userShop(r, u);
-            for (auto c : r.list("conversations"))
-                if (c["buyer_id"] == u["id"] || (!shop.is_null() && c["shop_id"] == shop["id"]))
-                    list.push_back(c);
-            return {{"conversations", list}};
+            const auto where = shop.is_null() ? "buyer_id=?" : "buyer_id=? OR shop_id=?";
+            Params params{u.at("id")};
+            if (!shop.is_null())
+                params.push_back(shop.at("id"));
+            auto page = pageList(r, "conversations", req, "(" + std::string(where) + ")", params,
+                50, "CAST(" + jsonField(r, "t", "updated_at") + " AS BIGINT) DESC,t.id ASC",
+                {"shop_name", "buyer_name"});
+            page["conversations"] = page.at("items"); page.erase("items");
+            return page;
         }
     }
     if (p.size() == 4 && p[1] == "conversations" && p[3] == "messages") {
@@ -1727,27 +1955,77 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             throw Error(403, "forbidden", "Bạn không thuộc cuộc hội thoại này.");
         if (method == "POST") {
             rateLimit(r, "chat:" + u.at("id").get<std::string>(), 30, 60);
+            const auto sequence = c.value("message_sequence", 0LL) + 1;
             auto m = r.save("messages", {{"id", randomId()},
                                          {"conversation_id", c["id"]},
                                          {"sender_id", u["id"]},
                                          {"sender_name", u["name"]},
                                          {"text", textField(b, "text", 2000)},
+                                         {"sequence", sequence},
                                          {"created_at", now()}});
+            c["message_sequence"] = sequence;
             c["updated_at"] = now();
             c["last_message"] = m["text"];
             r.save("conversations", c);
             return {{"message", m}};
         }
         if (method == "GET") {
-            c[u["id"] == c["buyer_id"] ? "buyer_read_at" : "seller_read_at"] = now();
-            r.save("conversations", c);
-            return {{"messages", r.list("messages", "conversation_id = ?", {c.at("id")})},
-                    {"conversation", c}};
+            const bool after = req.has_param("after_sequence"), before = req.has_param("before_time");
+            if (after && before)
+                throw Error(422, "invalid_cursor", "Con trỏ tin nhắn không hợp lệ.");
+            const std::string direction = after ? "after" : "before";
+            Params params{c.at("id")};
+            std::string where = "m.conversation_id=?";
+            auto created = "COALESCE(CAST(" + jsonField(r, "m", "created_at") + " AS BIGINT),0)";
+            auto sequence = "COALESCE(CAST(" + jsonField(r, "m", "sequence") + " AS BIGINT),0)";
+            auto cursorNumber = [&](const std::string &key) {
+                auto value = req.get_param_value(key);
+                if (value.empty() || value.size() > 18 ||
+                    !std::all_of(value.begin(), value.end(),
+                                 [](unsigned char x) { return x >= '0' && x <= '9'; }))
+                    throw Error(422, "invalid_cursor", "Con trỏ tin nhắn không hợp lệ.");
+                return value;
+            };
+            if (after) {
+                where += " AND " + sequence + ">CAST(? AS BIGINT)";
+                params.push_back(cursorNumber("after_sequence"));
+            }
+            if (before) {
+                auto time = req.get_param_value(direction + "_time");
+                auto id = req.get_param_value(direction + "_id");
+                if (time.empty() || time.size() > 12 || id.empty() || id.size() > 64 ||
+                    !std::all_of(time.begin(), time.end(),
+                                 [](unsigned char x) { return x >= '0' && x <= '9'; }))
+                    throw Error(422, "invalid_cursor", "Con trỏ tin nhắn không hợp lệ.");
+                auto seq = cursorNumber("before_sequence");
+                where += " AND (" + sequence + "<CAST(? AS BIGINT) OR (" + sequence +
+                         "=CAST(? AS BIGINT) AND (" + created + "<CAST(? AS BIGINT) OR (" + created +
+                         "=CAST(? AS BIGINT) AND m.id<?))))";
+                params.insert(params.end(), {seq, seq, time, time, id});
+            }
+            const auto limit = after ? 100 : 50;
+            Json messages = Json::array();
+            for (const auto &row : r.query("SELECT m.payload FROM messages m WHERE " + where +
+                                               " ORDER BY " + sequence + (after ? " ASC," : " DESC,") +
+                                               created + (after ? " ASC,m.id ASC" : " DESC,m.id DESC") +
+                                               " LIMIT " + std::to_string(limit + 1),
+                                           params))
+                messages.push_back(Json::parse(row.at("payload")));
+            bool more = messages.size() > static_cast<std::size_t>(limit);
+            if (more)
+                messages.erase(messages.end() - 1);
+            if (!after)
+                std::reverse(messages.begin(), messages.end());
+            return {{"messages", messages}, {"conversation", c}, {"has_more", more}};
         }
     }
     if (path == "/api/notifications") {
-        if (method == "GET")
-            return {{"notifications", r.list("notifications", "user_id = ?", {u.at("id")})}};
+        if (method == "GET") {
+            auto page = pageList(r, "notifications", req, "t.user_id=?", {u.at("id")});
+            page["notifications"] = page.at("items");
+            page.erase("items");
+            return page;
+        }
         if (method == "POST") {
             for (auto n : r.list("notifications", "user_id = ?", {u.at("id")})) {
                 n["read"] = true;
@@ -1759,125 +2037,64 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
     if (path == "/api/dashboard" && method == "GET") {
         auto scope = req.get_param_value("scope");
         auto shop = userShop(r, u);
-        Json orders;
-        if (scope == "admin") {
+        if (scope == "admin")
             adminRequired(u);
-            orders = r.list("orders");
-        } else {
-            if (shop.is_null())
-                throw Error(403, "no_shop", "Bạn chưa có shop.");
-            orders = r.list("orders", "shop_id = ?", {shop.at("id")});
-        }
-        std::int64_t revenue = 0, refunds = 0;
-        int delivered = 0, returned = 0;
-        Json recent = Json::array(), low = Json::array();
-        std::map<std::string, Json> sold;
-        orders = orderViews(r, orders);
-        for (auto o : orders) {
-            if (o["payment_status"] == "paid") {
-                revenue += o.value("total", 0LL);
-            }
-            if (o["status"] == "delivered" || o["status"] == "completed")
-                ++delivered;
-            auto ret = o["return_request"];
-            if (!ret.is_null() && ret["status"] == "received")
-                ++returned;
-            if (o["status"] == "delivered" || o["status"] == "completed")
-                for (auto line : o["items"]) {
-                    auto quantity = line.value("quantity", 0);
-                    if (!ret.is_null() && ret["status"] == "received")
-                        for (auto returnedLine : ret["items"])
-                            if (returnedLine["item_id"] == line["id"])
-                                quantity -= returnedLine.value("quantity", 0);
-                    auto key = line["product_id"].get<std::string>();
-                    if (!sold.contains(key))
-                        sold[key] = {{"id", key}, {"name", line["name"]}, {"quantity", 0}};
-                    sold[key]["quantity"] = sold[key].value("quantity", 0) + quantity;
-                }
-            for (auto refund : o["refunds"])
-                refunds += refund.value("amount", 0LL);
-            recent.push_back(o);
-        }
-        if (scope == "admin") {
-            for (auto group : r.list("checkouts")) {
-                if (group["status"] == "review" || group["status"] == "refunded")
-                    revenue += group.value("received_amount", 0LL);
-                else if (group["status"] == "paid")
-                    revenue += group.value("excess_amount", 0LL);
-            }
-            for (auto refund : r.list("refunds"))
-                if (refund["order_id"].is_null())
-                    refunds += refund.value("amount", 0LL);
-        }
-        auto products =
-            scope == "admin" ? r.list("products") : r.list("products", "shop_id = ?", {shop.at("id")});
-        std::map<std::string, Json> productNames;
-        for (const auto &product : products)
-            productNames[product.at("id").get<std::string>()] = product["name"];
-        for (auto v : relatedRows(r, "variants", "product_id", products))
-            if (v.value("stock", 0) < 10) {
-                v["product_name"] = productNames.at(v.at("product_id").get<std::string>());
-                low.push_back(v);
-            }
-        Json best = Json::array();
-        for (auto &[key, p] : sold)
-            if (p.value("quantity", 0) > 0)
-                best.push_back(p);
-        std::sort(best.begin(), best.end(), [](const Json &a, const Json &b) {
-            return a.value("quantity", 0) > b.value("quantity", 0);
-        });
-        return {{"top_products", best},
-                {"stats",
-                 {{"orders", orders.size()},
-                  {"revenue", revenue},
-                  {"refunds", refunds},
-                  {"net_revenue", revenue - refunds},
-                  {"products", products.size()},
-                  {"delivered", delivered},
-                  {"returned", returned},
-                  {"delivery_rate", orders.empty() ? 0 : 100.0 * delivered / orders.size()},
-                  {"return_rate", delivered ? 100.0 * returned / delivered : 0}}},
-                {"orders", recent},
-                {"low_stock", low}};
-    }
-    if ((path == "/api/seller/export" || path == "/api/admin/export") && method == "GET") {
-        Json records;
-        std::string csv = "\xEF\xBB\xBF";
-        auto kind = req.get_param_value("kind");
-        if (path == "/api/admin/export")
-            adminRequired(u);
-        auto shop = userShop(r, u);
-        if (path == "/api/seller/export" && shop.is_null())
+        else if (shop.is_null())
             throw Error(403, "no_shop", "Bạn chưa có shop.");
-        if (kind == "products") {
-            records = path == "/api/admin/export" ? r.list("products")
-                                                  : r.list("products", "shop_id = ?", {shop.at("id")});
-            csv += "name,category,description,variant,price,stock,weight\r\n";
-            std::map<std::string, Json> byId;
-            for (const auto &product : records)
-                byId[product.at("id").get<std::string>()] = product;
-            for (auto v : relatedRows(r, "variants", "product_id", records)) {
-                const auto &product = byId.at(v.at("product_id").get<std::string>());
-                csv += csvCell(product.value("name", "")) + "," +
-                       csvCell(product.value("category", "")) + "," +
-                       csvCell(product.value("description", "")) + "," + csvCell(v.value("name", "")) +
-                       "," + std::to_string(v.value("price", 0LL)) + "," +
-                       std::to_string(v.value("stock", 0LL)) + "," +
-                       std::to_string(product.value("weight", 0)) + "\r\n";
-            }
-        } else {
-            records = path == "/api/admin/export" ? r.list("orders")
-                                                  : r.list("orders", "shop_id = ?", {shop.at("id")});
-            csv += "order_id,shop,status,total,created_at\r\n";
-            for (auto o : records)
-                csv += csvCell(o.at("id")) + "," + csvCell(o.value("shop_name", "")) + "," +
-                       csvCell(o.value("status", "")) + "," + std::to_string(o.value("total", 0LL)) +
-                       "," + std::to_string(o.value("created_at", 0LL)) + "\r\n";
-        }
-        res.set_header("Content-Disposition",
-                       "attachment; filename=shoppe-" +
-                           (kind == "products" ? std::string("products") : "orders") + ".csv");
-        res.set_content(csv, "text/csv; charset=utf-8");
+        auto result = dashboardData(r, scope == "admin" ? "" : shop.at("id").get<std::string>());
+        result["orders"] = orderViews(r, result.at("orders"));
+        return result;
+    }
+
+    if ((path == "/api/seller/export" || path == "/api/admin/export") && method == "GET") {
+        const bool all = path == "/api/admin/export";
+        if (all) adminRequired(u);
+        const auto shopId = all ? std::string() : required(userShop(r, u)).at("id").get<std::string>();
+        const bool products = req.get_param_value("kind") == "products";
+        const auto table = products ? std::string("products") : std::string("orders");
+        const auto ceiling = r.query("SELECT COALESCE(MAX(id),'') AS id FROM " + table +
+            (all ? "" : " WHERE shop_id=?"), all ? Params{} : Params{shopId}).front().at("id");
+        auto cursor = std::make_shared<std::string>();
+        auto started = std::make_shared<bool>(false);
+        res.set_header("Content-Disposition", "attachment; filename=shoppe-" + table + ".csv");
+        res.set_chunked_content_provider("text/csv; charset=utf-8",
+            [this, shopId, all, products, table, ceiling, cursor, started](size_t, httplib::DataSink &sink) {
+                // No full export in memory and no database connection held while writing the socket.
+                std::string csv;
+                if (!*started) {
+                    csv = "\xEF\xBB\xBF";
+                    csv += products ? "name,category,description,variant,price,stock,weight\r\n"
+                                    : "order_id,shop,status,total,created_at\r\n";
+                    *started = true;
+                }
+                auto tx = db_.begin(true);
+                Repository repo(*tx);
+                Params params{*cursor, ceiling};
+                if (!all) params.push_back(shopId);
+                Json records = Json::array();
+                for (const auto &row : repo.query("SELECT payload FROM " + table +
+                    " WHERE id>? AND id<=?" + (all ? "" : " AND shop_id=?") + " ORDER BY id LIMIT 200", params))
+                    records.push_back(Json::parse(row.at("payload")));
+                if (products) {
+                    std::map<std::string, Json> byId;
+                    for (const auto &product : records) byId[product.at("id")] = product;
+                    for (auto variant : relatedRows(repo, "variants", "product_id", records)) {
+                        const auto &product = byId.at(variant.at("product_id"));
+                        csv += csvCell(product.value("name", "")) + "," + csvCell(product.value("category", "")) +
+                            "," + csvCell(product.value("description", "")) + "," + csvCell(variant.value("name", "")) +
+                            "," + std::to_string(variant.value("price", 0LL)) + "," +
+                            std::to_string(variant.value("stock", 0LL)) + "," + std::to_string(product.value("weight", 0)) + "\r\n";
+                    }
+                } else for (const auto &order : records)
+                    csv += csvCell(order.at("id")) + "," + csvCell(order.value("shop_name", "")) + "," +
+                        csvCell(order.value("status", "")) + "," + std::to_string(order.value("total", 0LL)) + "," +
+                        std::to_string(order.value("created_at", 0LL)) + "\r\n";
+                if (!records.empty()) *cursor = records.back().at("id");
+                tx->commit();
+                if (!csv.empty() && !sink.write(csv.data(), csv.size())) return false;
+                if (records.size() < 200) sink.done();
+                return true;
+            });
         return Json::object();
     }
     if (path.rfind("/api/admin/", 0) == 0) {
@@ -1893,8 +2110,21 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             return {{"product", saveProduct(r, u, b, "")}};
         if (p.size() == 4 && p[2] == "products" && method == "PUT")
             return {{"product", saveProduct(r, u, b, p[3])}};
-        if (path == "/api/admin/shops" && method == "GET")
-            return {{"shops", r.list("shops")}};
+        if (path == "/api/admin/shops" && method == "GET") {
+            std::string where;
+            Params params;
+            const auto status = req.get_param_value("status");
+            if (!status.empty()) {
+                if (status != "approved" && status != "pending" && status != "rejected" && status != "suspended")
+                    throw Error(422, "invalid_status", "Trạng thái không hợp lệ.");
+                where = "t.status=?"; params.push_back(status);
+            }
+            auto page = pageList(r, "shops", req, where, params, 50, "", {"name", "description"});
+            page["shops"] = page.at("items"); page.erase("items");
+            if (req.get_param_value("view") == "selector")
+                for (auto &shop : page["shops"]) shop = {{"id", shop.at("id")}, {"name", shop.at("name")}};
+            return page;
+        }
         if (p.size() == 4 && p[2] == "shops" && method == "POST") {
             auto shop = required(r.get("shops", p[3]));
             auto state = textField(b, "status", 20);
@@ -1908,9 +2138,23 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         }
         if (path == "/api/admin/users" && method == "GET") {
             Json users = Json::array();
-            for (auto user : r.list("users"))
+            std::string where;
+            Params params;
+            const auto role = req.get_param_value("role"), active = req.get_param_value("active");
+            if (!role.empty()) {
+                if (role != "buyer" && role != "admin") throw Error(422, "invalid_role", "Vai trò không hợp lệ.");
+                where = "t.role=?"; params.push_back(role);
+            }
+            if (!active.empty()) {
+                if (active != "true" && active != "false") throw Error(422, "invalid_status", "Trạng thái không hợp lệ.");
+                where += (where.empty() ? "" : " AND ") +
+                    std::string("COALESCE(CAST(") + jsonField(r, "t", "active") + " AS TEXT),'true') IN (?,?)";
+                params.push_back(active); params.push_back(active == "true" ? "1" : "0");
+            }
+            auto page = pageList(r, "users", req, where, params, 50, "", {"name", "email"});
+            for (auto user : page.at("items"))
                 users.push_back(safeUser(user));
-            return {{"users", users}};
+            page["users"] = users; page.erase("items"); return page;
         }
         if (p.size() == 4 && p[2] == "users" && method == "POST") {
             auto user = required(r.get("users", p[3]));
@@ -1939,8 +2183,13 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             audit(r, u, "demo_catalog_imported", result.at("shop_id"));
             return result;
         }
-        if (path == "/api/admin/payments" && method == "GET")
-            return {{"checkouts", r.list("checkouts")}, {"events", r.list("payment_events")}};
+        if (path == "/api/admin/payments" && method == "GET") {
+            auto page = pageList(r, "checkouts", req);
+            page["checkouts"] = page.at("items");
+            page.erase("items");
+            page["events"] = relatedRows(r, "payment_events", "checkout_id", page.at("checkouts"));
+            return page;
+        }
         if (p.size() == 5 && p[2] == "payments" && p[4] == "refund" && method == "POST") {
             auto group = required(r.get("checkouts", p[3]));
             bool excess = group["status"] == "paid" && group.value("excess_amount", 0LL) > 0;
@@ -1978,27 +2227,51 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                    "Số tiền: " + std::to_string(amount) + " VNĐ. Tham chiếu: " + ref);
             return {{"refund", refund}};
         }
-        if (path == "/api/admin/reviews" && method == "GET")
-            return {{"reviews", r.list("reviews")}};
+        if (path == "/api/admin/reviews" && method == "GET") {
+            auto page = pageList(r, "reviews", req);
+            page["reviews"] = page.at("items");
+            page.erase("items");
+            return page;
+        }
         if (path == "/api/admin/outbox" && method == "GET") {
             Json list = Json::array();
-            for (auto item : r.list("outbox")) {
+            auto page = pageList(r, "outbox", req);
+            for (auto item : page.at("items")) {
                 item.erase("text");
                 list.push_back(item);
             }
-            return {{"outbox", list}};
+            page["outbox"] = list;
+            page.erase("items");
+            return page;
         }
         if (path == "/api/admin/outbox/retry" && method == "POST") {
-            for (auto item : r.list("outbox"))
-                if (item["status"] == "failed" || item["status"] == "queued") {
-                    item["status"] = "queued";
-                    item["attempts"] = 0;
-                    r.save("outbox", item);
-                }
-            return {{"ok", true}};
+            const auto requeue = [&](Json item) {
+                item["status"] = "queued"; item["attempts"] = 0; item["next_attempt_at"] = 0;
+                item["delivery_uncertain"] = false;
+                r.save("outbox", item);
+            };
+            if (b.contains("id")) {
+                auto item = required(r.get("outbox", textField(b, "id", 64)));
+                if (item.value("status", "") != "failed")
+                    throw Error(409, "mail_not_failed", "Thư đang xử lý hoặc đã gửi.");
+                if (item.value("delivery_uncertain", false) && !b.value("confirm_uncertain", false))
+                    throw Error(422, "confirm_delivery", "Cần kiểm tra lần gửi cuối trước khi thử lại.");
+                requeue(item);
+                return {{"ok", true}, {"retried", 1}};
+            }
+            httplib::Request batch;
+            batch.params.emplace("page_size", "100");
+            auto page = pageList(r, "outbox", batch, "t.status='failed' AND COALESCE(CAST(" +
+                jsonField(r, "t", "delivery_uncertain") + " AS TEXT),'false') NOT IN ('true','1')");
+            for (auto item : page.at("items")) requeue(item);
+            return {{"ok", true}, {"retried", page.at("items").size()}};
         }
-        if (path == "/api/admin/audit" && method == "GET")
-            return {{"audit", r.list("audit")}};
+        if (path == "/api/admin/audit" && method == "GET") {
+            auto page = pageList(r, "audit", req);
+            page["audit"] = page.at("items");
+            page.erase("items");
+            return page;
+        }
         if (p.size() == 4 && p[2] == "reviews" && method == "POST") {
             auto review = required(r.get("reviews", p[3]));
             review["hidden"] = b.value("hidden", true);
@@ -2031,8 +2304,19 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             }
         }
         if (path == "/api/admin/products" && method == "GET") {
-            auto list = productViews(r, r.list("products"));
-            return {{"products", list}};
+            auto page = pageList(r, "products", req);
+            page["products"] = productViews(r, page.at("items"));
+            page.erase("items");
+            if (req.get_param_value("include") == "editor") {
+                // One round trip/snapshot for the product screen, rather than waking three instances.
+                page["catalog"] = demoCatalogStatus(r, u);
+                page["shops"] = Json::array();
+                httplib::Request selector;
+                auto shops = pageList(r, "shops", selector, "t.status=?", {"approved"});
+                for (const auto &shop : shops.at("items"))
+                    page["shops"].push_back({{"id", shop.at("id")}, {"name", shop.at("name")}});
+            }
+            return page;
         }
         if (p.size() == 4 && p[2] == "products" && method == "POST") {
             auto product = required(r.get("products", p[3]));
@@ -2101,25 +2385,39 @@ void Application::ensurePayment(const std::string &id) {
         recordPaymentSnapshot(r, group, data);
     tx->commit();
 }
-void Application::processMail() {
-    if (env("RESEND_API_KEY").empty() || env("EMAIL_FROM").empty())
-        return;
+bool Application::processMail() {
+    if (!mailSender_ && (env("RESEND_API_KEY").empty() || env("EMAIL_FROM").empty()))
+        return false;
     try {
         Json mail;
         Json user;
         {
             auto tx = db_.begin();
             Repository r(*tx);
-            for (auto m : r.list("outbox"))
-                if ((m["status"] == "queued" ||
-                     (m["status"] == "sending" && m.value("claimed_at", 0LL) + 120 < now())) &&
-                    m.value("attempts", 0) < 3) {
-                    mail = m;
-                    break;
-                }
+            const auto number = [&](const char *name) {
+                return "COALESCE(CAST(" + jsonField(r, "o", name) + " AS BIGINT),0)";
+            };
+            auto rows = r.query("SELECT o.payload FROM outbox o WHERE "
+                                "((o.status IN ('queued','failed') AND " + number("attempts") +
+                                    "<3) OR (o.status='sending' AND " + number("claimed_at") + "<?)) AND " +
+                                    number("next_attempt_at") + "<=? ORDER BY " + number("created_at") +
+                                    ",o.id LIMIT 1",
+                                {std::to_string(now() - 120), std::to_string(now())});
+            if (!rows.empty())
+                mail = Json::parse(rows.front().at("payload"));
             if (mail.is_null()) {
                 tx->commit();
-                return;
+                return false;
+            }
+            if (mail.value("attempts", 0) >= 3) {
+                // A crash after the final send must not leave an eternal 'sending' lease.
+                // Delivery may have happened; expose it for explicit review rather than resend automatically.
+                mail["status"] = "failed";
+                mail["delivery_uncertain"] = true;
+                mail["updated_at"] = now();
+                r.save("outbox", mail);
+                tx->commit();
+                return true;
             }
             mail["status"] = "sending";
             mail["claimed_at"] = now();
@@ -2128,27 +2426,35 @@ void Application::processMail() {
             user = required(r.get("users", mail.at("user_id")));
             tx->commit();
         }
-        httplib::SSLClient client("api.resend.com");
-        client.set_connection_timeout(3);
-        client.set_read_timeout(5);
-        Json payload{{"from", env("EMAIL_FROM")},
-                     {"to", Json::array({user["email"]})},
-                     {"subject", mail["subject"]},
-                     {"text", mail["text"]}};
-        auto response = client.Post(
-            "/emails",
-            {{"Authorization", "Bearer " + env("RESEND_API_KEY")}, {"Idempotency-Key", mail.at("id")}},
-            payload.dump(), "application/json");
+        bool sent;
+        if (mailSender_)
+            sent = mailSender_(mail, user);
+        else {
+            httplib::SSLClient client("api.resend.com");
+            client.set_connection_timeout(3);
+            client.set_read_timeout(5);
+            Json payload{{"from", env("EMAIL_FROM")},
+                         {"to", Json::array({user["email"]})},
+                         {"subject", mail["subject"]},
+                         {"text", mail["text"]}};
+            auto response = client.Post("/emails",
+                                        {{"Authorization", "Bearer " + env("RESEND_API_KEY")},
+                                         {"Idempotency-Key", mail.at("id")}},
+                                        payload.dump(), "application/json");
+            sent = response && response->status >= 200 && response->status < 300;
+        }
         auto tx = db_.begin();
         Repository r(*tx);
         mail = required(r.get("outbox", mail.at("id")));
-        mail["status"] =
-            response && response->status >= 200 && response->status < 300 ? "sent" : "failed";
+        mail["status"] = sent ? "sent" : "failed";
         mail["updated_at"] = now();
+        mail["next_attempt_at"] = now() + (mail.value("attempts", 1) == 1 ? 15 : 60);
         r.save("outbox", mail);
         tx->commit();
+        return true;
     } catch (...) {
         std::cerr << "Email processing deferred; order data is committed.\n";
+        return false;
     }
 }
 void Application::seed() {

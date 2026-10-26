@@ -72,7 +72,8 @@ textarea::placeholder {
 }
 .main {
   padding: 28px 0 56px;
-  min-height: 55vh;
+  min-height: calc(100vh - 150px);
+  min-height: calc(100svh - 150px);
 }
 .topbar {
   background: var(--surface-alt);
@@ -1962,4 +1963,18 @@ dialog::backdrop {
 }
 .google-auth .form-error {
   margin: 12px 0;
+}
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  padding: 6px 16px;
+  background: var(--accent, #ee542e);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+
+#content[aria-busy="true"] {
+  cursor: progress;
 }

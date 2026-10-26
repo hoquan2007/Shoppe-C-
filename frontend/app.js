@@ -1,5 +1,10 @@
 import "./style.css";
 import "./redesign.css";
+import { recordRoute } from "./performance.js";
+import { createApiClient } from "./api.js";
+import { createCartWriter, readSettledCart } from "./cart-state.js";
+import { createGoogleSession } from "./google-session.js";
+import { afterPaint } from "./render-scheduling.js";
 
 const state = {
   user: null,
@@ -14,6 +19,10 @@ const state = {
   checkoutKey: "",
   product: null,
 };
+const cartChannel =
+  typeof BroadcastChannel === "function"
+    ? new BroadcastChannel("shoppe-cart")
+    : null;
 const $ = (q, root = document) => root.querySelector(q);
 const $$ = (q, root = document) => [...root.querySelectorAll(q)];
 const esc = (v) =>
@@ -24,12 +33,12 @@ const esc = (v) =>
         c
       ],
   );
-const money = (n) =>
-  new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(n || 0);
+const currencyFormat = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0,
+});
+const money = (n) => currencyFormat.format(n || 0);
 const date = (n) =>
   new Date(n * 1000).toLocaleString("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -135,104 +144,61 @@ function toast(message) {
   clearTimeout(state.toastTimer);
   state.toastTimer = setTimeout(() => el.classList.remove("show"), 4300);
 }
-const publicCache = new Map();
-let cacheEpoch = 0;
-async function api(path, options = {}) {
-  const method = options.method || "GET";
-  const publicRead =
-    method === "GET" && /^\/(meta|home|products)(?:\?|$)/.test(path);
-  if (method !== "GET") {
-    publicCache.clear();
-    cacheEpoch++;
-  }
-  const epoch = cacheEpoch;
-  const cached = publicRead && publicCache.get(path);
-  if (cached && cached.until > Date.now()) return structuredClone(cached.data);
-  const routeRead =
-    method === "GET" && /^\/(home|products|shops)(?:[/?]|$)/.test(path);
-  const external =
-    options.signal || (routeRead ? state.requestController?.signal : null);
-  for (let attempt = 0; attempt < (method === "GET" ? 2 : 1); attempt++) {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    external?.addEventListener("abort", abort, { once: true });
-    if (external?.aborted) controller.abort();
-    const timer = setTimeout(abort, 12000);
-    try {
-      const response = await fetch("/api" + path, {
-        ...options,
-        method,
-        credentials: publicRead ? "omit" : "same-origin",
-        signal: controller.signal,
-        headers: {
-          ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
-          ...(!publicRead && state.csrf ? { "X-CSRF-Token": state.csrf } : {}),
-          ...options.headers,
-        },
-        ...(options.body ? { body: JSON.stringify(options.body) } : {}),
-      });
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        const e = new Error(
-          data.error?.message || "Không thể hoàn tất yêu cầu.",
-        );
-        e.status = response.status;
-        e.code = data.error?.code;
-        throw e;
-      }
-      if (publicRead && epoch === cacheEpoch) {
-        if (publicCache.size >= 32)
-          publicCache.delete(publicCache.keys().next().value);
-        publicCache.set(path, {
-          until: Date.now() + 15000,
-          data: structuredClone(data),
-        });
-      }
-      if (method !== "GET") {
-        publicCache.clear();
-        cacheEpoch++;
-      }
-      return data;
-    } catch (e) {
-      if (external?.aborted) throw e;
-      if (e.name === "AbortError") {
-        const timeout = new Error(
-          "Kết nối quá thời gian chờ. Bạn thử lại nhé.",
-        );
-        timeout.status = 504;
-        e = timeout;
-      }
-      if (
-        attempt ||
-        method !== "GET" ||
-        (e.status && ![502, 503, 504].includes(e.status))
-      )
-        throw e;
-    } finally {
-      clearTimeout(timer);
-      external?.removeEventListener("abort", abort);
-    }
-  }
-}
-async function ensureMeta() {
-  if (!state.metaPromise)
+const { api } = createApiClient({ state });
+async function ensureMeta(fresh = false) {
+  const available = Array.isArray(state.meta.categories);
+  if (
+    !state.metaPromise ||
+    (!state.metaLoading && state.metaUntil < Date.now())
+  ) {
+    state.metaLoading = true;
     state.metaPromise = api("/meta")
-      .then((meta) => (state.meta = meta))
+      .then((meta) => {
+        state.metaUntil = Date.now() + 30000;
+        state.metaError = null;
+        return (state.meta = meta);
+      })
       .catch((e) => {
         state.metaPromise = null;
+        state.metaError = e;
         throw e;
+      })
+      .finally(() => {
+        state.metaLoading = false;
       });
+    // Background refresh failures must not become unhandled rejections.
+    void state.metaPromise.catch(() => {});
+  }
+  if (available && !fresh) return state.meta;
   return state.metaPromise;
 }
 function refreshHeader() {
   const current = $(".masthead");
   if (!current) return;
-  const template = document.createElement("div");
-  template.innerHTML = header();
-  current
-    .querySelector(".head-actions")
-    .replaceWith($(".head-actions", template));
-  current.querySelector(".navrow").replaceWith($(".navrow", template));
+  const identity = JSON.stringify([
+    state.user?.id,
+    state.user?.name,
+    state.user?.role,
+  ]);
+  if (state.headerIdentity !== identity) {
+    const template = document.createElement("div");
+    template.innerHTML = header();
+    current
+      .querySelector(".head-actions")
+      .replaceWith($(".head-actions", template));
+    current.querySelector(".navrow").replaceWith($(".navrow", template));
+    state.headerIdentity = identity;
+  }
+  const route = location.pathname + location.search;
+  if (state.headerLocation !== route) {
+    const input = $(".search input", current);
+    if (input)
+      input.value = new URLSearchParams(location.search).get("q") || "";
+    state.headerLocation = route;
+  }
+  $$(".navrow a", current).forEach((a) =>
+    a.classList.toggle("active", a.getAttribute("href") === route),
+  );
   $$(".mobile-nav a").forEach((a) =>
     a.getAttribute("href") === location.pathname
       ? a.setAttribute("aria-current", "page")
@@ -241,8 +207,20 @@ function refreshHeader() {
 }
 const post = (path, body = {}) => api(path, { method: "POST", body });
 let googleScript;
+const googleSession = createGoogleSession({
+  challenge: () => post("/auth/google/challenge"),
+  initialize: ({ client_id, nonce, callback }) =>
+    window.google.accounts.id.initialize({
+      client_id,
+      nonce,
+      callback,
+      auto_select: false,
+    }),
+});
 function googleSignInArea(link = false) {
   if (!state.meta.google_configured) return "";
+  if (link && !new URLSearchParams(location.search).has("google"))
+    return '<div class="google-auth"><button class="btn outline small" data-action="google-link" type="button">Liên kết đăng nhập Google</button></div>';
   return `<div class="google-auth"><p class="google-divider">${link ? "Liên kết đăng nhập Google" : "Hoặc tiếp tục với"}</p>${link ? '<p class="muted small-text">Chọn Google cùng email với tài khoản này.</p>' : ""}<div id="google-signin" aria-label="Đăng nhập bằng Google"></div><p id="google-status" class="muted small-text" role="status">Đang tải Google…</p><p id="google-error" class="form-error" role="alert" hidden></p><button type="button" class="btn outline small" id="google-retry" hidden>Thử lại Google</button></div>`;
 }
 function loadGoogleScript() {
@@ -288,6 +266,10 @@ async function mountGoogleSignIn(version) {
     retry.hidden = false;
   };
   retry.onclick = () => {
+    if (retry.dataset.restart) {
+      location.reload();
+      return;
+    }
     retry.hidden = true;
     error.hidden = true;
     status.hidden = false;
@@ -297,32 +279,29 @@ async function mountGoogleSignIn(version) {
   try {
     await loadGoogleScript();
     if (!current()) return;
-    const challenge = await post("/auth/google/challenge");
-    if (!current()) return;
-    window.google.accounts.id.initialize({
-      client_id: challenge.client_id,
-      nonce: challenge.nonce,
-      auto_select: false,
-      callback: async ({ credential }) => {
+    const context = JSON.stringify([state.user?.id || "", state.csrf || ""]);
+    await googleSession.ready(context, async ({ credential }) => {
+      if (!current()) return;
+      status.textContent = "Đang xác minh Google…";
+      status.hidden = false;
+      try {
+        googleSession.consume(context);
+        const result = await post("/auth/google", { credential });
+        acceptSession(result);
         if (!current()) return;
-        status.textContent = "Đang xác minh Google…";
-        status.hidden = false;
-        try {
-          const result = await post("/auth/google", { credential });
-          Object.assign(state, result);
-          await refreshCart();
-          if (!current()) return;
-          let next =
-            new URLSearchParams(location.search).get("next") ||
-            (location.pathname === "/account" ? "/account" : "/");
-          if (!next.startsWith("/") || next.startsWith("//")) next = "/";
-          toast("Đăng nhập Google thành công.");
-          go(next);
-        } catch (e) {
-          failed(e);
-        }
-      },
+        let next =
+          new URLSearchParams(location.search).get("next") ||
+          (location.pathname === "/account" ? "/account" : "/");
+        if (!next.startsWith("/") || next.startsWith("//")) next = "/";
+        toast("Đăng nhập Google thành công.");
+        // A fresh document owns a fresh nonce and SDK instance after Google auth.
+        location.assign(next);
+      } catch (e) {
+        retry.dataset.restart = "true";
+        failed(e);
+      }
     });
+    if (!current()) return;
     window.google.accounts.id.renderButton(container, {
       theme: "outline",
       size: "large",
@@ -336,7 +315,33 @@ async function mountGoogleSignIn(version) {
     });
     status.hidden = true;
   } catch (e) {
+    if (e.code === "google_document_restart") {
+      if (!current()) return;
+      if (location.pathname === "/account")
+        location.replace("/account?google=1");
+      else location.reload();
+      return;
+    }
     failed(e);
+  }
+}
+async function mountAuthExtras(version, link = false) {
+  try {
+    await Promise.all([ensureMeta(true), state.sessionReady]);
+    if (state.sessionError) throw state.sessionError;
+    if (version !== state.route) return;
+    const form = link ? $("[data-form=profile]") : $("[data-form=auth]");
+    if (!form || form.parentElement.querySelector(".google-auth")) return;
+    form.insertAdjacentHTML("afterend", googleSignInArea(link));
+    void mountGoogleSignIn(version);
+  } catch {
+    if (version !== state.route) return;
+    const form = link ? $("[data-form=profile]") : $("[data-form=auth]");
+    if (form && !form.parentElement.querySelector(".auth-options-retry"))
+      form.insertAdjacentHTML(
+        "afterend",
+        '<p class="small-text muted auth-options-retry">Chưa tải được lựa chọn Google. <button class="btn link small" data-action="retry-auth-options" type="button">Thử lại</button></p>',
+      );
   }
 }
 function requireUser() {
@@ -348,10 +353,27 @@ function requireUser() {
   }
   return true;
 }
-async function refreshUser() {
-  const me = await api("/auth/me");
-  Object.assign(state, me);
+function acceptSession(me) {
   state.sessionError = null;
+  if (state.user?.id !== me.user?.id || state.csrf !== me.csrf) {
+    state.cartReady = false;
+    state.cart = [];
+    state.cartLines = [];
+    state.cartWriter = null;
+    state.cartContext = (state.cartContext || 0) + 1;
+  }
+  Object.assign(state, me);
+  state.sessionRevision = (state.sessionRevision || 0) + 1;
+  state.sessionError = null;
+}
+async function refreshUser() {
+  const revision = state.sessionRevision || 0;
+  try {
+    const me = await api("/auth/me");
+    if (revision === (state.sessionRevision || 0)) acceptSession(me);
+  } catch (error) {
+    if (revision === (state.sessionRevision || 0)) throw error;
+  }
 }
 function header() {
   const cartCount = state.cart.reduce((n, i) => n + i.quantity, 0);
@@ -386,6 +408,7 @@ async function home() {
   state.products = products;
   state.meta = meta;
   state.metaPromise = Promise.resolve(meta);
+  state.metaUntil = Date.now() + 30000;
   const categories = meta.categories || [];
   const pick = (category) => category_previews[category] || products[0];
   const featured = pick("Điện tử"),
@@ -419,14 +442,62 @@ async function home() {
       "",
     )}</div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng</a></section>`;
 }
+function pagination(page) {
+  if (!page.pages || page.pages < 2) return "";
+  const link = (n) => {
+    const q = new URLSearchParams(location.search);
+    q.set("page", n);
+    return location.pathname + "?" + esc(q);
+  };
+  const pages = [
+    ...new Set([1, page.page - 1, page.page, page.page + 1, page.pages]),
+  ]
+    .filter((n) => n > 0 && n <= page.pages)
+    .sort((a, b) => a - b);
+  return (
+    '<nav class="pagination" aria-label="Phân trang">' +
+    (page.page > 1
+      ? '<a href="' + link(page.page - 1) + '" aria-label="Trang trước">←</a>'
+      : "") +
+    pages
+      .map(
+        (n, i) =>
+          (i && n > pages[i - 1] + 1 ? "<span>…</span>" : "") +
+          '<a href="' +
+          link(n) +
+          '" ' +
+          (n === page.page ? 'aria-current="page" class="active"' : "") +
+          ">" +
+          n +
+          "</a>",
+      )
+      .join("") +
+    (page.page < page.pages
+      ? '<a href="' + link(page.page + 1) + '" aria-label="Trang sau">→</a>'
+      : "") +
+    "</nav>"
+  );
+}
 async function searchPage(shopId = "") {
   const catalogPath = shopId
     ? "/shop/" + encodeURIComponent(shopId)
     : "/search";
   const params = new URLSearchParams(location.search);
   if (shopId) params.set("shop", shopId);
-  const [{ products: list, total, page, page_size: pageSize, pages }] =
-    await Promise.all([api("/products?" + params), ensureMeta()]);
+  const query = new URLSearchParams(params);
+  query.set("include", "meta");
+  const {
+    products: list,
+    total,
+    page,
+    page_size: pageSize,
+    pages,
+    meta,
+    shop,
+  } = await api("/products?" + query);
+  state.meta = meta;
+  state.metaUntil = Date.now() + 30000;
+  state.metaPromise = Promise.resolve(meta);
   const sort = params.get("sort") || "new";
   const link = (i) => {
     const q = new URLSearchParams(params);
@@ -452,6 +523,9 @@ async function searchPage(shopId = "") {
       ? `<nav class="pagination" aria-label="Phân trang sản phẩm">${page > 1 ? `<a href="${link(page - 1)}" aria-label="Trang trước">${icon("arrow", 16)}</a>` : ""}${visible.map((i, n) => `${n && i > visible[n - 1] + 1 ? '<span class="page-gap" aria-hidden="true">…</span>' : ""}<a class="${page === i ? "active" : ""}" ${page === i ? 'aria-current="page"' : ""} href="${link(i)}">${i}</a>`).join("")}${page < pages ? `<a href="${link(page + 1)}" aria-label="Trang sau">${icon("arrow", 16)}</a>` : ""}<label class="page-picker"><span>Đến trang</span><select id="catalog-page" aria-label="Chọn trang">${Array.from({ length: pages }, (_, i) => `<option value="${i + 1}" ${page === i + 1 ? "selected" : ""}>${i + 1}</option>`).join("")}</select></label></nav>`
       : "";
   return (
+    (shop
+      ? `<div class="panel shop-strip"><div class="avatar">${esc(shop.name[0])}</div><div><h1 style="font-size:24px">${esc(shop.name)}</h1><p class="muted small-text">${esc(shop.description)}</p><small class="muted">${esc(shop.region)}</small></div><button class="btn outline" style="margin-left:auto" data-action="start-chat" data-id="${esc(shop.id)}">${icon("chat", 16)} Nhắn tin</button></div>`
+      : "") +
     title(
       params.get("q")
         ? `Kết quả cho “${params.get("q")}”`
@@ -473,7 +547,13 @@ async function searchPage(shopId = "") {
   );
 }
 async function productPage(id) {
-  const { product: p, reviews } = await api("/products/" + id);
+  const query = new URLSearchParams(location.search);
+  query.set("view", "public");
+  const {
+    product: p,
+    reviews,
+    review_page,
+  } = await api("/products/" + id + "?" + query);
   state.product = p;
   state.variant = p.variants.find((v) => v.active);
   const v = state.variant;
@@ -494,12 +574,11 @@ async function productPage(id) {
       )
       .join("") ||
     '<p class="muted">Chưa có đánh giá. Mua và trải nghiệm để chia sẻ cảm nhận của bạn.</p>'
-  }</section>`;
+  }${pagination(review_page)}</section>`;
 }
 
 async function shopPage(id) {
-  const { shop } = await api("/shops/" + id);
-  return `<div class="panel shop-strip"><div class="avatar">${esc(shop.name[0])}</div><div><h1 style="font-size:24px">${esc(shop.name)}</h1><p class="muted small-text">${esc(shop.description)}</p><small class="muted">${esc(shop.region)}</small></div><button class="btn outline" style="margin-left:auto" data-action="start-chat" data-id="${esc(id)}">${icon("chat", 16)} Nhắn tin</button></div>${await searchPage(id)}`;
+  return searchPage(id);
 }
 function authPage(kind) {
   const register = kind === "register",
@@ -539,9 +618,13 @@ async function accountPage() {
 }
 async function cartPage() {
   if (!requireUser()) return "";
-  const { cart, lines } = await api("/cart");
-  state.cart = cart.items;
-  state.cartLines = lines;
+  if (state.cartWritePending) await state.cartWritePending.catch(() => {});
+  if (state.cartReady && state.cartFetchedAt > Date.now() - 1000)
+    return cartContent(state.cartLines);
+  const result = await refreshCart();
+  return cartContent(result.lines);
+}
+function cartContent(lines) {
   const groups = Object.groupBy(lines, (l) => l.shop.id),
     selected = lines.filter((l) => l.selected),
     subtotal = selected.reduce((n, l) => n + l.variant.price * l.quantity, 0);
@@ -564,10 +647,19 @@ async function cartPage() {
 }
 async function checkoutPage() {
   if (!requireUser()) return "";
-  const [{ addresses }, { lines }] = await Promise.all([
+  const version = state.route;
+  const [{ addresses }, cart] = await Promise.all([
     api("/addresses"),
-    api("/cart"),
+    readSettledCart({
+      pending: () => state.cartWritePending,
+      revision: () => state.cartRevision || 0,
+      load: () => api("/cart"),
+      current: () => version === state.route,
+    }),
+    ensureMeta(true),
   ]);
+  if (!cart || version !== state.route) return "";
+  const { lines } = cart;
   const selected = lines.filter((l) => l.selected);
   if (!selected.length)
     return (
@@ -612,13 +704,28 @@ async function checkoutPage() {
 async function quoteCheckout() {
   const form = $("#checkout-form");
   if (!form) return;
+  const route = state.route,
+    revision = (state.quoteRevision || 0) + 1;
+  state.quoteRevision = revision;
+  state.quoteController?.abort();
+  const controller = new AbortController();
+  state.quoteController = controller;
+  state.quote = null;
   $("#place-order").disabled = true;
   const payload = checkoutPayload(form);
-  payload.method = "cod";
   payload.idempotency_key = "quote-" + crypto.randomUUID();
   try {
-    const quote = await post("/checkout/quote", payload);
-    if (!$("#checkout-summary")) return;
+    const quote = await api("/checkout/quote", {
+      method: "POST",
+      body: payload,
+      signal: controller.signal,
+    });
+    if (
+      route !== state.route ||
+      revision !== state.quoteRevision ||
+      !form.isConnected
+    )
+      return;
     state.quote = quote;
     const sub = quote.orders.reduce((n, o) => n + o.subtotal, 0),
       ship = quote.orders.reduce((n, o) => n + o.shipping, 0),
@@ -627,6 +734,12 @@ async function quoteCheckout() {
       `<div class="summary-line"><span>Tiền hàng</span><span>${money(sub)}</span></div><div class="summary-line"><span>Vận chuyển (${quote.orders.length} shop)</span><span>${money(ship)}</span></div><div class="summary-line"><span>Ưu đãi</span><span>−${money(discount)}</span></div><div class="summary-total"><span>Tổng thanh toán</span><strong>${money(quote.checkout.total)}</strong></div>`;
     $("#place-order").disabled = false;
   } catch (e) {
+    if (
+      route !== state.route ||
+      revision !== state.quoteRevision ||
+      e.name === "AbortError"
+    )
+      return;
     state.quote = null;
     if ($("#checkout-summary"))
       $("#checkout-summary").innerHTML =
@@ -645,6 +758,9 @@ function checkoutPayload(form) {
     voucher: data.voucher.trim(),
     shop_vouchers,
     idempotency_key: state.checkoutKey,
+    ...(state.quote?.quote_token
+      ? { quote_token: state.quote.quote_token }
+      : {}),
   };
 }
 
@@ -653,7 +769,12 @@ function orderCard(o, workspace = "") {
 }
 async function ordersPage(scope = "") {
   if (!requireUser()) return "";
-  const { orders } = await api((scope ? "/" + scope : "") + "/orders");
+  const page = await api(
+    (scope ? "/" + scope : "") +
+      "/orders?" +
+      new URLSearchParams(location.search),
+  );
+  const { orders } = page;
   state.orders = orders.sort((a, b) => b.created_at - a.created_at);
   const current = new URLSearchParams(location.search).get("status") || "";
   return (
@@ -680,7 +801,8 @@ async function ordersPage(scope = "") {
         .map((o) => orderCard(o, scope))
         .join("") ||
       empty("Chưa có đơn hàng", "Đơn hàng của bạn sẽ xuất hiện tại đây.")
-    }</div>`
+    }</div>` +
+    pagination(page)
   );
 }
 async function orderDetail(id, scope = "") {
@@ -749,7 +871,10 @@ async function paymentPage(id) {
   return `<section class="panel payment-result"><div class="result-icon">${icon(success ? "check" : pending ? "ticket" : "return", 33)}</div><h1>${success ? (g.method === "cod" ? "Đặt hàng thành công!" : "Thanh toán thành công!") : pending ? "Chỉ còn một bước thanh toán" : g.status === "review" ? "Giao dịch cần được kiểm tra" : "Thanh toán đã đóng"}</h1><p>${success ? "Cảm ơn bạn đã lựa chọn Shoppe. Theo dõi đơn hàng để cập nhật hành trình giao hàng." : pending ? "Mở trang thanh toán payOS, quét mã QR và hoàn tất giao dịch bằng ứng dụng ngân hàng." : g.status === "review" ? "Admin sẽ đối soát giao dịch và liên hệ để xử lý. Đơn đã hủy sẽ không tự khôi phục." : "Đơn hàng đã hết hạn hoặc được hủy. Bạn có thể tạo một đơn hàng mới."}</p>${badge(g.status)}${g.excess_amount ? `<div class="notice">Đã thu: ${money(g.received_amount)}. Thu thừa: ${money(g.excess_amount)}. Đã ghi hoàn phần thừa: ${money(g.excess_refunded_amount || 0)}. ${g.needs_reconciliation ? "Admin đang đối soát khoản thu bổ sung." : "Đã ghi nhận hoàn phần thu thừa."}</div>` : ""}<div class="summary-total" style="margin:25px 0"><span>Tổng thanh toán</span><strong>${money(g.total)}</strong></div>${pending ? `<p class="small-text muted">Hết hạn lúc ${date(g.expires_at)}</p><div class="row" style="justify-content:center;margin:20px 0;flex-wrap:wrap">${g.checkout_url ? `<a class="btn" href="${esc(g.checkout_url)}" target="_blank" rel="noopener noreferrer">Mở trang thanh toán ${icon("arrow", 16)}</a>` : ""}<button class="btn outline" data-action="sync-payment" data-id="${esc(id)}">Kiểm tra thanh toán</button><button class="btn secondary small" data-action="cancel-payment" data-id="${esc(id)}">Hủy giao dịch</button></div>` : ""}${g.method === "payos" && !pending ? `<p><button class="btn outline" data-action="sync-payment" data-id="${esc(id)}">Đối soát lại thanh toán</button></p>` : ""}<a class="btn ${pending ? "secondary" : ""}" href="/orders">Xem đơn mua của tôi ${icon("arrow", 15)}</a><p class="security-note">Kết quả được xác nhận từ phía hệ thống. Quay về trang này không tự đánh dấu đã thanh toán.</p></section><div class="stack" style="max-width:700px;margin:auto">${orders.map((o) => orderCard(o)).join("")}</div>`;
 }
 async function vouchersPage(scope = "") {
-  const { vouchers } = await api("/vouchers");
+  const query = new URLSearchParams(location.search);
+  if (scope) query.set("scope", scope);
+  const page = await api("/vouchers?" + query);
+  const { vouchers } = page;
   const list =
     scope === "seller"
       ? vouchers.filter((v) => v.shop_id === state.shop?.id)
@@ -766,7 +891,8 @@ async function vouchersPage(scope = "") {
         ? `<button class="btn" data-action="new-voucher" data-scope="${scope}">${icon("plus", 16)} Tạo voucher</button>`
         : "",
     ) +
-    `<div class="grid-3">${list.map((v) => `<article class="panel"><div class="row" style="gap:15px"><div class="category-icon">${icon("ticket", 24)}</div><div><h3 style="margin:0">${v.type === "percent" ? v.value + "%" : money(v.value)} giảm giá</h3><span class="small-text muted">Đơn từ ${money(v.minimum)}</span></div></div><div class="notice"><strong>${esc(v.code)}</strong> · ${v.shop_id ? "Voucher của shop" : "Voucher toàn sàn"}</div><p class="small-text muted">Giảm tối đa ${money(v.max_discount)}<br>Đến ${date(v.ends_at)}</p><div class="row" style="margin-top:18px"><button class="btn outline small" data-action="copy-voucher" data-value="${esc(v.code)}">Sao chép mã</button>${scope ? `<button class="btn danger small" data-action="delete-voucher" data-id="${esc(v.id)}">Ngừng áp dụng</button>` : ""}</div></article>`).join("") || empty("Chưa có voucher", "Các ưu đãi mới sẽ xuất hiện tại đây.")}</div>`
+    `<div class="grid-3">${list.map((v) => `<article class="panel"><div class="row" style="gap:15px"><div class="category-icon">${icon("ticket", 24)}</div><div><h3 style="margin:0">${v.type === "percent" ? v.value + "%" : money(v.value)} giảm giá</h3><span class="small-text muted">Đơn từ ${money(v.minimum)}</span></div></div><div class="notice"><strong>${esc(v.code)}</strong> · ${v.shop_id ? "Voucher của shop" : "Voucher toàn sàn"}</div><p class="small-text muted">Giảm tối đa ${money(v.max_discount)}<br>Đến ${date(v.ends_at)}</p><div class="row" style="margin-top:18px"><button class="btn outline small" data-action="copy-voucher" data-value="${esc(v.code)}">Sao chép mã</button>${scope ? `<button class="btn danger small" data-action="delete-voucher" data-id="${esc(v.id)}">Ngừng áp dụng</button>` : ""}</div></article>`).join("") || empty("Chưa có voucher", "Các ưu đãi mới sẽ xuất hiện tại đây.")}</div>` +
+    pagination(page)
   );
 }
 function workspace(content, scope) {
@@ -793,6 +919,17 @@ function workspace(content, scope) {
           ["/settings", "Thông tin shop", "settings"],
         ];
   return `<div class="content-with-aside"><aside class="aside"><h3>${scope === "admin" ? "Quản trị Shoppe" : "Kênh người bán"}</h3>${nav.map(([url, text, i]) => `<a href="/${scope}${url}" class="${location.pathname === "/" + scope + url ? "active" : ""}">${icon(i, 17)} ${text}</a>`).join("")}<a href="/chat">${icon("chat", 17)} Tin nhắn</a><a href="/">${icon("home", 17)} Về trang mua sắm</a></aside><div class="workspace">${content}</div></div>`;
+}
+function listFilters(placeholder, choices = {}) {
+  const query = new URLSearchParams(location.search);
+  return `<form class="filters" data-form="list-filter"><label class="field"><span>Tìm kiếm</span><input name="q" value="${esc(query.get("q") || "")}" placeholder="${esc(placeholder)}" maxlength="100"></label>${Object.entries(
+    choices,
+  )
+    .map(
+      ([name, options]) =>
+        `<label class="field"><span>${name === "role" ? "Vai trò" : "Trạng thái"}</span><select name="${name}">${options.map(([value, label]) => `<option value="${value}" ${query.get(name) === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`,
+    )
+    .join("")}<button class="btn outline small">Tìm kiếm</button></form>`;
 }
 async function dashboardPage(scope) {
   const { stats, orders, low_stock, top_products } = await api(
@@ -853,20 +990,18 @@ function ordersTable(orders, scope) {
   );
 }
 async function managementProducts(scope) {
-  const [{ products }, catalog] = await Promise.all([
-    api("/" + scope + "/products"),
-    scope === "admin" ? api("/admin/catalog/status") : Promise.resolve(null),
-  ]);
+  const query = new URLSearchParams(location.search);
+  if (scope === "admin") query.set("include", "editor");
+  const page = await api("/" + scope + "/products?" + query);
+  const catalog = page.catalog;
+  const { products } = page;
   state.managementProducts = products;
   state.managementScope = scope;
-  if (scope === "admin")
-    state.managementShops = (await api("/admin/shops")).shops.filter(
-      (s) => s.status === "approved",
-    );
+  if (scope === "admin") state.managementShops = page.shops;
   return (
     title(
       "Sản phẩm",
-      `${products.length} sản phẩm trong ${scope === "admin" ? "toàn sàn" : "shop của bạn"}`,
+      `${page.total} sản phẩm trong ${scope === "admin" ? "toàn sàn" : "shop của bạn"}`,
       '<button class="btn" data-action="edit-product">' +
         icon("plus", 16) +
         " Thêm sản phẩm</button>",
@@ -879,9 +1014,10 @@ async function managementProducts(scope) {
       ["Sản phẩm", "Giá từ", "Tồn kho", "Trạng thái", "Thao tác"],
       products.map(
         (p) =>
-          `<tr><td><div class="table-image"><img src="${image(p.image)}" alt=""><div><strong>${esc(p.name)}</strong><small class="muted" style="display:block">${esc(p.category)}</small></div></div></td><td>${money(Math.min(...p.variants.filter((v) => v.active).map((v) => v.price)))}</td><td>${p.variants.filter((v) => v.active).reduce((n, v) => n + v.stock, 0)}</td><td>${p.active ? '<span class="badge green">Đang bán</span>' : '<span class="badge gray">Đã ẩn</span>'}</td><td>${scope === "seller" ? `<button class="btn outline small" data-action="edit-product" data-id="${esc(p.id)}">Chỉnh sửa</button>` : `<button class="btn outline small" data-action="edit-product" data-id="${esc(p.id)}">Chỉnh sửa</button> <button class="btn outline small" data-action="moderate-product" data-id="${esc(p.id)}" data-value="${!p.active}">${p.active ? "Ẩn sản phẩm" : "Hiện sản phẩm"}</button>`}</td></tr>`,
+          `<tr><td><div class="table-image"><img src="${image(p.image)}" alt="" loading="lazy" decoding="async" width="48" height="48"><div><strong>${esc(p.name)}</strong><small class="muted" style="display:block">${esc(p.category)}</small></div></div></td><td>${money(Math.min(...p.variants.filter((v) => v.active).map((v) => v.price)))}</td><td>${p.variants.filter((v) => v.active).reduce((n, v) => n + v.stock, 0)}</td><td>${p.active ? '<span class="badge green">Đang bán</span>' : '<span class="badge gray">Đã ẩn</span>'}</td><td>${scope === "seller" ? `<button class="btn outline small" data-action="edit-product" data-id="${esc(p.id)}">Chỉnh sửa</button>` : `<button class="btn outline small" data-action="edit-product" data-id="${esc(p.id)}">Chỉnh sửa</button> <button class="btn outline small" data-action="moderate-product" data-id="${esc(p.id)}" data-value="${!p.active}">${p.active ? "Ẩn sản phẩm" : "Hiện sản phẩm"}</button>`}</td></tr>`,
       ),
-    )
+    ) +
+    pagination(page)
   );
 }
 async function workspacePage(scope, parts) {
@@ -924,7 +1060,10 @@ async function workspacePage(scope, parts) {
 }
 async function adminTab(tab) {
   if (tab === "audit") {
-    const { audit } = await api("/admin/audit");
+    const page = await api(
+      "/admin/audit?" + new URLSearchParams(location.search),
+    );
+    const { audit } = page;
     return (
       title("Nhật ký quản trị") +
       table(
@@ -935,11 +1074,15 @@ async function adminTab(tab) {
             (a) =>
               `<tr><td>${esc(a.action)}</td><td>${esc(short(a.target))}</td><td>${esc(short(a.actor_id))}</td><td>${date(a.created_at)}</td></tr>`,
           ),
-      )
+      ) +
+      pagination(page)
     );
   }
   if (tab === "reviews") {
-    const { reviews } = await api("/admin/reviews");
+    const page = await api(
+      "/admin/reviews?" + new URLSearchParams(location.search),
+    );
+    const { reviews } = page;
     return (
       title("Kiểm duyệt đánh giá") +
       table(
@@ -948,37 +1091,70 @@ async function adminTab(tab) {
           (r) =>
             `<tr><td>${esc(r.name)}</td><td>${"★".repeat(r.rating)}</td><td style="white-space:normal;max-width:350px">${esc(r.comment)}</td><td>${r.hidden ? "Đã ẩn" : "Hiển thị"}</td><td><button class="btn outline small" data-action="moderate-review" data-id="${esc(r.id)}" data-value="${!r.hidden}">${r.hidden ? "Hiện đánh giá" : "Ẩn đánh giá"}</button></td></tr>`,
         ),
-      )
+      ) +
+      pagination(page)
     );
   }
   if (tab === "shops") {
-    const { shops } = await api("/admin/shops");
+    const page = await api(
+      "/admin/shops?" + new URLSearchParams(location.search),
+    );
+    const { shops } = page;
     return (
       title("Quản lý shop", "Xét duyệt đăng ký và trạng thái hoạt động.") +
+      listFilters("Tên shop", {
+        status: [
+          ["", "Tất cả trạng thái"],
+          ["pending", "Chờ duyệt"],
+          ["approved", "Đang hoạt động"],
+          ["suspended", "Tạm khóa"],
+          ["rejected", "Đã từ chối"],
+        ],
+      }) +
       table(
         ["Shop", "Giới thiệu", "Trạng thái", "Thao tác"],
         shops.map(
           (s) =>
             `<tr><td><strong>${esc(s.name)}</strong><small class="muted" style="display:block">${esc(s.region)}</small></td><td style="white-space:normal;max-width:280px">${esc(s.description)}</td><td>${badge(s.status)}</td><td><div class="row">${s.status !== "approved" ? `<button class="btn small" data-action="shop-status" data-id="${esc(s.id)}" data-value="approved">Duyệt</button>` : `<button class="btn outline small" data-action="shop-status" data-id="${esc(s.id)}" data-value="suspended">Tạm khóa</button>`}${s.status === "pending" ? `<button class="btn danger small" data-action="shop-status" data-id="${esc(s.id)}" data-value="rejected">Từ chối</button>` : ""}</div></td></tr>`,
         ),
-      )
+      ) +
+      pagination(page)
     );
   }
   if (tab === "users") {
-    const { users } = await api("/admin/users");
+    const page = await api(
+      "/admin/users?" + new URLSearchParams(location.search),
+    );
+    const { users } = page;
     return (
       title("Quản lý người dùng") +
+      listFilters("Tên hoặc email", {
+        role: [
+          ["", "Tất cả vai trò"],
+          ["buyer", "Người dùng"],
+          ["admin", "Quản trị"],
+        ],
+        active: [
+          ["", "Tất cả trạng thái"],
+          ["true", "Đang hoạt động"],
+          ["false", "Đã khóa"],
+        ],
+      }) +
       table(
         ["Tài khoản", "Vai trò", "Email", "Trạng thái", "Thao tác"],
         users.map(
           (u) =>
             `<tr><td><strong>${esc(u.name)}</strong></td><td>${u.role === "admin" ? "Admin" : "Người dùng"}</td><td>${esc(u.email)}</td><td>${u.active ? '<span class="badge green">Hoạt động</span>' : '<span class="badge red">Đã khóa</span>'}</td><td>${u.id !== state.user.id ? `<button class="btn secondary small" data-action="user-role" data-id="${esc(u.id)}" data-value="${u.role === "admin" ? "buyer" : "admin"}">${u.role === "admin" ? "Gỡ quyền admin" : "Cấp quyền admin"}</button> <button class="btn outline small" data-action="user-active" data-id="${esc(u.id)}" data-value="${!u.active}">${u.active ? "Khóa tài khoản" : "Mở khóa"}</button>` : '<small class="muted">Bạn</small>'}</td></tr>`,
         ),
-      )
+      ) +
+      pagination(page)
     );
   }
   if (tab === "payments") {
-    const { checkouts } = await api("/admin/payments");
+    const page = await api(
+      "/admin/payments?" + new URLSearchParams(location.search),
+    );
+    const { checkouts } = page;
     state.checkouts = checkouts;
     return (
       title(
@@ -1000,11 +1176,15 @@ async function adminTab(tab) {
             (c) =>
               `<tr><td>${c.order_code}</td><td>${money(c.total)}</td><td>${c.method === "payos" ? "payOS" : "COD"}</td><td>${badge(c.status)}</td><td>${date(c.created_at)}</td><td><a class="btn outline small" href="/payment/${esc(c.id)}">Xem</a>${c.status === "review" || c.needs_reconciliation ? `<button class="btn danger small" data-action="review-payment" data-id="${esc(c.id)}">Ghi hoàn tiền</button>` : ""}</td></tr>`,
           ),
-      )
+      ) +
+      pagination(page)
     );
   }
   if (tab === "outbox") {
-    const { outbox } = await api("/admin/outbox");
+    const page = await api(
+      "/admin/outbox?" + new URLSearchParams(location.search),
+    );
+    const { outbox } = page;
     return (
       title(
         "Email hệ thống",
@@ -1019,9 +1199,10 @@ async function adminTab(tab) {
           .sort((a, b) => b.created_at - a.created_at)
           .map(
             (m) =>
-              `<tr><td>${esc(m.subject)}</td><td>${badge(m.status)}</td><td>${m.attempts}</td><td>${date(m.created_at)}</td></tr>`,
+              `<tr><td>${esc(m.subject)}</td><td>${badge(m.status)}${m.delivery_uncertain ? `<p class="small-text">Chưa xác định kết quả lần gửi cuối.</p><button class="btn outline small" data-action="review-mail" data-id="${esc(m.id)}">Kiểm tra & gửi lại</button>` : ""}</td><td>${m.attempts}</td><td>${date(m.created_at)}</td></tr>`,
           ),
-      )
+      ) +
+      pagination(page)
     );
   }
   if (tab === "settings") {
@@ -1033,24 +1214,45 @@ async function adminTab(tab) {
   }
   return empty("Không tìm thấy trang", "Chọn một mục trong thanh quản trị.");
 }
+const messageMarkup = (m) =>
+  '<div class="bubble ' +
+  (m.sender_id === state.user.id ? "mine" : "") +
+  '" data-message-id="' +
+  esc(m.id) +
+  '">' +
+  esc(m.text) +
+  "<small>" +
+  date(m.created_at) +
+  "</small></div>";
+function messageQuery(direction, message) {
+  if (direction === "after")
+    return new URLSearchParams({
+      after_sequence: message?.sequence || 0,
+    }).toString();
+  return message
+    ? new URLSearchParams({
+        [direction + "_time"]: message.created_at,
+        [direction + "_id"]: message.id,
+        [direction + "_sequence"]: message.sequence || 0,
+      }).toString()
+    : "";
+}
 async function chatPage(id = "") {
   if (!requireUser()) return "";
-  const { conversations } = await api("/conversations");
+  const page = await api(
+    "/conversations?" + new URLSearchParams(location.search),
+  );
+  const { conversations } = page;
   conversations.sort((a, b) => b.updated_at - a.updated_at);
   const cid = id || conversations[0]?.id;
   let room = "";
   if (cid) {
-    const { messages, conversation } = await api(
+    const { messages, conversation, has_more } = await api(
       "/conversations/" + cid + "/messages",
     );
-    room = `<h3>${esc(conversation.buyer_id === state.user.id ? conversation.shop_name : conversation.buyer_name)}</h3><div class="messages" id="messages">${
-      messages
-        .sort((a, b) => a.created_at - b.created_at)
-        .map(
-          (m) =>
-            `<div class="bubble ${m.sender_id === state.user.id ? "mine" : ""}">${esc(m.text)}<small>${date(m.created_at)}</small></div>`,
-        )
-        .join("") ||
+    state.messages = messages;
+    room = `<h3>${esc(conversation.buyer_id === state.user.id ? conversation.shop_name : conversation.buyer_name)}</h3>${has_more ? '<button class="btn outline small" data-action="older-messages">Tin nhắn trước đó</button>' : ""}<div class="messages" id="messages">${
+      messages.map(messageMarkup).join("") ||
       '<p class="small-text muted">Bắt đầu cuộc trò chuyện bằng một lời chào nhé.</p>'
     }</div><form class="chat-send" data-form="message" data-id="${esc(cid)}"><input name="text" placeholder="Nhập tin nhắn…" aria-label="Nội dung tin nhắn" required maxlength="2000" autocomplete="off"><button class="btn" aria-label="Gửi tin nhắn">${icon("arrow", 18)}</button></form>`;
   }
@@ -1060,12 +1262,15 @@ async function chatPage(id = "") {
       "Một lời chào, thêm kết nối",
       "Trò chuyện trực tiếp với shop của bạn.",
     ) +
-    `<div class="chat-layout"><aside class="chat-list"><h3>Tin nhắn</h3>${conversations.map((c) => `<a href="/chat/${esc(c.id)}" class="conversation ${c.id === cid ? "active" : ""}"><strong>${esc(c.buyer_id === state.user.id ? c.shop_name : c.buyer_name)}</strong><p>${esc(c.last_message || "Cuộc trò chuyện mới")}</p></a>`).join("") || '<p class="small-text muted" style="padding:20px">Mở sản phẩm và chọn nhắn tin để bắt đầu.</p>'}</aside><section class="chat-room">${room || '<div class="loading">Chọn cuộc trò chuyện để xem tin nhắn.</div>'}</section></div>`
+    `<div class="chat-layout"><aside class="chat-list"><h3>Tin nhắn</h3>${conversations.map((c) => `<a href="/chat/${esc(c.id)}" class="conversation ${c.id === cid ? "active" : ""}"><strong>${esc(c.buyer_id === state.user.id ? c.shop_name : c.buyer_name)}</strong><p>${esc(c.last_message || "Cuộc trò chuyện mới")}</p></a>`).join("") || '<p class="small-text muted" style="padding:20px">Mở sản phẩm và chọn nhắn tin để bắt đầu.</p>'}${pagination(page)}</aside><section class="chat-room">${room || '<div class="loading">Chọn cuộc trò chuyện để xem tin nhắn.</div>'}</section></div>`
   );
 }
 async function notificationsPage() {
   if (!requireUser()) return "";
-  const { notifications } = await api("/notifications");
+  const page = await api(
+    "/notifications?" + new URLSearchParams(location.search),
+  );
+  const { notifications } = page;
   return (
     title(
       "Thông báo của bạn",
@@ -1081,7 +1286,8 @@ async function notificationsPage() {
         )
         .join("") ||
       empty("Chưa có thông báo", "Những cập nhật mới sẽ xuất hiện tại đây.")
-    }</div>`
+    }</div>` +
+    pagination(page)
   );
 }
 
@@ -1108,10 +1314,13 @@ function productDialog(id) {
   );
   const form = $("#dialog form");
   form.dataset.scope = state.managementScope || "seller";
+  const shops = [...(state.managementShops || [])];
+  if (p?.shop && !shops.some((shop) => shop.id === p.shop_id))
+    shops.push(p.shop);
   if (form.dataset.scope === "admin")
     form.insertAdjacentHTML(
       "afterbegin",
-      `<label class="field"><span>Shop đăng bán</span><select name="shop_id" required ${p ? "disabled" : ""}>${state.managementShops.map((s) => `<option value="${esc(s.id)}" ${p?.shop_id === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>`,
+      `${p ? "" : '<label class="field"><span>Tìm shop đăng bán</span><input name="shop_search" maxlength="100" placeholder="Nhập tên shop"></label><button type="button" class="btn outline small" data-action="find-product-shops">Tìm shop</button>'}<label class="field"><span>Shop đăng bán</span><select name="shop_id" required ${p ? "disabled" : ""}>${shops.map((s) => `<option value="${esc(s.id)}" ${p?.shop_id === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>`,
     );
 }
 function voucherDialog(scope) {
@@ -1127,22 +1336,48 @@ function go(url, replace = false) {
 }
 async function renderRoute() {
   const version = ++state.route;
+  state.quoteController?.abort();
+  state.quoteRevision = (state.quoteRevision || 0) + 1;
+  state.quote = null;
+  googleSession.detach();
+  const hadView = !!$("#content h1");
   document.body.dataset.page = location.pathname.split("/")[1] || "home";
-  clearInterval(state.timer);
+  clearTimeout(state.timer);
   state.requestController?.abort();
   state.requestController = new AbortController();
   if (!$("#content")) shell();
   else {
     refreshHeader();
-    $("#content").innerHTML =
-      '<div class="loading" role="status"><span class="spinner"></span><span>Đang tải nội dung…</span></div>';
+    if (!$("#route-progress"))
+      $("#content").insertAdjacentHTML(
+        "beforebegin",
+        '<div id="route-progress" class="route-progress" role="status">Đang cập nhật…</div>',
+      );
   }
-  window.scrollTo(0, 0);
+  $("#content").setAttribute("aria-busy", "true");
+  const routeStarted = performance.now();
   const parts = location.pathname.split("/").filter(Boolean);
   let content = "";
   try {
-    if (parts.length && !["search", "product", "shop"].includes(parts[0])) {
-      await Promise.all([state.sessionReady, ensureMeta()]);
+    if (hadView) {
+      await afterPaint();
+      if (version !== state.route) return;
+    }
+    const authRoute = [
+      "login",
+      "register",
+      "forgot",
+      "reset",
+      "verify",
+    ].includes(parts[0]);
+    if (
+      parts.length &&
+      !["search", "product", "shop"].includes(parts[0]) &&
+      !authRoute
+    ) {
+      // Configuration is independent of session/route data. Consumers await it only if needed.
+      await state.sessionReady;
+      if (version !== state.route) return;
       if (
         state.sessionError &&
         !["login", "register", "forgot", "reset", "verify"].includes(parts[0])
@@ -1165,7 +1400,10 @@ async function renderRoute() {
       content = parts[1] ? await orderDetail(parts[1]) : await ordersPage();
     else if (parts[0] === "wishlist") {
       if (!requireUser()) return;
-      const { products } = await api("/wishlist");
+      const page = await api(
+        "/wishlist?" + new URLSearchParams(location.search),
+      );
+      const { products } = page;
       content =
         title(
           "Những món đồ bạn yêu",
@@ -1176,7 +1414,8 @@ async function renderRoute() {
           : empty(
               "Chưa có sản phẩm yêu thích",
               "Chạm vào trái tim trên sản phẩm để lưu lại.",
-            ));
+            )) +
+        pagination(page);
     } else if (parts[0] === "vouchers") content = await vouchersPage();
     else if (["seller", "admin"].includes(parts[0]))
       content = await workspacePage(parts[0], parts);
@@ -1189,18 +1428,9 @@ async function renderRoute() {
       );
     if (version !== state.route) return;
     $("#content").innerHTML = content;
+    window.scrollTo(0, 0);
     if (["login", "register", "account"].includes(parts[0])) {
-      if (parts[0] === "account")
-        $("[data-form=profile]")?.insertAdjacentHTML(
-          "afterend",
-          googleSignInArea(true),
-        );
-      else
-        $("[data-form=auth]")?.insertAdjacentHTML(
-          "afterend",
-          googleSignInArea(),
-        );
-      void mountGoogleSignIn(version);
+      void mountAuthExtras(version, parts[0] === "account");
     }
     document.title = (
       parts[0] === "product" ? state.product?.name : $("h1")?.textContent
@@ -1210,20 +1440,21 @@ async function renderRoute() {
     if (parts[0] === "checkout") await quoteCheckout();
     if (parts[0] === "chat" && state.conversationId) {
       $("#messages")?.scrollTo(0, $("#messages").scrollHeight);
-      state.timer = setInterval(refreshMessages, 7000);
+      schedulePoll(version, refreshMessages);
     }
     if (parts[0] === "payment" && state.payment?.status === "pending")
-      state.timer = setInterval(async () => {
-        try {
-          const { checkout } = await api("/payments/" + parts[1]);
-          if (checkout.status !== state.payment.status) renderRoute();
-        } catch {
-          /* Keep the current result visible during transient failures. */
-        }
-      }, 7000);
+      schedulePoll(version, async () => {
+        const { checkout } = await api("/payments/" + parts[1]);
+        if (version === state.route && checkout.status !== state.payment.status)
+          await renderRoute();
+      });
   } catch (e) {
     if (version !== state.route || e.name === "AbortError") return;
     if (e.status === 401 && state.user) {
+      state.sessionRevision = (state.sessionRevision || 0) + 1;
+      state.cartContext = (state.cartContext || 0) + 1;
+      state.cartReady = false;
+      state.cartWriter = null;
       state.user = null;
       state.csrf = "";
       go("/login");
@@ -1231,67 +1462,263 @@ async function renderRoute() {
     }
     $("#content").innerHTML =
       `<div class="page-title"></div>${empty("Chưa thể mở trang", e.message, "/", "Về trang chủ")}`;
+  } finally {
+    if (version === state.route) {
+      $("#content")?.removeAttribute("aria-busy");
+      $("#route-progress")?.remove();
+      performance.clearMeasures("shoppe:route");
+      performance.measure("shoppe:route", {
+        start: routeStarted,
+        end: performance.now(),
+        detail: { path: location.pathname },
+      });
+      recordRoute(location.pathname, performance.now() - routeStarted);
+    }
   }
+}
+function schedulePoll(version, task, delay = 7000) {
+  state.timer = setTimeout(async () => {
+    if (version !== state.route) return;
+    try {
+      if (!document.hidden) await task();
+    } catch {
+      /* Retry only on the next interval. */
+    }
+    if (version === state.route) schedulePoll(version, task, delay);
+  }, delay);
 }
 async function refreshMessages() {
   if (document.hidden || !state.conversationId || !$("#messages")) return;
-  try {
-    const { messages } = await api(
-      "/conversations/" + state.conversationId + "/messages",
+  const cid = state.conversationId,
+    version = state.route;
+  if (state.messageFetch?.cid === cid) return state.messageFetch.promise;
+  const promise = (async () => {
+    const { messages, has_more } = await api(
+      "/conversations/" +
+        cid +
+        "/messages?" +
+        messageQuery("after", state.messages?.at(-1)),
     );
+    if (version !== state.route || cid !== state.conversationId) return;
     const el = $("#messages"),
       bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 70;
-    el.innerHTML = messages
-      .sort((a, b) => a.created_at - b.created_at)
-      .map(
-        (m) =>
-          `<div class="bubble ${m.sender_id === state.user.id ? "mine" : ""}">${esc(m.text)}<small>${date(m.created_at)}</small></div>`,
-      )
-      .join("");
-    if (bottom) el.scrollTop = el.scrollHeight;
-  } catch {
-    /* Retry on the next visible interval. */
+    const existing = new Set(state.messages.map((m) => m.id)),
+      fresh = messages.filter((m) => !existing.has(m.id));
+    if (fresh.length) {
+      if (!state.messages.length) el.innerHTML = "";
+      el.insertAdjacentHTML("beforeend", fresh.map(messageMarkup).join(""));
+      state.messages.push(...fresh);
+      if (bottom) el.scrollTop = el.scrollHeight;
+    }
+    return has_more;
+  })();
+  const entry = { cid, promise };
+  state.messageFetch = entry;
+  try {
+    return await promise;
+  } finally {
+    if (state.messageFetch === entry) state.messageFetch = null;
   }
 }
-async function refreshCart() {
-  if (state.user) {
-    const revision = state.cartRevision || 0;
-    const { cart } = await api("/cart");
-    if (revision === (state.cartRevision || 0)) state.cart = cart.items;
-  } else state.cart = [];
+async function olderMessages(button) {
+  const cid = state.conversationId,
+    version = state.route;
+  const { messages, has_more } = await api(
+    "/conversations/" +
+      cid +
+      "/messages?" +
+      messageQuery("before", state.messages[0]),
+  );
+  if (version !== state.route || cid !== state.conversationId) return;
+  const el = $("#messages"),
+    height = el.scrollHeight;
+  const ids = new Set(state.messages.map((m) => m.id)),
+    fresh = messages.filter((m) => !ids.has(m.id));
+  el.insertAdjacentHTML("afterbegin", fresh.map(messageMarkup).join(""));
+  state.messages.unshift(...fresh);
+  el.scrollTop += el.scrollHeight - height;
+  if (!has_more) button.remove();
+}
+function cartBadge() {
   $$(".head-icon .count").forEach(
-    (el) => (el.textContent = state.cart.reduce((n, i) => n + i.quantity, 0)),
+    (el) =>
+      (el.textContent = state.cart.reduce((n, item) => n + item.quantity, 0)),
   );
 }
-async function writeCart(items) {
-  state.cartRevision = (state.cartRevision || 0) + 1;
-  const result = await api("/cart", {
-    method: "PUT",
-    body: {
-      items: items.map(({ variant_id, quantity, selected }) => ({
-        variant_id,
-        quantity,
-        selected,
-      })),
-    },
-  });
+function acceptCart(result) {
   state.cart = result.cart.items;
-  await refreshCart();
+  state.cartServerRevision = result.cart.revision || 0;
+  state.cartLines = result.lines;
+  state.cartReady = true;
+  state.cartFetchedAt = Date.now();
+  cartBadge();
+}
+async function refreshCart() {
+  if (!state.user) {
+    state.cart = [];
+    state.cartReady = false;
+    cartBadge();
+    return;
+  }
+  const revision = state.cartRevision || 0,
+    userId = state.user.id,
+    context = state.cartContext || 0;
+  if (
+    state.cartFetch?.userId === userId &&
+    state.cartFetch.revision === revision &&
+    state.cartFetch.context === context
+  )
+    return state.cartFetch.promise;
+  const promise = api("/cart", { background: true }).then((result) => {
+    if (
+      userId === state.user?.id &&
+      revision === (state.cartRevision || 0) &&
+      context === (state.cartContext || 0)
+    )
+      acceptCart(result);
+    return result;
+  });
+  const entry = { userId, revision, context, promise };
+  state.cartFetch = entry;
+  try {
+    return await promise;
+  } finally {
+    if (state.cartFetch === entry) state.cartFetch = null;
+  }
+}
+async function refreshRemoteCart() {
+  if (!state.user || state.cartWritePending || state.cartRemoteFetch) return;
+  state.cartRemoteFetch = true;
+  try {
+    await refreshCart();
+    syncCartView(true);
+  } catch {
+    // Normal route loading will show an actionable error if the connection stays down.
+  } finally {
+    state.cartRemoteFetch = false;
+  }
+}
+cartChannel?.addEventListener("message", ({ data }) => {
+  if (data?.userId === state.user?.id) void refreshRemoteCart();
+});
+document.addEventListener("visibilitychange", () => {
+  if (
+    document.visibilityState === "visible" &&
+    state.user &&
+    Date.now() - (state.cartFetchedAt || 0) > 5000
+  )
+    void refreshRemoteCart();
+});
+function syncCartView(force = false) {
+  if (location.pathname !== "/cart") return;
+  const lines = state.cartLines || [];
+  if (force) {
+    $("#content").innerHTML = cartContent(lines);
+    return;
+  }
+  if (!$(".cart-layout")) return;
+  const byId = new Map(lines.map((line) => [line.variant_id, line]));
+  for (const row of $$(".cart-line")) {
+    const input = $(".cart-qty-input", row),
+      line = byId.get(input.dataset.id);
+    if (!line) {
+      row.remove();
+      continue;
+    }
+    if (force || document.activeElement !== input) input.value = line.quantity;
+    $(".cart-select", row).checked = line.selected;
+    const price = $("strong.price", row),
+      formatted = money(line.variant.price * line.quantity);
+    if (price.textContent !== formatted) price.textContent = formatted;
+  }
+  $$(".cart-shop").forEach((shop) => {
+    if (!$(".cart-line", shop)) shop.remove();
+  });
+  if (!lines.length) {
+    $("#content").innerHTML =
+      title("Giỏ hàng của bạn", "0 món đồ đang chờ được mang về") +
+      empty(
+        "Giỏ hàng đang chờ bạn",
+        "Thêm một món đồ yêu thích để bắt đầu nhé.",
+      );
+    return;
+  }
+  const selected = lines.filter((line) => line.selected),
+    subtotal = selected.reduce(
+      (n, line) => n + line.variant.price * line.quantity,
+      0,
+    );
+  $(".page-title p").textContent =
+    lines.length + " món đồ đang chờ được mang về";
+  const summary = $(".cart-layout .summary");
+  const first = $(".summary-line", summary);
+  $("span", first).textContent = "Tạm tính (" + selected.length + " sản phẩm)";
+  $$("span", first)[1].textContent = money(subtotal);
+  $(".summary-total strong", summary).textContent = money(subtotal);
+  $("a.btn", summary).classList.toggle("disabled", !selected.length);
+}
+async function mutateCart(update) {
+  const userId = state.user?.id;
+  if (!userId) throw new Error("Vui lòng đăng nhập lại.");
+  if (!state.cartReady) await refreshCart();
+  if (userId !== state.user?.id) throw new Error("Vui lòng đăng nhập lại.");
+  if (!state.cartWriter || state.cartWriterUser !== userId) {
+    state.cartWriterUser = userId;
+    const context = state.cartContext || 0;
+    state.cartWriter = createCartWriter({
+      snapshot: () => ({
+        cart: { items: state.cart, revision: state.cartServerRevision || 0 },
+        lines: state.cartLines || [],
+      }),
+      load: () => api("/cart", { background: true }),
+      write: (items, expected_revision) => {
+        if (userId !== state.user?.id || context !== (state.cartContext || 0))
+          throw new Error("Phiên giỏ hàng đã thay đổi.");
+        return api("/cart", {
+          method: "PUT",
+          body: {
+            expected_revision,
+            items: items.map(({ variant_id, quantity, selected }) => ({
+              variant_id,
+              quantity,
+              selected,
+            })),
+          },
+        });
+      },
+      change: (result, options = {}) => {
+        if (userId === state.user?.id && context === (state.cartContext || 0)) {
+          acceptCart(result);
+          syncCartView(options.rollback || options.rebase);
+          if (options.committed) cartChannel?.postMessage({ userId });
+        }
+      },
+    });
+  }
+  state.cartRevision = (state.cartRevision || 0) + 1;
+  const pending = state.cartWriter.update(update);
+  state.cartWritePending = pending;
+  try {
+    return await pending;
+  } finally {
+    if (state.cartWritePending === pending) state.cartWritePending = null;
+  }
 }
 async function addToCart(buyNow = false) {
+  await state.sessionReady;
   if (!requireUser()) return;
-  const v = state.variant,
+  const variant = state.variant,
     quantity = Math.max(1, Math.min(99, Number($("#product-qty").value)));
-  if (!v || !v.active || v.stock < quantity)
+  if (!variant || !variant.active || variant.stock < quantity)
     throw new Error("Phân loại này không đủ hàng.");
-  await refreshCart();
-  const items = structuredClone(state.cart),
-    old = items.find((i) => i.variant_id === v.id);
-  if (old) {
-    old.quantity += quantity;
-    old.selected = true;
-  } else items.push({ variant_id: v.id, quantity, selected: true });
-  await writeCart(items);
+  await mutateCart((items) => {
+    const old = items.find((item) => item.variant_id === variant.id);
+    if (old) {
+      old.quantity = Math.min(99, old.quantity + quantity);
+      old.selected = true;
+    } else items.push({ variant_id: variant.id, quantity, selected: true });
+    return items;
+  });
   if (buyNow) go("/cart");
   else toast("Đã thêm một chút niềm vui vào giỏ hàng.");
 }
@@ -1317,14 +1744,24 @@ document.addEventListener("click", async (e) => {
   if (!button) return;
   const { action, id, value, scope } = button.dataset;
   if (button.disabled) return;
-  button.disabled = true;
+  if (action !== "cart-qty") button.disabled = true;
   try {
     if (action === "toggle-filters") {
       const panel = button.closest(".filter-panel");
       const open = panel.classList.toggle("is-open");
       button.setAttribute("aria-expanded", String(open));
     } else if (action === "close-dialog") $("#dialog").close();
-    else if (action === "favorite") {
+    else if (action === "google-link") {
+      const area = button.closest(".google-auth");
+      const url = new URL(location.href);
+      url.searchParams.set("google", "1");
+      history.replaceState({}, "", url.pathname + url.search);
+      area.outerHTML = googleSignInArea(true);
+      await mountGoogleSignIn(state.route);
+    } else if (action === "retry-auth-options") {
+      button.closest(".auth-options-retry").remove();
+      await mountAuthExtras(state.route, location.pathname === "/account");
+    } else if (action === "favorite") {
       if (!requireUser()) return;
       if (location.pathname === "/wishlist") {
         await api("/wishlist/" + id, { method: "DELETE" });
@@ -1368,33 +1805,59 @@ document.addEventListener("click", async (e) => {
     else if (action === "add-cart" || action === "buy-now")
       await addToCart(action === "buy-now");
     else if (action === "cart-qty") {
-      const items = structuredClone(state.cart),
-        item = items.find((i) => i.variant_id === id);
-      item.quantity = Math.max(1, Math.min(99, item.quantity + Number(value)));
-      await writeCart(items);
-      await renderRoute();
+      await mutateCart((items) => {
+        const item = items.find((item) => item.variant_id === id);
+        if (item)
+          item.quantity = Math.max(
+            1,
+            Math.min(99, item.quantity + Number(value)),
+          );
+        return items;
+      });
     } else if (action === "remove-cart") {
-      await writeCart(state.cart.filter((i) => i.variant_id !== id));
-      await renderRoute();
+      await mutateCart((items) =>
+        items.filter((item) => item.variant_id !== id),
+      );
     } else if (action === "add-address") addressDialog();
     else if (action === "delete-address") {
       await api("/addresses/" + id, { method: "DELETE" });
       await renderRoute();
     } else if (action === "logout") {
       await post("/auth/logout");
+      state.sessionRevision = (state.sessionRevision || 0) + 1;
       state.user = null;
       state.shop = null;
       state.csrf = "";
       state.cart = [];
+      state.cartReady = false;
+      state.cartLines = [];
+      state.cartWriter = null;
+      state.cartContext = (state.cartContext || 0) + 1;
       state.checkoutKey = "";
       go("/");
     } else if (action === "resend-verification") {
       await post("/auth/resend", { email: state.user.email });
       toast("Đã ghi nhận yêu cầu gửi email.");
-    } else if (action === "start-chat") {
+    } else if (action === "older-messages") await olderMessages(button);
+    else if (action === "start-chat") {
       if (!requireUser()) return;
       const { conversation } = await post("/conversations", { shop_id: id });
       go("/chat/" + conversation.id);
+    } else if (action === "find-product-shops") {
+      const form = button.closest("form");
+      const query = new URLSearchParams({
+        view: "selector",
+        status: "approved",
+        q: form.elements.shop_search.value,
+      });
+      const { shops } = await api("/admin/shops?" + query);
+      if (form.isConnected)
+        form.elements.shop_id.innerHTML = shops
+          .map(
+            (shop) =>
+              `<option value="${esc(shop.id)}">${esc(shop.name)}</option>`,
+          )
+          .join("");
     } else if (action === "quote") await quoteCheckout();
     else if (action === "sync-payment") {
       await post("/payments/" + id + "/sync");
@@ -1413,20 +1876,21 @@ document.addEventListener("click", async (e) => {
     } else if (action === "reorder") {
       const { order } = await api("/orders/" + id);
       await refreshCart();
-      const items = structuredClone(state.cart);
-      for (const l of order.items) {
-        const old = items.find((i) => i.variant_id === l.variant_id);
-        if (old) {
-          old.quantity = Math.min(99, old.quantity + l.quantity);
-          old.selected = true;
-        } else
-          items.push({
-            variant_id: l.variant_id,
-            quantity: l.quantity,
-            selected: true,
-          });
-      }
-      await writeCart(items);
+      await mutateCart((items) => {
+        for (const l of order.items) {
+          const old = items.find((i) => i.variant_id === l.variant_id);
+          if (old) {
+            old.quantity = Math.min(99, old.quantity + l.quantity);
+            old.selected = true;
+          } else
+            items.push({
+              variant_id: l.variant_id,
+              quantity: l.quantity,
+              selected: true,
+            });
+        }
+        return items;
+      });
       go("/cart");
     } else if (action === "review")
       dialog(
@@ -1447,8 +1911,11 @@ document.addEventListener("click", async (e) => {
         "Ghi nhận hoàn tiền đã thực hiện",
         `<form data-form="refund"><div class="notice">Chỉ ghi nhận sau khi admin đã chuyển tiền hoàn cho khách ngoài hệ thống.</div>${field("Số tiền đã hoàn (VNĐ)", "amount", value, "number", `min="1" max="${value}" required`)}${field("Mã giao dịch / tham chiếu", "reference", "", "text", 'required maxlength="150"')}${textarea("Ghi chú", "note")}<div class="form-error" hidden></div><button class="btn full">Ghi nhận đã hoàn tiền</button></form>`,
       );
-    else if (action === "edit-product") productDialog(id);
-    else if (action === "add-variant")
+    else if (action === "edit-product") {
+      const version = state.route;
+      await ensureMeta(true);
+      if (version === state.route) productDialog(id);
+    } else if (action === "add-variant")
       $("#variants-editor").insertAdjacentHTML("beforeend", variantEditor());
     else if (action === "remove-variant") {
       if ($$(".variant-editor").length > 1)
@@ -1518,6 +1985,11 @@ document.addEventListener("click", async (e) => {
       await post("/admin/outbox/retry");
       toast("Đã đưa email lỗi về hàng đợi.");
       await renderRoute();
+    } else if (action === "review-mail") {
+      dialog(
+        "Kiểm tra lần gửi cuối",
+        `<form data-form="review-mail"><input type="hidden" name="id" value="${esc(id)}"><p>Tiến trình bị gián đoạn sau khi gửi. Hãy kiểm tra nhật ký dịch vụ email trước khi thử lại để tránh gửi trùng.</p><label class="row small-text"><input name="confirm_uncertain" type="checkbox" required> Tôi đã kiểm tra và muốn gửi lại thư này.</label><div class="form-error" hidden></div><button class="btn">Đưa vào hàng đợi</button></form>`,
+      );
     } else if (action === "read-notifications") {
       await post("/notifications");
       await renderRoute();
@@ -1548,13 +2020,18 @@ document.addEventListener("change", (e) => {
 document.addEventListener("change", async (e) => {
   try {
     if (e.target.matches(".cart-select,.cart-qty-input")) {
-      const items = structuredClone(state.cart),
-        item = items.find((i) => i.variant_id === e.target.dataset.id);
-      if (e.target.matches(".cart-select")) item.selected = e.target.checked;
-      else
-        item.quantity = Math.max(1, Math.min(99, Number(e.target.value) || 1));
-      await writeCart(items);
-      await renderRoute();
+      const id = e.target.dataset.id,
+        checkbox = e.target.matches(".cart-select"),
+        checked = e.target.checked,
+        quantity = Math.max(1, Math.min(99, Number(e.target.value) || 1));
+      await mutateCart((items) => {
+        const item = items.find((item) => item.variant_id === id);
+        if (item) {
+          if (checkbox) item.selected = checked;
+          else item.quantity = quantity;
+        }
+        return items;
+      });
     }
     if (e.target.id === "sort-products") {
       const q = new URLSearchParams(location.search);
@@ -1563,6 +2040,8 @@ document.addEventListener("change", async (e) => {
       go(location.pathname + "?" + q);
     }
     if (e.target.id === "checkout-address") await quoteCheckout();
+    if (e.target.closest("#checkout-form") && e.target.name === "method")
+      await quoteCheckout();
     if (e.target.id === "csv-upload" && e.target.files[0]) {
       const f = e.target.files[0];
       if (f.size > 500000) throw new Error("CSV tối đa 500KB.");
@@ -1595,6 +2074,8 @@ document.addEventListener("input", (e) => {
     $("#catalog-preview-result").innerHTML = "";
   }
   if (e.target.closest("#checkout-form") && e.target.name.includes("voucher")) {
+    state.quoteRevision = (state.quoteRevision || 0) + 1;
+    state.quoteController?.abort();
     state.quote = null;
     $("#place-order").disabled = true;
   }
@@ -1612,7 +2093,11 @@ document.addEventListener("submit", async (e) => {
   const errorBox = $(".form-error", form);
   if (errorBox) errorBox.hidden = true;
   try {
-    if (kind === "search" || kind === "filter-price") {
+    if (
+      kind === "search" ||
+      kind === "filter-price" ||
+      kind === "list-filter"
+    ) {
       const q = new URLSearchParams();
       for (const [k, v] of Object.entries(data)) if (v) q.set(k, v);
       go((kind === "search" ? "/search" : location.pathname) + "?" + q);
@@ -1623,8 +2108,8 @@ document.addEventListener("submit", async (e) => {
         body.token = new URLSearchParams(location.search).get("token") || "";
       const result = await post("/auth/" + type, body);
       if (type === "login") {
-        Object.assign(state, result);
-        await refreshCart();
+        acceptSession(result);
+        void refreshCart().catch(() => {});
         let next = new URLSearchParams(location.search).get("next") || "/";
         if (!next.startsWith("/") || next.startsWith("//")) next = "/";
         go(next);
@@ -1632,6 +2117,13 @@ document.addEventListener("submit", async (e) => {
         toast(result.message || "Thao tác thành công.");
         if (["register", "reset", "verify"].includes(type)) go("/login");
       }
+    } else if (kind === "review-mail") {
+      await post("/admin/outbox/retry", {
+        id: data.id,
+        confirm_uncertain: data.confirm_uncertain === "on",
+      });
+      $("#dialog").close();
+      await renderRoute();
     } else if (kind === "profile") {
       const result = await api("/account", {
         method: "PATCH",
@@ -1707,7 +2199,24 @@ document.addEventListener("submit", async (e) => {
     } else if (kind === "checkout") {
       if (!state.quote)
         throw new Error("Vui lòng áp dụng và tính lại đơn hàng.");
-      const result = await post("/checkout", checkoutPayload(form));
+      let result;
+      try {
+        result = await post("/checkout", checkoutPayload(form));
+      } catch (error) {
+        if (
+          ["quote_changed", "quote_expired", "quote_required"].includes(
+            error.code,
+          )
+        ) {
+          state.quote = null;
+          // Reload the lines as well as totals when another tab changed the cart.
+          await renderRoute();
+          toast(
+            "Đơn hàng đã thay đổi. Vui lòng kiểm tra và xác nhận tổng tiền mới.",
+          );
+        }
+        throw error;
+      }
       state.checkoutKey = "";
       await refreshCart();
       if (result.payment_error) toast(result.payment_error.message);

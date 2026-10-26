@@ -30,7 +30,8 @@ std::set<std::string> existingCatalogIds(Repository &r, const Json &products) {
 } // namespace
 Json normalizeDemoCatalog(const Json &document) {
     if (!document.is_object() ||
-        (document.value("source", "") != "DummyJSON" && document.value("source", "") != "DummyJSON+ShoppeDemo") ||
+        (document.value("source", "") != "DummyJSON" &&
+         document.value("source", "") != "DummyJSON+ShoppeDemo") ||
         !document.contains("products") || !document["products"].is_array() ||
         document["products"].empty() || document["products"].size() > demoCatalogLimit)
         throw Error(422, "invalid_demo_catalog", "Danh mục demo không hợp lệ.");
@@ -52,7 +53,8 @@ Json normalizeDemoCatalog(const Json &document) {
                                                         {"womens-shoes", "Thời trang"},
                                                         {"tops", "Thời trang"}};
 
-    static const auto editorial = loadCatalogCopy(env("CATALOG_COPY_PATH", "database/catalog-copy.vi.json"));
+    static const auto editorial =
+        loadCatalogCopy(env("CATALOG_COPY_PATH", "database/catalog-copy.vi.json"));
     std::map<int, Json> copyBySource;
     for (const auto &entry : editorial.at("products"))
         copyBySource.emplace(entry.at("source_id").get<int>(), entry);
@@ -60,7 +62,8 @@ Json normalizeDemoCatalog(const Json &document) {
     std::set<std::string> ids;
     for (const auto &item : document["products"]) {
         auto externalId = numberField(item, "id", 1, 1000000);
-        const auto series = item.contains("_demo_series") ? numberField(item, "_demo_series", 1, demoCatalogLimit) : 0;
+        const auto series =
+            item.contains("_demo_series") ? numberField(item, "_demo_series", 1, demoCatalogLimit) : 0;
         if (series && document.value("source", "") != "DummyJSON+ShoppeDemo")
             throw Error(422, "invalid_demo_catalog", "Nguồn mẫu mô phỏng không hợp lệ.");
         auto id = series ? "demo-shoppe-" + std::to_string(externalId) + "-" + std::to_string(series)
@@ -81,10 +84,12 @@ Json normalizeDemoCatalog(const Json &document) {
         auto categoryKey = textField(item, "category", 100);
         auto name = textField(item, "title", series ? 170 : 200) +
                     (series ? " · Mẫu demo " + std::to_string(series) : "");
-        auto description = "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
-                           "giao dịch sử dụng tiền thật.\n\n" +
-                           (series ? std::string("Mẫu mô phỏng mở rộng do Shoppe tạo. Ảnh DummyJSON chỉ để minh họa; không phải sản phẩm bổ sung từ API nguồn.")
-                                   : textField(item, "description", 8000));
+        auto description =
+            "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
+            "giao dịch sử dụng tiền thật.\n\n" +
+            (series ? std::string("Mẫu mô phỏng mở rộng do Shoppe tạo. Ảnh DummyJSON chỉ để minh họa; "
+                                  "không phải sản phẩm bổ sung từ API nguồn.")
+                    : textField(item, "description", 8000));
         // Only use reviewed copy when both the original title and image still match.
         // Provider changes and unknown products retain the existing import behavior.
         if (copyBySource.contains(static_cast<int>(externalId))) {
@@ -149,6 +154,7 @@ Json importDemoCatalog(Repository &r, const Json &user, const Json &document) {
         names.insert(name.get<std::string>());
     int imported = 0, skipped = 0;
     auto existing = existingCatalogIds(r, products);
+    Json newProducts = Json::array(), newVariants = Json::array();
     for (auto product : products) {
         auto id = product.at("id").get<std::string>();
         if (existing.contains(id)) {
@@ -163,16 +169,18 @@ Json importDemoCatalog(Repository &r, const Json &user, const Json &document) {
         product["active"] = true;
         product["sold"] = 0;
         product["created_at"] = now() - imported;
-        r.save("products", product);
-        r.save("variants", {{"id", id + "-default"},
-                            {"product_id", id},
-                            {"shop_id", shop.at("id")},
-                            {"name", "Mặc định"},
-                            {"price", price},
-                            {"stock", 20},
-                            {"active", true}});
+        newProducts.push_back(product);
+        newVariants.push_back({{"id", id + "-default"},
+                               {"product_id", id},
+                               {"shop_id", shop.at("id")},
+                               {"name", "Mặc định"},
+                               {"price", price},
+                               {"stock", 20},
+                               {"active", true}});
         ++imported;
     }
+    r.saveMany("products", newProducts);
+    r.saveMany("variants", newVariants);
     settings["categories"] = Json::array();
     for (const auto &name : names)
         settings["categories"].push_back(name);
@@ -198,11 +206,15 @@ Json stageDemoCatalog(Repository &r, const Json &user, const Json &document) {
         if (product["exists"].get<bool>())
             ++existing;
     }
-    return {{"source", document.at("source")}, {"preview_token", token},
+    return {{"source", document.at("source")},
+            {"preview_token", token},
             {"generated_products", document.value("generated_products", 0)},
-            {"expires_in", 900},     {"products", products},
-            {"existing", existing},  {"new_products", products.size() - existing},
-            {"currency", "VND"},     {"payment_provider", "payos"},
+            {"expires_in", 900},
+            {"products", products},
+            {"existing", existing},
+            {"new_products", products.size() - existing},
+            {"currency", "VND"},
+            {"payment_provider", "payos"},
             {"is_demo", true}};
 }
 Json commitDemoCatalog(Repository &r, const Json &user, const std::string &token) {

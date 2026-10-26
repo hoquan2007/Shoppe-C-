@@ -442,4 +442,38 @@ void Repository::erase(const std::string &table, const std::string &id) {
     checkTable(table);
     tx_.execute("DELETE FROM " + table + " WHERE id = ?", {id});
 }
+void Repository::saveMany(const std::string &table, const Json &documents) {
+    checkTable(table);
+    std::string fields = "id,payload", updates = "payload=excluded.payload";
+    for (const auto &column : columns.at(table)) {
+        fields += "," + column;
+        updates += "," + column + "=excluded." + column;
+    }
+    // At most 900 parameters for the widest current table; works with bounded SQLite builds too.
+    for (std::size_t offset = 0; offset < documents.size(); offset += 100) {
+        std::string rows;
+        Params params;
+        for (std::size_t n = offset; n < std::min(documents.size(), offset + 100); ++n) {
+            const auto &document = documents.at(n);
+            if (!rows.empty())
+                rows += ",";
+            rows += "(?,?";
+            params.push_back(document.at("id").get<std::string>());
+            params.push_back(document.dump());
+            for (const auto &column : columns.at(table)) {
+                if (!document.contains(column) || document.at(column).is_null() ||
+                    (column == "shop_id" && value(document, column).empty()))
+                    rows += ",NULL";
+                else {
+                    rows += ",?";
+                    params.push_back(value(document, column));
+                }
+            }
+            rows += ")";
+        }
+        tx_.execute("INSERT INTO " + table + " (" + fields + ") VALUES " + rows +
+                        " ON CONFLICT(id) DO UPDATE SET " + updates,
+                    params);
+    }
+}
 } // namespace shoppe
