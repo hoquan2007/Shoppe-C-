@@ -2,9 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canonicalApiPath, createApiClient } from "../frontend/api.js";
 
-const response = (data = { products: [{ id: "public" }] }, status = 200) => ({
+const response = (
+  data = { products: [{ id: "public" }] },
+  status = 200,
+  headers = {},
+) => ({
   ok: status < 400,
   status,
+  headers: new Headers(headers),
   json: async () => structuredClone(data),
 });
 test("catalog defaults and query ordering share a cache key", () => {
@@ -81,7 +86,7 @@ test("requests started before invalidation cannot repopulate cache", async () =>
   const { api } = createApiClient({
     state: {},
     fetcher: async (path) => {
-      if (path === "/api/products") {
+      if (path.split("?")[0] === "/api/products") {
         reads++;
         if (reads === 1) await new Promise((r) => (release = r));
       }
@@ -94,6 +99,124 @@ test("requests started before invalidation cannot repopulate cache", async () =>
   await old;
   await api("/products");
   assert.equal(reads, 2);
+});
+
+test("public query allowlists remove debug/tracking without losing filters or review pagination", () => {
+  assert.equal(
+    canonicalApiPath(
+      "/products?debug-perf=1&utm_source=x&q=tai&page=2&sort=price",
+    ),
+    "/products?page=2&q=tai&sort=price",
+  );
+  assert.equal(
+    canonicalApiPath(
+      "/products/p?debug-perf=1&view=public&page=2&page_size=10",
+    ),
+    "/products/p?page=2&page_size=10&view=public",
+  );
+  assert.equal(canonicalApiPath("/meta?debug-perf=1"), "/meta");
+  assert.equal(
+    canonicalApiPath("/auth/reset?token=keep"),
+    "/auth/reset?token=keep",
+  );
+  assert.equal(
+    canonicalApiPath("/admin/products?q=email&page=2"),
+    "/admin/products?page=2&q=email",
+  );
+});
+
+test("CDN age consumes the memory freshness budget and stale responses are never extended", async () => {
+  let clock = 100000,
+    calls = 0;
+  const { api, freshUntil } = createApiClient({
+    state: {},
+    now: () => clock,
+    fetcher: async () => {
+      calls++;
+      return response(undefined, 200, {
+        Age: calls < 3 ? "14" : "20",
+        "X-Data-Ttl": "15",
+      });
+    },
+  });
+  await api("/products");
+  assert.equal(freshUntil("/products"), 101000);
+  clock = 100999;
+  await api("/products");
+  assert.equal(calls, 1);
+  clock = 101001;
+  await api("/products");
+  assert.equal(calls, 2);
+  clock = 102002;
+  await api("/products");
+  await api("/products");
+  assert.equal(calls, 4);
+});
+
+test("generation timestamp catches stale data even if a downstream cache omits Age", async () => {
+  let calls = 0;
+  const { api } = createApiClient({
+    state: {},
+    fetcher: async () => {
+      calls++;
+      return response(undefined, 200, {
+        "X-Data-Generated-At": "100",
+        Date: new Date(130000).toUTCString(),
+        "X-Data-Ttl": "15",
+      });
+    },
+  });
+  await api("/products");
+  await api("/products");
+  assert.equal(calls, 2);
+});
+
+test("catalog mutation reads use a new public generation while unrelated writes do not", async () => {
+  const paths = [];
+  const { api } = createApiClient({
+    state: {},
+    fetcher: async (path) => {
+      paths.push(path);
+      return response();
+    },
+  });
+  await api("/products");
+  await api("/admin/products/p", { method: "PUT", body: {} });
+  await api("/products");
+  await api("/products?debug-perf=1");
+  assert.match(paths[2], /^\/api\/products\?_fresh=[\d-]+$/);
+  assert.equal(paths.length, 3);
+});
+
+test("GET retries share one total deadline", async () => {
+  let clock = 0,
+    calls = 0;
+  const { api } = createApiClient({
+    state: {},
+    now: () => clock,
+    timeoutMs: 100,
+    fetcher: async () => {
+      calls++;
+      clock = 101;
+      return response({ error: { message: "Unavailable" } }, 503);
+    },
+  });
+  await assert.rejects(api("/products"), { status: 504 });
+  assert.equal(calls, 1);
+});
+
+test("a private/no-store response never enters reusable public memory cache", async () => {
+  let calls = 0;
+  const { api } = createApiClient({
+    state: {},
+    fetcher: async () => {
+      calls++;
+      return response(undefined, 200, { "Cache-Control": "private, no-store" });
+    },
+  });
+  await api("/products");
+  await api("/products");
+  assert.equal(calls, 2);
 });
 test("cancelled routes do not retry, and a new route can request the same URL", async () => {
   const state = { requestController: new AbortController() };

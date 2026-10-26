@@ -132,3 +132,48 @@ test("admin users are paginated and searched on the server", async ({
     page.getByRole("textbox", { name: "Tìm sản phẩm", exact: true }),
   ).toHaveValue("");
 });
+
+test("public query keys omit debug and tracking, and a fresh Back reuses memory", async ({
+  page,
+}) => {
+  const calls = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/products")
+      calls.push(request.url());
+  });
+  await page.goto("/search?debug-perf=1&utm_source=fixture&page=1&sort=new");
+  await expect(page.locator(".product-card")).toHaveCount(12);
+  expect(calls).toHaveLength(1);
+  expect(new URL(calls[0]).search).toBe("?include=meta");
+  await page.locator("a.product-name").first().click();
+  await expect(page.locator(".detail-info h1")).toBeVisible();
+  await page.goBack();
+  await expect(page.locator(".product-card")).toHaveCount(12);
+  expect(calls).toHaveLength(1);
+});
+
+test("signed-in startup uses summary and checkout loads one context before quote", async ({
+  page,
+}) => {
+  const csrf = await session(page);
+  await cart(page, csrf, [item("product-1-0")]);
+  const paths = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) paths.push(url.pathname + url.search);
+  });
+  await page.goto("/");
+  await expect(page.locator(".head-icon .count")).toHaveText("1");
+  expect(paths.filter((p) => p.startsWith("/api/auth/me"))).toHaveLength(1);
+  expect(paths.filter((p) => p === "/api/cart")).toHaveLength(0);
+  paths.length = 0;
+  await page.goto("/checkout");
+  await expect(page.locator("#place-order")).toBeEnabled();
+  expect(paths.filter((p) => p === "/api/checkout/context")).toHaveLength(1);
+  expect(paths.filter((p) => p === "/api/checkout/quote")).toHaveLength(1);
+  expect(
+    paths.filter((p) =>
+      ["/api/cart", "/api/addresses", "/api/meta"].includes(p),
+    ),
+  ).toHaveLength(0);
+});

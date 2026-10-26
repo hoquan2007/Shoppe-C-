@@ -25,6 +25,7 @@ namespace {
 void validateMethod(const httplib::Request &req, httplib::Response &res) {
     static const std::vector<std::pair<std::regex, std::string>> rules = {
         {std::regex(R"(^/api/health$)"), "GET"},
+        {std::regex(R"(^/api/live$)"), "GET"},
         {std::regex(R"(^/api/meta$)"), "GET"},
         {std::regex(R"(^/api/home$)"), "GET"},
         {std::regex(R"(^/api/products$)"), "GET"},
@@ -49,6 +50,7 @@ void validateMethod(const httplib::Request &req, httplib::Response &res) {
         {std::regex(R"(^/api/seller/import$)"), "POST"},
         {std::regex(R"(^/api/seller/export$)"), "GET"},
         {std::regex(R"(^/api/checkout/quote$)"), "POST"},
+        {std::regex(R"(^/api/checkout/context$)"), "GET"},
         {std::regex(R"(^/api/checkout$)"), "POST"},
         {std::regex(R"(^/api/payments/webhook$)"), "POST"},
         {std::regex(R"(^/api/orders$)"), "GET"},
@@ -750,6 +752,16 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
     res.set_header("Cache-Control", "private, no-store");
     try {
         validateMethod(req, res);
+        if ((req.method == "GET" || req.method == "HEAD") && req.path == "/api/live") {
+            res.set_content(Json{{"ok", true}, {"engine", "C++20"}}.dump(), "application/json; charset=utf-8");
+            return;
+        }
+        if ((req.method == "GET" || req.method == "HEAD") && req.path == "/api/auth/me" && sid(req).empty()) {
+            Json guest{{"user", nullptr}, {"csrf", ""}, {"shop", nullptr}};
+            if (req.get_param_value("include") == "cart") guest["cart_summary"] = {{"quantity", 0}, {"revision", 0}};
+            res.set_content(guest.dump(), "application/json; charset=utf-8");
+            return;
+        }
         Json body = Json::object();
         if (req.path == "/api/jobs/maintenance" && (req.method == "GET" || req.method == "HEAD")) {
             auto secret = env("CRON_SECRET");
@@ -845,7 +857,8 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
         }
         const bool readOnly = !writing || req.path == "/api/checkout/quote";
         auto tx = db_.begin(readOnly);
-        if (readOnly &&
+        const bool needsExpiry = req.path != "/api/health" && req.path != "/api/meta" && req.path != "/api/auth/me";
+        if (readOnly && needsExpiry &&
             !tx->query("SELECT id FROM checkouts WHERE status = ? AND expires_at < ? LIMIT 1",
                        {"pending", std::to_string(now())})
                  .empty()) {
@@ -1066,6 +1079,8 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
                            req.path == "/api/meta"
                                ? "public, max-age=0, s-maxage=30, stale-while-revalidate=30"
                                : "public, max-age=0, s-maxage=15, stale-while-revalidate=15");
+            res.set_header("X-Data-Generated-At", std::to_string(now()));
+            res.set_header("X-Data-Ttl", req.path == "/api/meta" ? "30" : "15");
         }
         if (writing && req.path != "/api/checkout/quote")
             wakeMailWorker();
@@ -1107,10 +1122,18 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         page["category_previews"] = catalogHighlights(r, meta["categories"]);
         return page;
     }
-    if (path == "/api/auth/me")
-        return {{"user", safeUser(u)},
+    if (path == "/api/auth/me") {
+        Json result{{"user", safeUser(u)},
                 {"csrf", session.is_null() ? "" : session.value("csrf", "")},
                 {"shop", u.is_null() ? Json() : userShop(r, u)}};
+        if (req.get_param_value("include") == "cart") {
+            const auto cart = u.is_null() ? Json() : r.one("carts", "user_id = ?", {u.at("id")});
+            long long quantity = 0;
+            if (!cart.is_null()) for (const auto &item : cart.value("items", Json::array())) quantity += item.value("quantity", 0LL);
+            result["cart_summary"] = {{"quantity", quantity}, {"revision", cart.is_null() ? 0LL : cart.value("revision", 0LL)}};
+        }
+        return result;
+    }
     if (path == "/api/auth/google/challenge" && method == "POST") {
         if (!googleReady())
             throw Error(503, "google_not_configured", "Chưa cấu hình đăng nhập Google.");
@@ -1292,6 +1315,13 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         user["name"] = textField(b, "name", 100);
         r.save("users", user);
         return {{"user", safeUser(user)}};
+    }
+    if (path == "/api/checkout/context") {
+        auto cart = r.one("carts", "user_id = ?", {u.at("id")});
+        if (cart.is_null()) cart = {{"id", randomId()}, {"user_id", u.at("id")}, {"items", Json::array()}};
+        cart["revision"] = cart.value("revision", 0LL);
+        return {{"cart", cart}, {"lines", cartLines(r, cart["items"])},
+                {"addresses", r.list("addresses", "user_id = ?", {u.at("id")})}, {"meta", publicMeta(r)}};
     }
     if (path == "/api/addresses") {
         if (method == "GET")

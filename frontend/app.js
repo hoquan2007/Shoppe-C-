@@ -1,6 +1,6 @@
 import "./style.css";
 import "./redesign.css";
-import { recordRoute } from "./performance.js";
+import { recordRoute, recordApi } from "./performance.js";
 import { createApiClient } from "./api.js";
 import { createCartWriter, readSettledCart } from "./cart-state.js";
 import { createGoogleSession } from "./google-session.js";
@@ -144,7 +144,7 @@ function toast(message) {
   clearTimeout(state.toastTimer);
   state.toastTimer = setTimeout(() => el.classList.remove("show"), 4300);
 }
-const { api } = createApiClient({ state });
+const { api, freshUntil } = createApiClient({ state, observe: recordApi });
 async function ensureMeta(fresh = false) {
   const available = Array.isArray(state.meta.categories);
   if (
@@ -154,7 +154,7 @@ async function ensureMeta(fresh = false) {
     state.metaLoading = true;
     state.metaPromise = api("/meta")
       .then((meta) => {
-        state.metaUntil = Date.now() + 30000;
+        state.metaUntil = freshUntil("/meta");
         state.metaError = null;
         return (state.meta = meta);
       })
@@ -365,23 +365,30 @@ function acceptSession(me) {
     state.cart = [];
     state.cartLines = [];
     state.cartWriter = null;
+    state.cart_summary = null;
     state.cartContext = (state.cartContext || 0) + 1;
   }
   Object.assign(state, me);
+  if (
+    me.cart_summary &&
+    !state.cartWritePending &&
+    me.cart_summary.revision !== state.cartServerRevision
+  )
+    state.cartReady = false;
   state.sessionRevision = (state.sessionRevision || 0) + 1;
   state.sessionError = null;
 }
 async function refreshUser() {
   const revision = state.sessionRevision || 0;
   try {
-    const me = await api("/auth/me");
+    const me = await api("/auth/me?include=cart");
     if (revision === (state.sessionRevision || 0)) acceptSession(me);
   } catch (error) {
     if (revision === (state.sessionRevision || 0)) throw error;
   }
 }
 function header() {
-  const cartCount = state.cart.reduce((n, i) => n + i.quantity, 0);
+  const cartCount = cartQuantity();
   return `<div class="topbar"><div class="wrap"><span class="left-top">Mỗi món đồ, một niềm vui mới.</span><div class="topbar-links"><a href="/seller">Kênh người bán</a><a href="/notifications">Thông báo</a><span>Tiếng Việt / VNĐ</span></div></div></div><header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search"><input name="q" aria-label="Tìm sản phẩm" placeholder="Tìm món đồ bạn yêu thích" value="${esc(catalogSearchQuery())}"><button aria-label="Tìm kiếm">${icon("search", 21)}</button></form><div class="head-actions"><a class="head-icon" href="/wishlist" aria-label="Yêu thích">${icon("heart", 22)}<span>Yêu thích</span></a><a class="head-icon" href="${state.user ? "/account" : "/login"}" aria-label="Tài khoản">${icon("user", 22)}<span>${esc(state.user?.name.split(" ").slice(-2).join(" ") || "Đăng nhập")}</span></a><a class="head-icon" href="/cart" aria-label="Giỏ hàng">${icon("cart", 24)}<b class="count">${cartCount}</b><span>Giỏ hàng</span></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính"><a href="/search" class="all-categories">${icon("grid", 17)} Danh mục sản phẩm</a><a href="/" class="${location.pathname === "/" ? "active" : ""}">Khám phá</a><a href="/search?sort=new">Hàng mới về</a><a href="/vouchers">Ưu đãi hôm nay</a><a href="/orders">Đơn mua của tôi</a><a href="/chat">Tin nhắn</a>${state.user?.role === "admin" ? '<a href="/admin">Quản trị</a>' : ""}<a class="end-link" href="/vouchers">Ưu đãi chào bạn mới</a></nav></header>`;
 }
 function footer() {
@@ -413,7 +420,7 @@ async function home() {
   state.products = products;
   state.meta = meta;
   state.metaPromise = Promise.resolve(meta);
-  state.metaUntil = Date.now() + 30000;
+  state.metaUntil = freshUntil("/home");
   const categories = meta.categories || [];
   const pick = (category) => category_previews[category] || products[0];
   const featured = pick("Điện tử"),
@@ -501,7 +508,7 @@ async function searchPage(shopId = "") {
     shop,
   } = await api("/products?" + query);
   state.meta = meta;
-  state.metaUntil = Date.now() + 30000;
+  state.metaUntil = freshUntil("/products?" + query);
   state.metaPromise = Promise.resolve(meta);
   const sort = params.get("sort") || "new";
   const link = (i) => {
@@ -653,18 +660,18 @@ function cartContent(lines) {
 async function checkoutPage() {
   if (!requireUser()) return "";
   const version = state.route;
-  const [{ addresses }, cart] = await Promise.all([
-    api("/addresses"),
-    readSettledCart({
-      pending: () => state.cartWritePending,
-      revision: () => state.cartRevision || 0,
-      load: () => api("/cart"),
-      current: () => version === state.route,
-    }),
-    ensureMeta(true),
-  ]);
+  const cart = await readSettledCart({
+    pending: () => state.cartWritePending,
+    revision: () => state.cartRevision || 0,
+    load: () => api("/checkout/context"),
+    current: () => version === state.route,
+  });
   if (!cart || version !== state.route) return "";
-  const { lines } = cart;
+  const { lines, addresses, meta } = cart;
+  acceptCart(cart);
+  state.meta = meta;
+  state.metaUntil = Date.now() + 30000;
+  state.metaPromise = Promise.resolve(meta);
   const selected = lines.filter((l) => l.selected);
   if (!selected.length)
     return (
@@ -1361,13 +1368,10 @@ async function renderRoute() {
   }
   $("#content").setAttribute("aria-busy", "true");
   const routeStarted = performance.now();
+  const paintReady = hadView ? afterPaint() : Promise.resolve();
   const parts = location.pathname.split("/").filter(Boolean);
   let content = "";
   try {
-    if (hadView) {
-      await afterPaint();
-      if (version !== state.route) return;
-    }
     const authRoute = [
       "login",
       "register",
@@ -1431,6 +1435,7 @@ async function renderRoute() {
         "Trang này chưa có ở đây",
         "Cùng quay về và khám phá những điều mới nhé.",
       );
+    await paintReady;
     if (version !== state.route) return;
     $("#content").innerHTML = content;
     window.scrollTo(0, 0);
@@ -1544,11 +1549,14 @@ async function olderMessages(button) {
   el.scrollTop += el.scrollHeight - height;
   if (!has_more) button.remove();
 }
+function cartQuantity() {
+  if (!state.user) return 0;
+  return state.cartReady
+    ? state.cart.reduce((n, item) => n + item.quantity, 0)
+    : state.cart_summary?.quantity || 0;
+}
 function cartBadge() {
-  $$(".head-icon .count").forEach(
-    (el) =>
-      (el.textContent = state.cart.reduce((n, item) => n + item.quantity, 0)),
-  );
+  $$(".head-icon .count").forEach((el) => (el.textContent = cartQuantity()));
 }
 function acceptCart(result) {
   state.cart = result.cart.items;
@@ -2336,7 +2344,7 @@ async function start() {
   void state.sessionReady
     .then(async () => {
       refreshHeader();
-      if (!state.sessionError) await refreshCart();
+      cartBadge();
     })
     .catch(() => {
       /* Cart badge can refresh on the next user action. */

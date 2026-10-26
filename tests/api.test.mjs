@@ -994,6 +994,42 @@ test("public catalog uses server pagination, bounded input and private preview i
   assert.match(me.headers.get("cache-control"), /private.*no-store/);
 });
 
+test("private bootstrap and checkout context bound reads without sharing identity", async () => {
+  const guest = client();
+  const anonymous = await guest.request("/auth/me?include=cart");
+  assert.equal(anonymous.data.user, null);
+  assert.equal(anonymous.data.cart_summary.quantity, 0);
+  assert.match(anonymous.headers.get("server-timing"), /db;dur=0\.000000/);
+  assert.match(anonymous.headers.get("cache-control"), /private.*no-store/);
+  assert.equal((await guest.request("/checkout/context")).status, 401);
+  assert.equal((await guest.request("/live", "POST", {})).status, 405);
+  const live = await guest.request("/live");
+  assert.equal(live.data.ok, true);
+  assert.match(live.headers.get("server-timing"), /db;dur=0\.000000/);
+  const cart = await ok(buyer, "/cart");
+  const addresses = await ok(buyer, "/addresses");
+  const summary = await buyer.request("/auth/me?include=cart");
+  assert.equal(
+    summary.data.cart_summary.quantity,
+    cart.cart.items.reduce((n, item) => n + item.quantity, 0),
+  );
+  assert.equal(summary.data.cart_summary.revision, cart.cart.revision);
+  assert.equal(summary.data.cart, undefined);
+  const before = await ok(buyer, "/orders");
+  const context = await buyer.request("/checkout/context");
+  assert.equal(context.status, 200);
+  assert.match(context.headers.get("cache-control"), /private.*no-store/);
+  assert.equal(context.headers.get("x-data-ttl"), null);
+  assert.deepEqual(context.data.cart.items, cart.cart.items);
+  assert.deepEqual(context.data.addresses, addresses.addresses);
+  assert.equal(context.data.cart.revision, cart.cart.revision);
+  assert.ok(context.data.meta.categories.length);
+  assert.equal((await ok(buyer, "/orders")).total, before.total);
+  const catalog = await guest.request("/products");
+  assert.equal(catalog.headers.get("x-data-ttl"), "15");
+  assert.ok(Number(catalog.headers.get("x-data-generated-at")) > 0);
+});
+
 test("idle HTTP keep-alive does not exhaust the bounded C++ worker pool", async () => {
   const net = await import("node:net");
   const idle = await Promise.all(

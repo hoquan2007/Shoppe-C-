@@ -2,6 +2,8 @@
 
 Đây là phương án dự phòng nếu phép đo sau sửa logger vẫn không đạt mục tiêu. Chưa tạo dịch vụ, nhập credential hoặc đổi routing sang nhà cung cấp mới.
 
+**Trạng thái sau phản hồi người dùng:** tạm gác. Người dùng chọn giữ Vercel + Supabase hiện tại, chưa phát sinh phí. Kế hoạch đang áp dụng là [tối ưu trong hạ tầng hiện có](EXISTING_INFRA_OPTIMIZATION_PLAN_2026_10_26.md); nội dung dưới đây chỉ giữ làm hồ sơ, không phải chấp thuận triển khai.
+
 ## Phạm vi đề xuất
 
 | Thành phần | Cấu hình để duyệt |

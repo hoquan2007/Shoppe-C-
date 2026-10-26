@@ -2,6 +2,24 @@ import { onCLS, onINP, onLCP } from "web-vitals";
 
 // Keep only the latest local measurement. No analytics endpoint, cookies, or user data.
 const debug = new URLSearchParams(location.search).has("debug-perf");
+const routeParts = new Set(
+  "api home search product products shop shops meta auth me login register logout forgot reset verify google challenge account addresses cart checkout context quote payments cancel orders reviews returns wishlist seller admin dashboard settings catalog import export users conversations messages notifications outbox retry audit storage images live health".split(
+    " ",
+  ),
+);
+function safePath(path) {
+  return path
+    .split("?")[0]
+    .split("/")
+    .map((part) => (!part || routeParts.has(part) ? part : ":id"))
+    .join("/");
+}
+export function recordApi({ path, ...detail }) {
+  if (debug)
+    console.info(
+      "[shoppe:api] " + JSON.stringify({ route: safePath(path), ...detail }),
+    );
+}
 function record({ name, value, rating, navigationType, attribution }) {
   const detail = { name, value, rating, navigationType };
   const entryName = "shoppe:web-vital:" + name;
@@ -52,14 +70,20 @@ if (debug) {
       console.info(
         "[shoppe:request] " +
           JSON.stringify({
-            route: path
-              .split("/")
-              .slice(0, 4)
-              .map((segment) =>
-                /^[a-f0-9]{16,}$/.test(segment) ? ":id" : segment,
-              )
-              .join("/"),
+            route: safePath(path),
             duration: entry.duration,
+            start: entry.startTime,
+            dns: entry.domainLookupEnd - entry.domainLookupStart,
+            connect: entry.connectEnd - entry.connectStart,
+            tls: entry.secureConnectionStart
+              ? entry.connectEnd - entry.secureConnectionStart
+              : 0,
+            waitForHeaders: entry.responseStart - entry.requestStart,
+            body: entry.responseEnd - entry.responseStart,
+            protocol: entry.nextHopProtocol,
+            transferBytes: entry.transferSize,
+            encodedBytes: entry.encodedBodySize,
+            decodedBytes: entry.decodedBodySize,
             serverTiming: entry.serverTiming?.map(({ name, duration }) => ({
               name,
               duration,
