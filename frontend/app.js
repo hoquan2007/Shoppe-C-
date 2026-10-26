@@ -172,6 +172,12 @@ async function ensureMeta(fresh = false) {
   if (available && !fresh) return state.meta;
   return state.metaPromise;
 }
+function catalogSearchQuery() {
+  return location.pathname === "/search" ||
+    location.pathname.startsWith("/shop/")
+    ? new URLSearchParams(location.search).get("q") || ""
+    : "";
+}
 function refreshHeader() {
   const current = $(".masthead");
   if (!current) return;
@@ -192,8 +198,7 @@ function refreshHeader() {
   const route = location.pathname + location.search;
   if (state.headerLocation !== route) {
     const input = $(".search input", current);
-    if (input)
-      input.value = new URLSearchParams(location.search).get("q") || "";
+    if (input) input.value = catalogSearchQuery();
     state.headerLocation = route;
   }
   $$(".navrow a", current).forEach((a) =>
@@ -377,7 +382,7 @@ async function refreshUser() {
 }
 function header() {
   const cartCount = state.cart.reduce((n, i) => n + i.quantity, 0);
-  return `<div class="topbar"><div class="wrap"><span class="left-top">Mỗi món đồ, một niềm vui mới.</span><div class="topbar-links"><a href="/seller">Kênh người bán</a><a href="/notifications">Thông báo</a><span>Tiếng Việt / VNĐ</span></div></div></div><header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search"><input name="q" aria-label="Tìm sản phẩm" placeholder="Tìm món đồ bạn yêu thích" value="${esc(new URLSearchParams(location.search).get("q") || "")}"><button aria-label="Tìm kiếm">${icon("search", 21)}</button></form><div class="head-actions"><a class="head-icon" href="/wishlist" aria-label="Yêu thích">${icon("heart", 22)}<span>Yêu thích</span></a><a class="head-icon" href="${state.user ? "/account" : "/login"}" aria-label="Tài khoản">${icon("user", 22)}<span>${esc(state.user?.name.split(" ").slice(-2).join(" ") || "Đăng nhập")}</span></a><a class="head-icon" href="/cart" aria-label="Giỏ hàng">${icon("cart", 24)}<b class="count">${cartCount}</b><span>Giỏ hàng</span></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính"><a href="/search" class="all-categories">${icon("grid", 17)} Danh mục sản phẩm</a><a href="/" class="${location.pathname === "/" ? "active" : ""}">Khám phá</a><a href="/search?sort=new">Hàng mới về</a><a href="/vouchers">Ưu đãi hôm nay</a><a href="/orders">Đơn mua của tôi</a><a href="/chat">Tin nhắn</a>${state.user?.role === "admin" ? '<a href="/admin">Quản trị</a>' : ""}<a class="end-link" href="/vouchers">Ưu đãi chào bạn mới</a></nav></header>`;
+  return `<div class="topbar"><div class="wrap"><span class="left-top">Mỗi món đồ, một niềm vui mới.</span><div class="topbar-links"><a href="/seller">Kênh người bán</a><a href="/notifications">Thông báo</a><span>Tiếng Việt / VNĐ</span></div></div></div><header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search"><input name="q" aria-label="Tìm sản phẩm" placeholder="Tìm món đồ bạn yêu thích" value="${esc(catalogSearchQuery())}"><button aria-label="Tìm kiếm">${icon("search", 21)}</button></form><div class="head-actions"><a class="head-icon" href="/wishlist" aria-label="Yêu thích">${icon("heart", 22)}<span>Yêu thích</span></a><a class="head-icon" href="${state.user ? "/account" : "/login"}" aria-label="Tài khoản">${icon("user", 22)}<span>${esc(state.user?.name.split(" ").slice(-2).join(" ") || "Đăng nhập")}</span></a><a class="head-icon" href="/cart" aria-label="Giỏ hàng">${icon("cart", 24)}<b class="count">${cartCount}</b><span>Giỏ hàng</span></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính"><a href="/search" class="all-categories">${icon("grid", 17)} Danh mục sản phẩm</a><a href="/" class="${location.pathname === "/" ? "active" : ""}">Khám phá</a><a href="/search?sort=new">Hàng mới về</a><a href="/vouchers">Ưu đãi hôm nay</a><a href="/orders">Đơn mua của tôi</a><a href="/chat">Tin nhắn</a>${state.user?.role === "admin" ? '<a href="/admin">Quản trị</a>' : ""}<a class="end-link" href="/vouchers">Ưu đãi chào bạn mới</a></nav></header>`;
 }
 function footer() {
   return `<footer class="footer"><div class="wrap"><div class="footer-grid"><div>${logo()}<p>Kết nối những shop bạn tin với những món đồ bạn yêu. Mua sắm giản đơn, mỗi ngày thêm vui.</p><div class="row muted">${icon("shield", 18)}<span class="small-text">Mua sắm với sự an tâm</span></div></div><div><h4>Khám phá Shoppe</h4><a class="footer-link" href="/search">Tất cả sản phẩm</a><a class="footer-link" href="/vouchers">Mã giảm giá</a><a class="footer-link" href="/seller">Trở thành người bán</a></div><div><h4>Đồng hành cùng bạn</h4><a class="footer-link" href="/orders">Theo dõi đơn hàng</a><a class="footer-link" href="/chat">Nhắn tin với shop</a><a class="footer-link" href="/account">Tài khoản của bạn</a></div><div><h4>Thanh toán</h4><div class="row"><span class="badge green">payOS</span><span class="badge gray">COD</span></div><p>Thanh toán chuyển khoản hoặc nhận hàng rồi thanh toán.</p></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Shoppe. Một dự án học tập về thương mại điện tử.</span><span>Được tạo với sự chỉn chu, dành cho mỗi ngày của bạn.</span></div></div></footer>`;

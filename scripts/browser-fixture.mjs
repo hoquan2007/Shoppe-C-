@@ -78,6 +78,7 @@ const server = spawn(binary, [], {
   windowsHide: true,
   stdio: ["ignore", log.fd, log.fd],
 });
+await log.close();
 for (const signal of ["SIGINT", "SIGTERM"])
   process.once(signal, () => server.kill());
 server.on("error", (error) => {

@@ -128,4 +128,7 @@ test("admin users are paginated and searched on the server", async ({
   await expect(page.locator("tbody")).toContainText(
     "browser-999@example.invalid",
   );
+  await expect(
+    page.getByRole("textbox", { name: "Tìm sản phẩm", exact: true }),
+  ).toHaveValue("");
 });
