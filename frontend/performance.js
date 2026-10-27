@@ -78,8 +78,16 @@ if (debug) {
             tls: entry.secureConnectionStart
               ? entry.connectEnd - entry.secureConnectionStart
               : 0,
-            waitForHeaders: entry.responseStart - entry.requestStart,
-            body: entry.responseEnd - entry.responseStart,
+            // Aborted requests may expose responseStart=0 while responseEnd is
+            // an absolute document timestamp. That is not a long body transfer.
+            waitForHeaders:
+              entry.responseStart > 0 && entry.requestStart > 0
+                ? Math.max(0, entry.responseStart - entry.requestStart)
+                : null,
+            body:
+              entry.responseStart > 0
+                ? Math.max(0, entry.responseEnd - entry.responseStart)
+                : null,
             protocol: entry.nextHopProtocol,
             transferBytes: entry.transferSize,
             encodedBytes: entry.encodedBodySize,
