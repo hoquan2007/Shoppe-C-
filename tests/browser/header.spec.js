@@ -90,6 +90,7 @@ test("unconfigured email explains the limitation and prevents verification/recov
   }
   await page.goto("/forgot");
   await expect(page.locator(".email-unavailable")).toContainText("Chưa thể gửi liên kết khôi phục");
+  await expect(page.locator('[data-action="retry-email-status"]')).not.toBeVisible();
   await expect(page.locator('[data-form="auth"] button')).toBeDisabled();
   expect(sends).toHaveLength(0);
 });
@@ -164,6 +165,7 @@ test("email configuration can retry and recovery remains single-submit while pro
   await expect(submit).toBeDisabled();
   await page.getByRole("button", { name: "Kiểm tra lại dịch vụ email" }).click();
   await expect(submit).toBeEnabled();
+  await expect(page.locator('[data-action="retry-email-status"]')).not.toBeVisible();
   await page.getByLabel("Email", { exact: true }).fill("buyer@shoppe.local");
   await submit.click();
   await expect.poll(() => sends).toBe(1);

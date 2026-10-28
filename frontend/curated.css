@@ -47,6 +47,7 @@ p { text-wrap: pretty; }
 /* The search field shares its visible keyboard focus ring with its wrapper. */
 .search input:focus-visible { outline: none; }
 .email-unavailable { margin-block: 20px; font-size: 14px; line-height: 1.7; }
+[data-action="retry-email-status"][hidden] { display: none; }
 .btn { min-height: 48px; padding: 12px 24px; border-radius: var(--radius); font-size: 14px; font-weight: 600; background: var(--action); color: var(--surface); border-color: var(--action); transition: transform var(--duration) var(--ease-out), opacity var(--duration); }
 .btn:hover { filter: none; background: var(--action-hover); transform: translateY(-2px); }
 .btn:active { transform: translateY(0) scale(.98); }
