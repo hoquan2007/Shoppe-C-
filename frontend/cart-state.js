@@ -1,4 +1,20 @@
 // Checkout must not read an intermediate server cart while newer intent is queued.
+// One private first-load snapshot, scoped to identity/route/revisions by the caller.
+// Never reusable after consumption, invalidation or a short handoff window.
+export function createCartBootstrap({ now = Date.now, maxAgeMs = 1000 } = {}) {
+  let saved = null, generation = 0;
+  return {
+    version: () => generation,
+    invalidate() { saved = null; generation++; },
+    save(data, key) { saved = { data: structuredClone(data), key, until: now() + maxAgeMs }; },
+    take(key) {
+      const value = saved;
+      saved = null;
+      return value && value.key === key && value.until > now() ? value.data : null;
+    },
+  };
+}
+
 export async function waitForCartWrites(readPending) {
   while (true) {
     const pending = readPending();

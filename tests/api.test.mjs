@@ -1029,6 +1029,28 @@ test("private bootstrap and checkout context bound reads without sharing identit
   assert.deepEqual(context.data.addresses, addresses.addresses);
   assert.equal(context.data.cart.revision, cart.cart.revision);
   assert.ok(context.data.meta.categories.length);
+  const bundled = await buyer.request("/auth/me?include=checkout");
+  assert.equal(bundled.data.user.id, cart.cart.user_id);
+  assert.deepEqual(bundled.data.bootstrap.cart, context.data.cart);
+  assert.deepEqual(bundled.data.bootstrap.lines, context.data.lines);
+  assert.deepEqual(bundled.data.bootstrap.addresses, context.data.addresses);
+  assert.deepEqual(bundled.data.bootstrap.meta, context.data.meta);
+  assert.match(bundled.headers.get("cache-control"), /private.*no-store/);
+  assert.equal(bundled.headers.get("x-data-ttl"), null);
+  const cartView = await buyer.request("/auth/me?include=cart-view");
+  assert.deepEqual(cartView.data.bootstrap.cart, cart.cart);
+  assert.deepEqual(cartView.data.bootstrap.lines, cart.lines);
+  assert.equal(cartView.data.bootstrap.addresses, undefined);
+  assert.equal(cartView.data.bootstrap.meta, undefined);
+  for (const include of ["checkout", "cart-view"]) {
+    const anon = await guest.request("/auth/me?include=" + include);
+    assert.equal(anon.data.bootstrap, undefined);
+    assert.equal(anon.data.user, null);
+    assert.match(anon.headers.get("server-timing"), /db;dur=0\.000000/);
+    const isolated = await other.request("/auth/me?include=" + include);
+    assert.equal(isolated.data.bootstrap.cart.user_id, isolated.data.user.id);
+    assert.notEqual(isolated.data.bootstrap.cart.user_id, bundled.data.user.id);
+  }
   assert.equal((await ok(buyer, "/orders")).total, before.total);
   const catalog = await guest.request("/products");
   assert.equal(catalog.headers.get("x-data-ttl"), "15");

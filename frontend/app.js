@@ -2,7 +2,7 @@ import "./style.css";
 import "./redesign.css";
 import { recordRoute, recordApi } from "./performance.js";
 import { createApiClient } from "./api.js";
-import { createCartWriter, readSettledCart } from "./cart-state.js";
+import { createCartWriter, readSettledCart, createCartBootstrap } from "./cart-state.js";
 import { createGoogleSession } from "./google-session.js";
 import { afterPaint } from "./render-scheduling.js";
 
@@ -19,6 +19,11 @@ const state = {
   checkoutKey: "",
   product: null,
 };
+const cartBootstrap = createCartBootstrap();
+const bootstrapKey = () => JSON.stringify([
+  location.pathname + location.search, state.user?.id, state.cartContext || 0,
+  state.cartRevision || 0, state.cartRemoteRevision || 0,
+]);
 const cartChannel =
   typeof BroadcastChannel === "function"
     ? new BroadcastChannel("shoppe-cart")
@@ -361,6 +366,7 @@ function requireUser() {
 function acceptSession(me) {
   state.sessionError = null;
   if (state.user?.id !== me.user?.id || state.csrf !== me.csrf) {
+    cartBootstrap.invalidate();
     state.cartReady = false;
     state.cart = [];
     state.cartLines = [];
@@ -378,11 +384,20 @@ function acceptSession(me) {
   state.sessionRevision = (state.sessionRevision || 0) + 1;
   state.sessionError = null;
 }
-async function refreshUser() {
+async function refreshUser({ include = "cart", route = "" } = {}) {
   const revision = state.sessionRevision || 0;
+  const cartRevision = state.cartRevision || 0, seedVersion = cartBootstrap.version();
   try {
-    const me = await api("/auth/me?include=cart");
-    if (revision === (state.sessionRevision || 0)) acceptSession(me);
+    const { bootstrap, ...me } = await api("/auth/me?include=" + include);
+    if (revision === (state.sessionRevision || 0)) {
+      const useBootstrap = bootstrap && me.user && route === location.pathname + location.search &&
+        seedVersion === cartBootstrap.version() && cartRevision === (state.cartRevision || 0) &&
+        !state.cartWritePending;
+      acceptSession(me);
+      // acceptSession can invalidate an older identity; this response is verified
+      // for the newly accepted identity and has not crossed any async boundary.
+      if (useBootstrap) cartBootstrap.save(bootstrap, bootstrapKey());
+    }
   } catch (error) {
     if (revision === (state.sessionRevision || 0)) throw error;
   }
@@ -631,6 +646,11 @@ async function accountPage() {
 async function cartPage() {
   if (!requireUser()) return "";
   if (state.cartWritePending) await state.cartWritePending.catch(() => {});
+  const bootstrap = cartBootstrap.take(bootstrapKey());
+  if (bootstrap) {
+    acceptCart(bootstrap);
+    return cartContent(bootstrap.lines);
+  }
   if (state.cartReady && state.cartFetchedAt > Date.now() - 1000)
     return cartContent(state.cartLines);
   const result = await refreshCart();
@@ -663,7 +683,7 @@ async function checkoutPage() {
   const cart = await readSettledCart({
     pending: () => state.cartWritePending,
     revision: () => state.cartRevision || 0,
-    load: () => api("/checkout/context"),
+    load: () => cartBootstrap.take(bootstrapKey()) || api("/checkout/context"),
     current: () => version === state.route,
   });
   if (!cart || version !== state.route) return "";
@@ -1464,6 +1484,7 @@ async function renderRoute() {
   } catch (e) {
     if (version !== state.route || e.name === "AbortError") return;
     if (e.status === 401 && state.user) {
+      cartBootstrap.invalidate();
       state.sessionRevision = (state.sessionRevision || 0) + 1;
       state.cartContext = (state.cartContext || 0) + 1;
       state.cartReady = false;
@@ -1616,6 +1637,10 @@ async function refreshRemoteCart() {
   }
 }
 cartChannel?.addEventListener("message", ({ data }) => {
+  if (data?.userId) {
+    state.cartRemoteRevision = (state.cartRemoteRevision || 0) + 1;
+    cartBootstrap.invalidate();
+  }
   if (data?.userId === state.user?.id) void refreshRemoteCart();
 });
 document.addEventListener("visibilitychange", () => {
@@ -1675,6 +1700,7 @@ function syncCartView(force = false) {
   $("a.btn", summary).classList.toggle("disabled", !selected.length);
 }
 async function mutateCart(update) {
+  cartBootstrap.invalidate();
   const userId = state.user?.id;
   if (!userId) throw new Error("Vui lòng đăng nhập lại.");
   if (!state.cartReady) await refreshCart();
@@ -1840,6 +1866,7 @@ document.addEventListener("click", async (e) => {
       await api("/addresses/" + id, { method: "DELETE" });
       await renderRoute();
     } else if (action === "logout") {
+      cartBootstrap.invalidate();
       await post("/auth/logout");
       state.sessionRevision = (state.sessionRevision || 0) + 1;
       state.user = null;
@@ -2342,7 +2369,10 @@ document.addEventListener("submit", async (e) => {
 window.addEventListener("popstate", renderRoute);
 async function start() {
   shell();
-  state.sessionReady = refreshUser().catch((e) => {
+  const route = location.pathname + location.search;
+  const include = location.pathname === "/cart" ? "cart-view" :
+    location.pathname === "/checkout" ? "checkout" : "cart";
+  state.sessionReady = refreshUser({ include, route }).catch((e) => {
     state.sessionError = e;
   });
   void state.sessionReady

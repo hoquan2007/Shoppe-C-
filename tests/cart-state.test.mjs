@@ -4,6 +4,7 @@ import {
   createCartWriter,
   waitForCartWrites,
   readSettledCart,
+  createCartBootstrap,
 } from "../frontend/cart-state.js";
 
 const initial = () => ({
@@ -22,6 +23,29 @@ const increment = (items) => {
   return items;
 };
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("private bootstrap is one-use, cloned, identity/route scoped and expires", () => {
+  let time = 100;
+  const seed = createCartBootstrap({ now: () => time });
+  const data = initial();
+  seed.save(data, "buyer-a:/checkout:revision-1");
+  data.cart.items[0].quantity = 99;
+  assert.equal(seed.take("buyer-a:/checkout:revision-1").cart.items[0].quantity, 1);
+  assert.equal(seed.take("buyer-a:/checkout:revision-1"), null);
+  for (const wrong of ["buyer-b:/checkout:revision-1", "buyer-a:/cart:revision-1", "buyer-a:/checkout:revision-2"]) {
+    seed.save(initial(), "buyer-a:/checkout:revision-1");
+    assert.equal(seed.take(wrong), null);
+    assert.equal(seed.take("buyer-a:/checkout:revision-1"), null);
+  }
+  seed.save(initial(), "same");
+  time += 1000;
+  assert.equal(seed.take("same"), null);
+  seed.save(initial(), "same");
+  const version = seed.version();
+  seed.invalidate();
+  assert.notEqual(seed.version(), version);
+  assert.equal(seed.take("same"), null);
+});
 
 test("a conflict rebases only pending intent and preserves another tab's added item", async () => {
   const remote = { variant_id: "remote", quantity: 2, selected: true };

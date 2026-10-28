@@ -194,11 +194,55 @@ test("signed-in startup uses summary and checkout loads one context before quote
   paths.length = 0;
   await page.goto("/checkout");
   await expect(page.locator("#place-order")).toBeEnabled();
-  expect(paths.filter((p) => p === "/api/checkout/context")).toHaveLength(1);
+  expect(paths.filter((p) => p === "/api/auth/me?include=checkout")).toHaveLength(1);
+  expect(paths.filter((p) => p === "/api/checkout/context")).toHaveLength(0);
   expect(paths.filter((p) => p === "/api/checkout/quote")).toHaveLength(1);
   expect(
     paths.filter((p) =>
       ["/api/cart", "/api/addresses", "/api/meta"].includes(p),
     ),
   ).toHaveLength(0);
+});
+
+test("direct cart bootstraps session and cart with a single private read", async ({ page }) => {
+  const csrf = await session(page);
+  await cart(page, csrf, [item("product-1-0")]);
+  const paths = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) paths.push(url.pathname + url.search);
+  });
+  await page.goto("/cart");
+  await expect(page.locator(".cart-line")).toHaveCount(1);
+  expect(paths).toEqual(["/api/auth/me?include=cart-view"]);
+});
+
+test("a remote cart write during bootstrap discards the old checkout snapshot", async ({ page }) => {
+  const csrf = await session(page);
+  await cart(page, csrf, [item("product-1-0")]);
+  const { user } = await (await page.request.get("/api/auth/me")).json();
+  let release, entered;
+  const gate = new Promise(resolve => release = resolve), started = new Promise(resolve => entered = resolve);
+  await page.route("**/api/auth/me?include=checkout", async route => {
+    const response = await route.fetch();
+    entered(); await gate;
+    await route.fulfill({ response });
+  });
+  let contexts = 0;
+  page.on("request", request => { if (new URL(request.url()).pathname === "/api/checkout/context") contexts++; });
+  const navigation = page.goto("/checkout");
+  try {
+    await started;
+    await cart(page, csrf, [item("product-1-0", 2)]);
+    await page.evaluate(async userId => {
+      const channel = new BroadcastChannel("shoppe-cart");
+      channel.postMessage({ userId });
+      await new Promise(resolve => setTimeout(resolve, 50));
+      channel.close();
+    }, user.id);
+  } finally { release(); }
+  await navigation;
+  await expect(page.locator("#place-order")).toBeEnabled();
+  await expect(page.locator(".order-line").first()).toContainText("× 2");
+  expect(contexts).toBe(1);
 });
