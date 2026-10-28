@@ -93,7 +93,7 @@ Image Production mới `image_XforIGmFDog5SPqBITdzef8N0RVg`, digest `sha256:a9b9
 
 Đã giảm một đường đi qua container cho session guest và thêm intent prefetch có budget/guard. **Chưa sửa triệt để cold/dispatch catalog**: mẫu instance mới vẫn ~4,71 giây và live warm còn tail ~1 giây. Hạ tầng scale-to-zero hiện tại không có cam kết always-warm; không thêm cron ping, tăng TTL hay pool để che vấn đề.
 
-Bước phân giải tiếp: [hồ sơ cụ thể cho Vercel](VERCEL_DISPATCH_SUPPORT_DRAFT_2026_10_28.md), gồm trace IDs và khoảng trễ trước Invoke Function, chưa gửi ra ngoài. Cần phân giải lifecycle/dispatch phía nền tảng hoặc thử native runtime cho phần business với parity/deployment pipeline riêng; không nên port SQL/expiry/stock vội để bỏ container. Không đánh dấu toàn bộ lag đã khắc phục.
+Bước phân giải tiếp: [hồ sơ cụ thể cho Vercel](VERCEL_DISPATCH_SUPPORT_DRAFT_2026_10_28.md), gồm trace IDs và khoảng trễ trước Invoke Function. Sau khi người dùng duyệt, đã gửi qua plugin Vercel; công cụ xác nhận `Vercel accepted the feedback.` Không trả ticket ID/SLA; không đồng nghĩa đã mở support case hoặc đã sửa lỗi. Cần phân giải lifecycle/dispatch phía nền tảng hoặc thử native runtime cho phần business với parity/deployment pipeline riêng; không nên port SQL/expiry/stock vội để bỏ container. Không đánh dấu toàn bộ lag đã khắc phục.
 
 Runtime error/fatal scan của deployment mới trong cửa sổ 15 phút sau release không có log phù hợp; không bảo đảm ngoài cửa sổ đã kiểm tra.
 

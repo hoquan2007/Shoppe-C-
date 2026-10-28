@@ -1,4 +1,4 @@
-# Hồ sơ dispatch — bản nháp, chưa gửi
+# Hồ sơ dispatch — đã gửi Vercel
 
 Subject: C++ container in sin1: multi-second pre-invoke delay on zero-DB reads, including warm instances
 
@@ -32,4 +32,8 @@ Artifacts available locally: sanitized OTEL spans and timing/request metadata in
 
 References: [ingress investigation](FIRST_BYTE_EXECUTION_RESULT_2026_10_28.md), [mitigation and release measurements](PUBLIC_DISPATCH_MITIGATION_2026_10_28.md).
 
-Status: **draft only; no ticket/message submitted**. Sending this to Vercel support requires the user's explicit instruction.
+Status: **Vercel accepted the feedback**, sau khi người dùng đồng ý gửi hồ sơ. Kênh gửi: plugin Vercel, công cụ `submit_feedback`. Xác nhận được lưu lúc **13:36 ngày 28/10/2026 (UTC+7)** (`2026-10-28 06:36:47 UTC`). Response: `{"success":true,"message":"Vercel accepted the feedback."}`.
+
+Nội dung gửi gồm hồ sơ kỹ thuật ở trên và link GitHub tới hai báo cáo; không gửi cookie, credential, private body hoặc file dữ liệu. Receipt local: `artifacts/vercel-dispatch-feedback-receipt-2026-10-28.json`.
+
+Công cụ không trả ticket ID, URL theo dõi, thời gian phản hồi hoặc cam kết xử lý. Đây là xác nhận Vercel đã nhận báo cáo lỗi qua kênh feedback, **không phải xác nhận đã mở support case hoặc đã sửa dispatch**. Không tự gửi lại để tránh trùng báo cáo.
