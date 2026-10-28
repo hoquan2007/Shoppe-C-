@@ -1,9 +1,6 @@
 import { mountSpiral } from "./spiral.js";
 import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
-ScrollTrigger.config({ syncInterval: 0, ignoreMobileResize: true });
 
 // Optional enhancement. Content is fully visible before this chunk loads.
 export function mountMotion(root) {
