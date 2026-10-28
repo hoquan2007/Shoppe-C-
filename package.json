@@ -7,7 +7,7 @@
     "start": "node scripts/start.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test tests/api.test.mjs tests/frontend-api.test.mjs tests/cart-state.test.mjs tests/google-session.test.mjs",
+    "test": "node --test tests/api.test.mjs tests/frontend-api.test.mjs tests/cart-state.test.mjs tests/google-session.test.mjs tests/latency-probe.test.mjs",
     "test:browser": "playwright test",
     "check": "node --check frontend/app.js && node --check frontend/api.js && node --check frontend/cart-state.js && node --check frontend/performance.js && node --check frontend/google-session.js && node --check frontend/render-scheduling.js",
     "preflight": "node scripts/preflight.mjs",

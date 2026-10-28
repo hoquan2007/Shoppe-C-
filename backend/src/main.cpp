@@ -1,5 +1,5 @@
 #include "application.h"
-#include "http_runtime.h"
+#include "http_trace.h"
 #include "request_log.h"
 #include "security.h"
 #include <chrono>
@@ -39,6 +39,7 @@ int main(int argc, char **argv) {
     try {
         auto startupStarted = std::chrono::steady_clock::now();
         loadEnv();
+        const auto configReady = HttpTiming::Clock::now();
         const bool initialize = argc == 2 && std::string(argv[1]) == "--initialize";
         bool production = env("APP_ENV") == "production";
         if (production && (env("DATABASE_URL").empty() || env("APP_URL").rfind("https://", 0) != 0 ||
@@ -54,6 +55,7 @@ int main(int argc, char **argv) {
             throw std::runtime_error("Insecure PostgreSQL TLS mode.");
         Database db(env("DATABASE_URL"), env("SQLITE_PATH", ".cache/shoppe.db"),
                     env("SCHEMA_PATH", "database/schema.sql"), !production || initialize);
+        const auto databaseReady = HttpTiming::Clock::now();
         Application app(db);
         if (!production || initialize)
             app.seed();
@@ -61,7 +63,20 @@ int main(int argc, char **argv) {
             std::cout << "Database initialized; no HTTP server or payment request started." << std::endl;
             return 0;
         }
-        httplib::Server server;
+        TracedServer server;
+        server.writeObserver = [](const HttpWriteTrace &t, bool success) {
+            const bool wrote = t.firstWrite != HttpTiming::Clock::time_point{};
+            requestLog().submit(Json{{"event", "http_write_complete"}, {"request_id", t.requestId},
+                {"instance_id", t.instance}, {"path", t.route}, {"status", t.status},
+                {"connection", t.connection}, {"connection_request", t.ordinal},
+                {"write_success", wrote && !t.writeFailed}, {"request_success", success},
+                {"socket_bytes", t.bytes}, {"write_calls", t.writes},
+                {"headers_to_write_ms", wrote ? Json(HttpTiming::ms(t.firstWrite, t.headers)) : Json(nullptr)},
+                {"socket_write_ms", wrote ? Json(HttpTiming::ms(t.lastWrite, t.firstWrite)) : Json(nullptr)},
+                {"request_to_write_end_ms", wrote ? Json(HttpTiming::ms(t.lastWrite, httpTiming.ready)) : Json(nullptr)}});
+            // Next request starts after the previous write, not before its completion.
+            httpTiming.accepted = httpTiming.worker = HttpTiming::Clock::now();
+        };
         server.set_payload_max_length(5 * 1024 * 1024);
         server.set_read_timeout(15);
         server.set_write_timeout(15);
@@ -89,17 +104,22 @@ int main(int argc, char **argv) {
         server.set_logger([](const httplib::Request &req, const httplib::Response &res) {
             if (req.path.rfind("/api/", 0) != 0) return;
             const auto done = HttpTiming::Clock::now();
+            httpWriteTrace.requestId = res.get_header_value("X-Request-Id");
+            httpWriteTrace.instance = res.get_header_value("X-App-Instance");
+            httpWriteTrace.route = tracePath(req.path);
+            httpWriteTrace.status = res.status;
+            httpWriteTrace.headers = done;
             requestLog().submit(Json{{"event", "http_headers_ready"},
                 {"request_id", res.get_header_value("X-Request-Id")},
-                {"status", res.status}, {"path", req.path},
+                {"status", res.status}, {"path", tracePath(req.path)},
+                {"instance_id", httpWriteTrace.instance},
+                {"connection", httpWriteTrace.connection}, {"connection_request", httpWriteTrace.ordinal},
                 {"socket_queue_ms", HttpTiming::ms(httpTiming.worker, httpTiming.accepted)},
                 {"socket_to_headers_ms", HttpTiming::ms(done, httpTiming.worker)},
                 // Socket age includes idle time on a reused connection. This phase
                 // starts after request parsing and excludes that idle wait.
                 {"request_to_headers_ms", HttpTiming::ms(done, httpTiming.ready)},
                 {"header_serialization_ms", HttpTiming::ms(done, httpTiming.routed)}});
-            // A reused connection starts a new request after this response; do not count its age as queueing.
-            httpTiming.accepted = httpTiming.worker = done;
         });
         server.set_pre_routing_handler([](const httplib::Request &req, httplib::Response &res) {
             httpTiming.ready = HttpTiming::Clock::now();
@@ -161,6 +181,13 @@ int main(int argc, char **argv) {
                   << std::endl;
         auto port = std::stoi(env("PORT", "8080"));
         app.startMailWorker();
+        server.set_start_handler([&] {
+            requestLog().submit(Json{{"event", "listen_ready"}, {"instance_id", app.instanceId()},
+                {"config_ms", HttpTiming::ms(configReady, startupStarted)},
+                {"database_verify_ms", HttpTiming::ms(databaseReady, configReady)},
+                {"server_setup_ms", HttpTiming::ms(HttpTiming::Clock::now(), databaseReady)},
+                {"process_to_listen_ms", HttpTiming::ms(HttpTiming::Clock::now(), startupStarted)}});
+        });
         std::cout << "Shoppe C++ listening on port " << port << " ("
                   << (db.postgres() ? "PostgreSQL" : "SQLite development") << ")" << std::endl;
         if (!server.listen("0.0.0.0", port))
