@@ -196,8 +196,11 @@ test("admin users are paginated and searched on the server", async ({
     "browser-999@example.invalid",
   );
   await expect(
-    page.getByRole("textbox", { name: "Tìm sản phẩm", exact: true }),
+    page.getByRole("searchbox", { name: "Tìm sản phẩm", exact: true }),
   ).toHaveValue("");
+  await page.locator(".header-account summary").click();
+  await expect(page.locator('.account-menu a[href="/admin"]')).toBeVisible();
+  await page.locator(".header-account summary").press("Escape");
 });
 
 test("public query keys omit debug and tracking, and a fresh Back reuses memory", async ({

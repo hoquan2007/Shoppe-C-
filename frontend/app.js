@@ -210,9 +210,12 @@ function refreshHeader() {
     if (input) input.value = catalogSearchQuery();
     state.headerLocation = route;
   }
-  $$(".navrow a", current).forEach((a) =>
-    a.classList.toggle("active", a.getAttribute("href") === route),
-  );
+  $$(".navrow a", current).forEach((a) => {
+    const active = a.getAttribute("href") === route;
+    a.classList.toggle("active", active);
+    if (active) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
   $$(".mobile-nav a").forEach((a) =>
     a.getAttribute("href") === location.pathname
       ? a.setAttribute("aria-current", "page")
@@ -408,7 +411,15 @@ async function refreshUser({ include = "cart", route = "" } = {}) {
 }
 function header() {
   const cartCount = cartQuantity();
-  return `<div class="topbar"><div class="wrap"><span class="left-top">Mỗi món đồ, một niềm vui mới.</span><div class="topbar-links"><a href="/seller">Kênh người bán</a><a href="/notifications">Thông báo</a><span>Tiếng Việt / VNĐ</span></div></div></div><header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search"><input name="q" aria-label="Tìm sản phẩm" placeholder="Tìm món đồ bạn yêu thích" value="${esc(catalogSearchQuery())}"><button aria-label="Tìm kiếm">${icon("search", 21)}</button></form><div class="head-actions"><a class="head-icon" href="/wishlist" aria-label="Yêu thích">${icon("heart", 22)}<span>Yêu thích</span></a><a class="head-icon" href="${state.user ? "/account" : "/login"}" aria-label="Tài khoản">${icon("user", 22)}<span>${esc(state.user?.name.split(" ").slice(-2).join(" ") || "Đăng nhập")}</span></a><a class="head-icon" href="/cart" aria-label="Giỏ hàng">${icon("cart", 24)}<b class="count">${cartCount}</b><span>Giỏ hàng</span></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính"><a href="/search" class="all-categories">${icon("grid", 17)} Danh mục sản phẩm</a><a href="/" class="${location.pathname === "/" ? "active" : ""}">Khám phá</a><a href="/search?sort=new">Hàng mới về</a><a href="/vouchers">Ưu đãi hôm nay</a><a href="/orders">Đơn mua của tôi</a><a href="/chat">Tin nhắn</a>${state.user?.role === "admin" ? '<a href="/admin">Quản trị</a>' : ""}<a class="end-link" href="/vouchers">Ưu đãi chào bạn mới</a></nav></header>`;
+  const accountName = state.user?.name || "Tài khoản";
+  const nav = (href, label, extra = "") => `<a href="${href}" ${extra}>${label}</a>`;
+  return `<header class="masthead"><div class="wrap head-main">${logo()}<form class="search" data-form="search" role="search"><input type="search" name="q" aria-label="Tìm sản phẩm" placeholder="Tìm sản phẩm, thương hiệu…" value="${esc(catalogSearchQuery())}"><button type="submit" aria-label="Tìm kiếm">${icon("search", 21)}</button></form><div class="head-actions"><a class="head-icon header-wishlist" href="/wishlist" aria-label="Yêu thích">${icon("heart", 22)}<span>Yêu thích</span></a><details class="header-account"><summary class="head-icon" aria-label="Menu tài khoản">${icon("user", 22)}<span class="account-name">${esc(accountName)}</span><span class="account-chevron" aria-hidden="true"></span></summary><div class="account-menu"><p class="account-menu-title">${esc(state.user?.name || "Chào bạn đến Shoppe")}</p>${state.user ? nav("/account", "Hồ sơ của tôi") : nav("/login", "Đăng nhập") + nav("/register", "Tạo tài khoản")}${nav("/orders", "Đơn mua của tôi")}${nav("/wishlist", "Yêu thích")}${nav("/chat", "Tin nhắn")}${nav("/notifications", "Thông báo")}${nav("/seller", "Kênh người bán")}${state.user?.role === "admin" ? nav("/admin", "Quản trị") : ""}</div></details><a class="head-icon header-cart" href="/cart" aria-label="Giỏ hàng">${icon("cart", 24)}<b class="count" aria-hidden="true" ${cartCount ? "" : "hidden"}>${cartCount > 99 ? "99+" : cartCount}</b><span>Giỏ hàng</span></a></div></div><nav class="wrap navrow" aria-label="Điều hướng chính">${nav("/search", icon("grid", 17) + " Danh mục sản phẩm", 'class="all-categories"')}${nav("/", "Khám phá")}${nav("/search?sort=new", "Hàng mới về")}${nav("/vouchers", "Ưu đãi")}<span class="nav-locale">Tiếng Việt / VNĐ</span></nav></header>`;
+}
+function closeHeaderMenu(restoreFocus = false) {
+  const menu = $(".header-account[open]");
+  if (!menu) return;
+  menu.open = false;
+  if (restoreFocus) $("summary", menu).focus();
 }
 function footer() {
   return `<footer class="footer"><div class="wrap"><div class="footer-grid"><div>${logo()}<p>Kết nối những shop bạn tin với những món đồ bạn yêu. Mua sắm giản đơn, mỗi ngày thêm vui.</p><div class="row muted">${icon("shield", 18)}<span class="small-text">Mua sắm với sự an tâm</span></div></div><div><h4>Khám phá Shoppe</h4><a class="footer-link" href="/search">Tất cả sản phẩm</a><a class="footer-link" href="/vouchers">Mã giảm giá</a><a class="footer-link" href="/seller">Trở thành người bán</a></div><div><h4>Đồng hành cùng bạn</h4><a class="footer-link" href="/orders">Theo dõi đơn hàng</a><a class="footer-link" href="/chat">Nhắn tin với shop</a><a class="footer-link" href="/account">Tài khoản của bạn</a></div><div><h4>Thanh toán</h4><div class="row"><span class="badge green">payOS</span><span class="badge gray">COD</span></div><p>Thanh toán chuyển khoản hoặc nhận hàng rồi thanh toán.</p></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Shoppe. Một dự án học tập về thương mại điện tử.</span><span>Được tạo với sự chỉn chu, dành cho mỗi ngày của bạn.</span></div></div></footer>`;
@@ -613,7 +624,8 @@ async function productPage(id) {
 async function shopPage(id) {
   return searchPage(id);
 }
-function authPage(kind) {
+async function authPage(kind) {
+  if (kind === "forgot" || kind === "register") await ensureMeta(true);
   const register = kind === "register",
     forgot = kind === "forgot",
     reset = kind === "reset",
@@ -627,7 +639,7 @@ function authPage(kind) {
         : verify
           ? "Xác minh email"
           : "Rất vui gặp lại bạn.";
-  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p><form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button class="btn full">${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
+  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p>${(forgot || register) && !state.meta.email_configured ? '<p class="notice email-unavailable" role="status">Website chưa cấu hình dịch vụ gửi email. ' + (forgot ? 'Chưa thể gửi liên kết khôi phục mật khẩu.' : 'Bạn vẫn có thể tạo tài khoản; email xác minh sẽ chưa được gửi.') + '</p>' : ""}<form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button class="btn full" ${forgot && !state.meta.email_configured ? "disabled" : ""}>${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
 }
 function field(label, name, value = "", type = "text", extra = "") {
   return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}></label>`;
@@ -640,13 +652,13 @@ function regionField(value = "Miền Nam") {
 }
 async function accountPage() {
   if (!requireUser()) return "";
-  const { addresses } = await api("/addresses");
+  const [{ addresses }] = await Promise.all([api("/addresses"), ensureMeta(true)]);
   return (
     title(
       "Tài khoản của tôi",
       "Quản lý thông tin và địa chỉ để mua sắm thuận tiện hơn.",
     ) +
-    `<div class="grid-2"><section class="panel"><h3>Hồ sơ</h3><form data-form="profile">${field("Họ và tên", "name", state.user.name, "text", "required")}${field("Email", "email", state.user.email, "email", "disabled")}<div class="notice ${state.user.verified ? "success" : ""}">${state.user.verified ? "Email đã được xác minh." : "Email chưa xác minh. " + '<button class="btn link" type="button" data-action="resend-verification">Gửi lại email</button>'}</div><button class="btn">Lưu thay đổi</button></form><button class="btn danger small" style="margin-top:25px" data-action="logout">${icon("logout", 14)} Đăng xuất</button></section><section class="panel"><div class="row between"><h3>Sổ địa chỉ</h3><button class="btn outline small" data-action="add-address">${icon("plus", 14)} Thêm mới</button></div>${addresses.map((a) => `<div style="padding:18px 0;border-bottom:1px solid var(--line)"><div class="row between"><strong class="small-text">${esc(a.name)} · ${esc(a.phone)}</strong><button class="icon-btn" data-action="delete-address" data-id="${esc(a.id)}" aria-label="Xóa địa chỉ">${icon("trash", 15)}</button></div><p class="small-text muted" style="margin-top:7px">${esc(a.street)}, ${esc(a.city)} · ${esc(a.region)}</p>${a.is_default ? '<span class="badge green" style="margin-top:8px">Mặc định</span>' : ""}</div>`).join("") || '<p class="small-text muted">Chưa có địa chỉ. Thêm địa chỉ đầu tiên để đặt hàng.</p>'}</section></div>`
+    `<div class="grid-2"><section class="panel"><h3>Hồ sơ</h3><form data-form="profile">${field("Họ và tên", "name", state.user.name, "text", "required")}${field("Email", "email", state.user.email, "email", "disabled")}<div class="notice ${state.user.verified ? "success" : ""}">${state.user.verified ? "Email đã được xác minh." : state.meta.email_configured ? 'Email chưa xác minh. <button class="btn link" type="button" data-action="resend-verification">Gửi lại email xác minh</button>' : 'Email chưa xác minh. Website chưa cấu hình dịch vụ gửi email. Bạn có thể tiếp tục dùng tài khoản; email xác minh hiện chưa thể gửi.' }</div><button class="btn">Lưu thay đổi</button></form><button class="btn danger small" style="margin-top:25px" data-action="logout">${icon("logout", 14)} Đăng xuất</button></section><section class="panel"><div class="row between"><h3>Sổ địa chỉ</h3><button class="btn outline small" data-action="add-address">${icon("plus", 14)} Thêm mới</button></div>${addresses.map((a) => `<div style="padding:18px 0;border-bottom:1px solid var(--line)"><div class="row between"><strong class="small-text">${esc(a.name)} · ${esc(a.phone)}</strong><button class="icon-btn" data-action="delete-address" data-id="${esc(a.id)}" aria-label="Xóa địa chỉ">${icon("trash", 15)}</button></div><p class="small-text muted" style="margin-top:7px">${esc(a.street)}, ${esc(a.city)} · ${esc(a.region)}</p>${a.is_default ? '<span class="badge green" style="margin-top:8px">Mặc định</span>' : ""}</div>`).join("") || '<p class="small-text muted">Chưa có địa chỉ. Thêm địa chỉ đầu tiên để đặt hàng.</p>'}</section></div>`
   );
 }
 async function cartPage() {
@@ -1373,6 +1385,7 @@ function go(url, replace = false) {
   renderRoute();
 }
 async function renderRoute() {
+  closeHeaderMenu();
   const version = ++state.route;
   state.motionCleanup?.();
   state.motionCleanup = null;
@@ -1431,7 +1444,7 @@ async function renderRoute() {
     else if (
       ["login", "register", "forgot", "reset", "verify"].includes(parts[0])
     )
-      content = authPage(parts[0]);
+      content = await authPage(parts[0]);
     else if (parts[0] === "account") content = await accountPage();
     else if (parts[0] === "cart") content = await cartPage();
     else if (parts[0] === "checkout") content = await checkoutPage();
@@ -1605,7 +1618,11 @@ function cartQuantity() {
     : state.cart_summary?.quantity || 0;
 }
 function cartBadge() {
-  $$(".head-icon .count").forEach((el) => (el.textContent = cartQuantity()));
+  $$(".head-icon .count").forEach((el) => {
+    const count = cartQuantity();
+    el.textContent = count > 99 ? "99+" : count;
+    el.hidden = !count;
+  });
 }
 function acceptCart(result) {
   state.cart = result.cart.items;
@@ -1789,7 +1806,14 @@ async function addToCart(buyNow = false) {
   if (buyNow) go("/cart");
   else toast("Đã thêm một chút niềm vui vào giỏ hàng.");
 }
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $(".header-account[open]")) {
+    e.preventDefault();
+    closeHeaderMenu(true);
+  }
+});
 document.addEventListener("click", async (e) => {
+  if (!e.target.closest(".header-account")) closeHeaderMenu();
   const a = e.target.closest("a");
   if (
     a &&
@@ -1904,8 +1928,13 @@ document.addEventListener("click", async (e) => {
       state.checkoutKey = "";
       go("/");
     } else if (action === "resend-verification") {
+      await ensureMeta(true);
+      if (!state.meta.email_configured) {
+        toast("Website chưa cấu hình dịch vụ gửi email. Email xác minh chưa thể gửi.");
+        return;
+      }
       await post("/auth/resend", { email: state.user.email });
-      toast("Đã ghi nhận yêu cầu gửi email.");
+      toast("Đã ghi nhận yêu cầu. Email sẽ được gửi sau khi hệ thống xử lý.");
     } else if (action === "older-messages") await olderMessages(button);
     else if (action === "start-chat") {
       if (!requireUser()) return;
@@ -2171,6 +2200,10 @@ document.addEventListener("submit", async (e) => {
       go((kind === "search" ? "/search" : location.pathname) + "?" + q);
     } else if (kind === "auth") {
       const type = form.dataset.kind;
+      if (type === "forgot") {
+        await ensureMeta(true);
+        if (!state.meta.email_configured) throw new Error("Website chưa cấu hình dịch vụ gửi email. Chưa thể gửi liên kết khôi phục.");
+      }
       const body = { ...data };
       if (type === "verify" || type === "reset")
         body.token = new URLSearchParams(location.search).get("token") || "";
@@ -2182,7 +2215,9 @@ document.addEventListener("submit", async (e) => {
         if (!next.startsWith("/") || next.startsWith("//")) next = "/";
         go(next);
       } else {
-        toast(result.message || "Thao tác thành công.");
+        toast(type === "register" && (!state.meta.email_configured || result.email_pending)
+          ? "Đã tạo tài khoản. Dịch vụ gửi email chưa được cấu hình nên thư xác minh chưa được gửi."
+          : result.message || "Thao tác thành công.");
         if (["register", "reset", "verify"].includes(type)) go("/login");
       }
     } else if (kind === "review-mail") {
