@@ -1006,6 +1006,11 @@ test("private bootstrap and checkout context bound reads without sharing identit
   const live = await guest.request("/live");
   assert.equal(live.data.ok, true);
   assert.match(live.headers.get("server-timing"), /db;dur=0\.000000/);
+  const closing = await guest.request("/live?connection=close");
+  assert.equal(closing.headers.get("connection"), "close");
+  assert.deepEqual(closing.data, live.data);
+  assert.match(closing.headers.get("cache-control"), /private.*no-store/);
+  assert.match(closing.headers.get("server-timing"), /db;dur=0\.000000/);
   const cart = await ok(buyer, "/cart");
   const addresses = await ok(buyer, "/addresses");
   const summary = await buyer.request("/auth/me?include=cart");

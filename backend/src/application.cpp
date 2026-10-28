@@ -754,6 +754,8 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
     try {
         validateMethod(req, res);
         if ((req.method == "GET" || req.method == "HEAD") && req.path == "/api/live") {
+            // Bounded transport diagnostic only; never changes customer API socket policy.
+            if (req.get_param_value("connection") == "close") res.set_header("Connection", "close");
             res.set_content(Json{{"ok", true}, {"engine", "C++20"}}.dump(), "application/json; charset=utf-8");
             return;
         }

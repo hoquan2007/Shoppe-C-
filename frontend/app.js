@@ -1367,6 +1367,9 @@ async function renderRoute() {
       );
   }
   $("#content").setAttribute("aria-busy", "true");
+  // The old view remains visible while loading, but must not accept actions
+  // for a route that is no longer current. Header navigation stays available.
+  $("#content").inert = true;
   const routeStarted = performance.now();
   const paintReady = hadView ? afterPaint() : Promise.resolve();
   const parts = location.pathname.split("/").filter(Boolean);
@@ -1474,6 +1477,7 @@ async function renderRoute() {
       `<div class="page-title"></div>${empty("Chưa thể mở trang", e.message, "/", "Về trang chủ")}`;
   } finally {
     if (version === state.route) {
+      if ($("#content")) $("#content").inert = false;
       $("#content")?.removeAttribute("aria-busy");
       $("#route-progress")?.remove();
       performance.clearMeasures("shoppe:route");

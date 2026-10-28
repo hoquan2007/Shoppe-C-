@@ -13,6 +13,7 @@ const { values } = parseArgs({ options: {
   modes: { type: 'string', default: 'h1-reuse,h1-new' },
   output: { type: 'string', default: 'artifacts/latency-probe.json' },
   credentials: { type: 'string' }, label: { type: 'string', default: 'manual' },
+  'transport-test': { type: 'boolean', default: false },
 } });
 const base = new URL(values.base);
 if (base.pathname !== '/' || base.search || base.hash || base.username || base.password)
@@ -29,7 +30,7 @@ const agent = new transport.Agent({ keepAlive: true, maxSockets: 1 });
 let h2, cookie = '', csrf = '', loggedIn = false, phase = 'initial';
 const rows = [];
 const elapsed = start => +(performance.now() - start).toFixed(3);
-const safePath = path => path.split('?')[0];
+const safePath = path => path === '/api/live?connection=close' ? path : path.split('?')[0];
 function rowFor(path, mode, start, headerAt, headers, status, bytes, phases) {
   return { phase, path: safePath(path), mode, status, totalMs: elapsed(start), ttfbMs: +(headerAt - start).toFixed(3),
     bodyMs: +(performance.now() - headerAt).toFixed(3), bytes, ...phases,
@@ -121,8 +122,9 @@ try {
     if (login.row.status !== 200) throw new Error('Temporary audit login failed');
     loggedIn = true;
   }
-  const paths = ['/', '/api/live', '/api/health', '/api/products?include=meta',
-    '/api/auth/me?include=cart', ...(loggedIn ? ['/api/cart', '/api/checkout/context'] : [])];
+  const paths = values['transport-test'] ? ['/', '/api/live', '/api/live?connection=close', '/api/auth/me?include=cart'] :
+    ['/', '/api/live', '/api/health', '/api/products?include=meta',
+      '/api/auth/me?include=cart', ...(loggedIn ? ['/api/cart', '/api/checkout/context'] : [])];
   // Deterministic seeded shuffle of complete mode/endpoint blocks reduces order bias.
   let seed = 28102026;
   phase = 'measured';
@@ -145,7 +147,7 @@ finally {
   let source; try { source = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch {}
   const report = { at: new Date().toISOString(), label: values.label, runnerSource: source, base: base.origin,
     scope: 'Sequential controlled lab; response bodies, cookies, CSRF and credentials are not stored. First origin read is not automatically cold. Private context may be empty; not buyer checkout readiness.',
-    samples, modes, seed: 28102026, failure: failure || null, groups: summary(), rows };
+    samples, modes, transportTest: values['transport-test'], seed: 28102026, failure: failure || null, groups: summary(), rows };
   await mkdir(new URL('../artifacts/', import.meta.url), { recursive: true });
   await writeFile(values.output, JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ output: values.output, failure: report.failure, groups: report.groups }, null, 2));

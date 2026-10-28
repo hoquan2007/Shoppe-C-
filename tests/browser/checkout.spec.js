@@ -23,6 +23,31 @@ const item = (variant_id, quantity = 1) => ({
   selected: true,
 });
 
+test("a pending route blocks old product actions and releases the current view", async ({ page }) => {
+  await session(page);
+  await page.goto("/product/product-1");
+  await expect(page.locator('[data-action="add-cart"]')).toBeEnabled();
+  let release, entered;
+  const gate = new Promise(resolve => release = resolve), started = new Promise(resolve => entered = resolve);
+  await page.route("**/api/cart", async route => {
+    const response = await route.fetch();
+    entered();
+    await gate;
+    await route.fulfill({ response }).catch(() => {});
+  });
+  await page.locator('header a[href="/cart"]').click();
+  try {
+    await started;
+    await expect(page.locator("#route-progress")).toBeVisible();
+    await expect(page.locator("#content")).toHaveAttribute("inert", "");
+    // Navigate away during the wait; the old request must not clear the new route's state.
+    await page.locator('header a[href="/"]').first().click();
+    await expect(page.locator("#content h1")).toBeVisible();
+    await expect(page.locator("#content")).not.toHaveAttribute("inert", "");
+  } finally { release(); }
+  await expect(page.locator("#route-progress")).toHaveCount(0);
+});
+
 test("a voucher edited during an in-flight quote cannot restore an old confirmation", async ({
   page,
 }) => {
