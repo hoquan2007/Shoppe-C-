@@ -4,7 +4,7 @@ test("public content and navigation survive an unavailable optional motion chunk
   await page.route("**/assets/motion-*.js", route => route.abort());
   await page.goto("/");
   await expect(page.locator(".market-copy h1")).toBeVisible();
-  await expect(page.locator(".stage-tile")).toHaveCount(4);
+  await expect(page.locator(".spiral-card")).toHaveCount(8);
   await page.locator('header a[href="/search"]').click();
   await expect(page.locator(".product-card")).toHaveCount(12);
   await page.locator('a[href="/product/product-1"]').first().click();
@@ -36,12 +36,6 @@ test("hero actions and catalog remain usable without horizontal overflow at phon
     await page.goto("/");
     await expect(page.locator(".market-copy .btn")).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-    const overlap = await page.locator(".stage-plane").evaluateAll(planes => planes.some(plane => {
-      const art = plane.querySelector(".stage-art").getBoundingClientRect();
-      const caption = plane.querySelector(".stage-caption").getBoundingClientRect();
-      return art.bottom > caption.top + 1;
-    }));
-    expect(overlap).toBe(false);
     await page.locator('header a[href="/search"]').click();
     await expect(page.locator(".product-card")).toHaveCount(12);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -54,23 +48,38 @@ test("hero actions and catalog remain usable without horizontal overflow at phon
   }
 });
 
-test("leaving a moving hero restores its old DOM styles and reduced-motion restores the active scene", async ({ page }) => {
+test("spiral pauses, stops offscreen, restores on preference change and cleans up on navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.locator(".stage-plane").first()).toBeVisible();
-  await page.mouse.move(800, 400);
-  await page.mouse.wheel(0, 350);
-  const oldPlane = await page.locator(".stage-plane").first().elementHandle();
-  await expect.poll(() => oldPlane.evaluate(node => node.style.transform)).not.toBe("");
+  const stage = page.locator(".infinite-spiral");
+  const card = page.locator(".spiral-card").first();
+  await expect(stage).toHaveClass(/is-spiraling/);
+  const before = await card.getAttribute("style");
+  await expect.poll(() => card.getAttribute("style")).not.toBe(before);
+  await page.getByRole("button", { name: "Tạm dừng chuyển động" }).click();
+  await page.mouse.move(0, 0);
+  const paused = await card.getAttribute("style");
+  await page.waitForTimeout(150);
+  expect(await card.getAttribute("style")).toBe(paused);
+  await page.getByRole("button", { name: "Tiếp tục chuyển động" }).click();
+  await page.locator(".market-copy .btn").focus();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => card.getAttribute("style")).not.toBe(paused);
+  await page.locator(".footer").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
+  const offscreen = await card.getAttribute("style");
+  await page.waitForTimeout(150);
+  expect(await card.getAttribute("style")).toBe(offscreen);
+  await page.locator(".market-copy .btn").scrollIntoViewIfNeeded();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(stage).not.toHaveClass(/is-spiraling/);
+  expect(await card.getAttribute("style")).toBeNull();
+  await expect(card).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(stage).toHaveClass(/is-spiraling/);
+  const oldCard = await card.elementHandle();
   await page.locator('header a[href="/search"]').click();
   await expect(page.locator(".product-card")).toHaveCount(12);
-  expect(await oldPlane.evaluate(node => ({ connected: node.isConnected, transform: node.style.transform })))
-    .toEqual({ connected: false, transform: "" });
-  await page.locator('header a[href="/"]').first().click();
-  await expect(page.locator(".stage-plane").first()).toBeVisible();
-  await page.mouse.wheel(0, 350);
-  await expect.poll(() => page.locator(".stage-plane").first().evaluate(node => node.style.transform)).not.toBe("");
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect.poll(() => page.locator(".stage-plane").first().evaluate(node => node.style.transform)).toBe("");
-  await expect(page.locator(".market-copy h1")).toBeVisible();
+  expect(await oldCard.evaluate(node => ({ connected: node.isConnected, style: node.getAttribute("style") })))
+    .toEqual({ connected: false, style: null });
 });

@@ -9,7 +9,7 @@
     "build": "vite build",
     "test": "node --test tests/api.test.mjs tests/frontend-api.test.mjs tests/cart-state.test.mjs tests/google-session.test.mjs tests/latency-probe.test.mjs tests/public-navigation.test.mjs",
     "test:browser": "playwright test",
-    "check": "node --check frontend/app.js && node --check frontend/api.js && node --check frontend/cart-state.js && node --check frontend/performance.js && node --check frontend/google-session.js && node --check frontend/render-scheduling.js && node --check frontend/motion.js",
+    "check": "node --check frontend/app.js && node --check frontend/api.js && node --check frontend/cart-state.js && node --check frontend/performance.js && node --check frontend/google-session.js && node --check frontend/render-scheduling.js && node --check frontend/motion.js && node --check frontend/spiral.js",
     "preflight": "node scripts/preflight.mjs",
     "services:check": "node scripts/check-services.mjs",
     "catalog:refresh": "node scripts/refresh-demo-catalog.mjs",

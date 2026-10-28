@@ -1,0 +1,11 @@
+# Infinite Spiral — 28/10/2026
+
+Replaces only the home hero image composition requested by the user. Adapted supplied React InfiniteSpiral math to the existing vanilla frontend; no React/Three.js dependency. Eight real catalog items, looping sine/cosine depth projection, edge fade and scale. Avoid reference's per-frame blur; transform and opacity carry motion.
+
+Configuration in home() markup: data-speed=0.32 (items/second), data-depth=140 (px), data-spacing=66 (px), data-cards-per-turn=6, data-perspective=1000 (px). Values clamped by spiral.js. No tuning panel in customer shopping flow. Images link to actual detail pages; accessible product names retained when moving captions are hidden.
+
+Pause: explicit button, mouse hover, keyboard focus; focused product is brought to center. Suspend RAF outside viewport and when document hidden. Reduced motion/save-data/2G/failed optional module preserve a four-item static gallery. Media preference change and route exit restore DOM styles, disconnect observers/listeners and cancel RAF. No drag gesture captures phone scrolling. No new API/polling, service or paid plan.
+
+Local verification: syntax, secret scan, build, 59 API/JS tests, 24 Chromium regressions pass. Regression verifies actual movement, pause/resume, offscreen suspension, reduced-motion restoration and detached DOM cleanup; existing checkout/header/catalog tests remain. CUA visual checks at 390/768/1440px with actual catalog images. No document horizontal overflow. Static linked fallback tested when motion chunk fails/reduced motion/save-data. Optional chunk 117.53kB raw/46.72gzip (was115.85/45.89); main123.77/39.95 (was123.48/39.85). No claim of measured 60fps or resolved backend cold start.
+
+Deployment will use CI -> Preview -> separate Production. Prior Production dpl_BJACxi8ns6WmjuavrBHzFomsayNm, source13dcba170bf5fb9f8bb47d933383d79d14f86010 retained for rollback. Registry full: old temporary Preview dpl_HoJJMFJhP7wbT5JWUq373WCTcn9i sourceebbc8137955823d8b80f784a1f446d37e433d340 confirmed targetnull; its build log digest71c9a7a7f584b4620546e368f03bddb616ec66f4620fb4f748007c456f404a37 matches image_G544JDrb8CVsr0Olhj2YlFZMNvWc. Only that obsolete Preview image is disposable, not the separate ebbc813 Production image.

@@ -11,3 +11,6 @@ Use the semantic tokens in frontend/tokens.css. One self-hosted variable family 
 Motion uses opacity and transforms only. GSAP loads dynamically after the route commits; it never delays API reads, session restoration, checkout quotes or enabling an action. Kill/revert all route animations on navigation. Use one bounded hero depth scene, one-shot grouped reveals, photo hover and press feedback. Native scrolling only: no scroll hijack, pinned empty spans, autoplay video, perpetual loops or WebGL at startup. Respect reduced-motion, Save-Data and coarse pointers.
 
 Three.js skills are installed for future appropriate 3D work; the current catalog has photos rather than 3D assets, so this redesign does not ship a renderer solely as decoration.
+
+## Infinite Spiral — 2026-10-28
+User replaces the four-photo hero composition with a looping image helix. Preserve warm orange copy/actions and real catalog links. Adapt supplied React reference to optional vanilla motion; eight bounded cards, transforms/opacity, no dynamic blur or added renderer. Pause on hover/focus, explicit pause, offscreen/hidden suspension, reduced-motion/save-data static fallback, cleanup on route exit. Configure speed, depth, spacing, cards-per-turn and perspective through hero data attributes; no technical tuning panel in the storefront.

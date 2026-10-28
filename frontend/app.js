@@ -463,11 +463,11 @@ async function home() {
     accessory = pick("Phụ kiện");
   const heroTitle =
     meta.settings?.banner_title || "Một chút mới. Thêm nhiều vui.";
-  const stageProducts = [featured, homeProduct, accessory, pick("Thời trang")]
-    .filter((product, index, list) => product && list.findIndex(item => item?.id === product.id) === index);
-  const featureImage = `<div class="product-stage">${stageProducts.map((product, index) =>
-    `<div class="stage-plane"><a class="stage-tile" href="/product/${esc(product.id)}"><div class="stage-art"><img src="${image(product.image)}" alt="${esc(product.name)}" width="240" height="220" decoding="async" ${index === 0 ? 'fetchpriority="high"' : 'loading="eager"'}></div><span class="stage-caption">${esc(product.name)}</span></a></div>`
-  ).join("")}</div>`;
+  const stageProducts = [featured, homeProduct, accessory, pick("Thời trang"), ...products]
+    .filter((product, index, list) => product && list.findIndex(item => item?.id === product.id) === index).slice(0, 8);
+  const featureImage = `<div class="infinite-spiral" data-speed="0.32" data-depth="140" data-spacing="66" data-cards-per-turn="6" data-perspective="1000"><div class="spiral-stage" role="list" aria-label="Bộ sưu tập sản phẩm">${stageProducts.map((product, index) =>
+    `<div class="spiral-card" role="listitem"><a href="/product/${esc(product.id)}" aria-label="${esc(product.name)}" title="${esc(product.name)}"><img src="${image(product.image)}" alt="" width="180" height="150" decoding="async" ${index === 0 ? 'fetchpriority="high"' : 'loading="eager"'}><span>${esc(product.name)}</span></a></div>`
+  ).join("")}</div><button class="spiral-toggle" type="button" aria-pressed="false">Tạm dừng chuyển động</button></div>`;
   const promo = (product, category, heading, text) =>
     `<a class="market-promo" href="/search?category=${encodeURIComponent(category)}"><div><h2>${heading}</h2><span>${text}</span></div>${product ? `<img src="${image(product.image)}" alt="${esc(product.name)}" width="200" height="200">` : ""}</a>`;
   return `<section class="market-hero"><div class="market-lead"><div class="market-copy"><h1>${esc(heroTitle)}</h1><p>${esc(meta.settings?.banner_subtitle || "Khám phá những món đồ bạn yêu, từ những shop bạn tin.")}</p><a class="btn" href="/search">Khám phá ngay</a></div>${featureImage}</div></section><section class="category-section"><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục</a></div><div class="market-categories">${categories
