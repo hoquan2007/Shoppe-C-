@@ -23,6 +23,48 @@ const item = (variant_id, quantity = 1) => ({
   selected: true,
 });
 
+test("public link intent shares one held request with navigation", async ({ page }) => {
+  await page.goto("/search");
+  await expect(page.locator("#content h1")).toBeVisible();
+  let release, entered, reads = 0;
+  const gate = new Promise(resolve => release = resolve);
+  const started = new Promise(resolve => entered = resolve);
+  await page.route("**/api/products/product-1?view=public", async route => {
+    reads++;
+    const response = await route.fetch();
+    entered();
+    await gate;
+    await route.fulfill({ response }).catch(() => {});
+  });
+  const link = page.locator('a[href="/product/product-1"]').first();
+  await link.hover();
+  await started;
+  try {
+    await expect(page.locator("#content")).not.toHaveAttribute("inert", "");
+    await link.click();
+    await expect(page).toHaveURL(/\/product\/product-1$/);
+  } finally { release(); }
+  await expect(page.locator('[data-action="add-cart"]')).toBeVisible();
+  expect(reads).toBe(1);
+});
+
+test("save-data users do not issue speculative public requests", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "connection", {
+    configurable: true, value: { saveData: true, effectiveType: "4g" },
+  }));
+  let reads = 0;
+  page.on("request", request => { if (request.url().includes("/api/products/product-1?")) reads++; });
+  await page.goto("/search");
+  const link = page.locator('a[href="/product/product-1"]').first();
+  await link.hover();
+  // Wait beyond the 160 ms intent delay: this is an absence assertion.
+  await page.waitForTimeout(240);
+  expect(reads).toBe(0);
+  await link.click();
+  await expect(page.locator('[data-action="add-cart"]')).toBeVisible();
+  expect(reads).toBe(1);
+});
+
 test("a pending route blocks old product actions and releases the current view", async ({ page }) => {
   await session(page);
   await page.goto("/product/product-1");

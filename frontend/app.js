@@ -5,6 +5,7 @@ import { createApiClient } from "./api.js";
 import { createCartWriter, readSettledCart, createCartBootstrap } from "./cart-state.js";
 import { createGoogleSession } from "./google-session.js";
 import { afterPaint } from "./render-scheduling.js";
+import { installNavigationIntent } from "./navigation-intent.js";
 
 const state = {
   user: null,
@@ -149,7 +150,8 @@ function toast(message) {
   clearTimeout(state.toastTimer);
   state.toastTimer = setTimeout(() => el.classList.remove("show"), 4300);
 }
-const { api, freshUntil } = createApiClient({ state, observe: recordApi });
+const { api, freshUntil, prefetch } = createApiClient({ state, observe: recordApi });
+installNavigationIntent(prefetch);
 async function ensureMeta(fresh = false) {
   const available = Array.isArray(state.meta.categories);
   if (

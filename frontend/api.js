@@ -37,6 +37,23 @@ export function canonicalApiPath(path) {
   return pathname + (params.size ? "?" + params : "");
 }
 
+export const isPublicRead = (path) =>
+  /^\/(meta|home|products)(?:\?|$)/.test(path) ||
+  (/^\/products\/[^/?]+(?:\?|$)/.test(path) &&
+    new URLSearchParams(path.split("?")[1]).get("view") === "public");
+
+// Navigation may stop waiting without cancelling a bounded speculative read
+// that another navigation can still consume.
+function waitForRead(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new DOMException("Aborted", "AbortError"));
+    signal.addEventListener("abort", abort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+  });
+}
+
 export function createApiClient({
   state,
   fetcher = (...args) => fetch(...args),
@@ -68,7 +85,7 @@ export function createApiClient({
     const method = options.method || "GET";
     const started = now(),
       deadline = started + timeoutMs;
-    for (let attempt = 0; attempt < (method === "GET" ? 2 : 1); attempt++) {
+    for (let attempt = 0; attempt < (method === "GET" && !options.prefetch ? 2 : 1); attempt++) {
       const remaining = deadline - now();
       if (remaining <= 0)
         throw Object.assign(
@@ -90,6 +107,7 @@ export function createApiClient({
           {
             ...options,
             method,
+            priority: options.prefetch ? "low" : publicRead ? "high" : "auto",
             credentials: publicRead ? "omit" : "same-origin",
             signal: controller.signal,
             headers: {
@@ -146,7 +164,7 @@ export function createApiClient({
         }
         if (
           attempt ||
-          method !== "GET" ||
+          method !== "GET" || options.prefetch ||
           (error.status && ![502, 503, 504].includes(error.status))
         )
           throw error;
@@ -166,10 +184,7 @@ export function createApiClient({
     const path = canonicalApiPath(rawPath),
       method = options.method || "GET";
     const publicRead =
-      method === "GET" &&
-      (/^\/(meta|home|products)(?:\?|$)/.test(path) ||
-        (/^\/products\/[^/?]+(?:\?|$)/.test(path) &&
-          new URLSearchParams(path.split("?")[1]).get("view") === "public"));
+      method === "GET" && isPublicRead(path);
     const routeRead =
       method === "GET" && !/^\/(auth\/me|meta)(?:\?|$)/.test(path);
     const signal =
@@ -199,11 +214,18 @@ export function createApiClient({
     if (
       existing &&
       existing.epoch === version &&
-      existing.signal === signal &&
+      (existing.signal === signal || existing.prefetch) &&
       !signal?.aborted
     ) {
       report({ path, source: "shared" });
-      return structuredClone(await existing.promise);
+      try {
+        return structuredClone(await waitForRead(existing.promise, signal));
+      } catch (error) {
+        if (!existing.prefetch || signal?.aborted || error.name === "AbortError") throw error;
+        // A failed speculative read must not consume navigation's normal retry budget.
+        if (pending.get(path) === existing) pending.delete(path);
+        return api(rawPath, options);
+      }
     }
     const promise = transport(
       path,
@@ -222,7 +244,7 @@ export function createApiClient({
       if (affectsCatalog) invalidate();
       return data;
     });
-    const entry = { promise, signal, epoch: version };
+    const entry = { promise, signal, epoch: version, prefetch: !!options.prefetch };
     if (publicRead) pending.set(path, entry);
     try {
       return await promise;
@@ -230,8 +252,21 @@ export function createApiClient({
       if (pending.get(path) === entry) pending.delete(path);
     }
   }
+  let speculative = false, budget = 4;
   return {
     api,
+    async prefetch(rawPath) {
+      const path = canonicalApiPath(rawPath);
+      if (!isPublicRead(path) || speculative || budget <= 0 || pending.has(path) ||
+          cache.get(path)?.until > now()) return false;
+      speculative = true;
+      budget--;
+      try {
+        await api(path, { background: true, prefetch: true });
+        return true;
+      } catch { return false; }
+      finally { speculative = false; }
+    },
     invalidate,
     freshUntil: (path) => cache.get(canonicalApiPath(path))?.until || 0,
   };
