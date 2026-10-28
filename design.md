@@ -2,7 +2,7 @@
 
 User direction: “Cam ấm, cửa hàng tuyển chọn, chuyển động tinh tế”.
 
-The site is a Vietnamese marketplace. Lead with real catalog products and their existing names, prices, availability and shop links. Keep every existing route, form, data attribute and checkout/session/cart invariant. Demo and payment notices remain verbatim. Do not invent social proof, sales counts or discounts.
+The site is a Vietnamese marketplace. Lead with real catalog products and their existing names, prices, availability and shop links. Keep every existing route, form, data attribute and checkout/session/cart invariant. The user requested removal of demo captions from product images/cards on 2026-10-28; these captions are removed. Catalog and payment disclosures remain in product information. Do not invent social proof, sales counts or discounts.
 
 The visual direction is a specimen catalogue: generous flat fields, a varied product composition in the hero, readable item names and warm orange actions. The useful interaction is browsing/searching/filtering real products. Public pages can be expressive; cart, checkout and workspaces stay quiet and legible.
 
