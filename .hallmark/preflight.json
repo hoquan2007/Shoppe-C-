@@ -1,0 +1,13 @@
+{
+  "scanned": "2026-10-28",
+  "findings": {
+    "fonts": "frontend/tokens.css:3 system Segoe UI stack; replacing with self-hosted Vietnamese variable Manrope",
+    "palette": "frontend/tokens.css:2 orange identity, warm palette chosen by user",
+    "framework": "Vite and vanilla JS, frontend/app.js; C++ backend kept",
+    "motion": "CSS interactions only before redesign; adding lazy GSAP 3.15.0",
+    "assets": "Real catalog/category previews from existing APIs; no invented proof",
+    "constraints": "Existing Vercel/Supabase infrastructure; private APIs no-store; preserve cart/quote races"
+  },
+  "preserve": ["routes", "commerce logic", "form fields and hooks", "demo/payment notices", "orange identity"],
+  "introduce": ["specimen catalogue composition", "warm semantic tokens", "self-hosted variable font", "bounded route-aware motion"]
+}

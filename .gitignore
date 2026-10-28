@@ -12,3 +12,4 @@ node_modules/
 *.log
 test-results/
 artifacts/
+.taste-skill/

@@ -1,0 +1,7 @@
+before/
+after/
+inspect/
+*.png
+*.jpg
+before.json
+before.txt

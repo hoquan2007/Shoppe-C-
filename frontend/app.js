@@ -1,5 +1,7 @@
 import "./style.css";
 import "./redesign.css";
+import "./fonts.css";
+import "./curated.css";
 import { recordRoute, recordApi } from "./performance.js";
 import { createApiClient } from "./api.js";
 import { createCartWriter, readSettledCart, createCartBootstrap } from "./cart-state.js";
@@ -445,19 +447,21 @@ async function home() {
     accessory = pick("Phụ kiện");
   const heroTitle =
     meta.settings?.banner_title || "Một chút mới. Thêm nhiều vui.";
-  const featureImage = featured
-    ? `<a class="market-object" href="/product/${esc(featured.id)}"><img src="${image(featured.image)}" alt="${esc(featured.name)}" width="520" height="520" fetchpriority="high"><span>${esc(featured.name)}</span></a>`
-    : "";
+  const stageProducts = [featured, homeProduct, accessory, pick("Thời trang")]
+    .filter((product, index, list) => product && list.findIndex(item => item?.id === product.id) === index);
+  const featureImage = `<div class="product-stage">${stageProducts.map((product, index) =>
+    `<div class="stage-plane"><a class="stage-tile" href="/product/${esc(product.id)}"><div class="stage-art"><img src="${image(product.image)}" alt="${esc(product.name)}" width="240" height="220" decoding="async" ${index === 0 ? 'fetchpriority="high"' : 'loading="eager"'}></div><span class="stage-caption">${esc(product.name)}</span></a></div>`
+  ).join("")}</div>`;
   const promo = (product, category, heading, text) =>
     `<a class="market-promo" href="/search?category=${encodeURIComponent(category)}"><div><h2>${heading}</h2><span>${text}</span></div>${product ? `<img src="${image(product.image)}" alt="${esc(product.name)}" width="200" height="200">` : ""}</a>`;
-  return `<section class="market-hero"><div class="market-lead"><div class="market-copy"><h1>${esc(heroTitle)}</h1><p>${esc(meta.settings?.banner_subtitle || "Khám phá những món đồ bạn yêu, từ những shop bạn tin.")}</p><a class="btn" href="/search">Khám phá ngay</a></div>${featureImage}</div><div class="market-side">${promo(homeProduct, "Nhà cửa & Đời sống", "Đồ xinh cho góc nhỏ của bạn.", "Tìm cảm hứng")}${promo(accessory, "Phụ kiện", "Phụ kiện nhỏ. Trải nghiệm lớn.", "Xem bộ sưu tập")}</div></section><section class="category-section"><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục</a></div><div class="market-categories">${categories
+  return `<section class="market-hero"><div class="market-lead"><div class="market-copy"><h1>${esc(heroTitle)}</h1><p>${esc(meta.settings?.banner_subtitle || "Khám phá những món đồ bạn yêu, từ những shop bạn tin.")}</p><a class="btn" href="/search">Khám phá ngay</a></div>${featureImage}</div></section><section class="category-section"><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục</a></div><div class="market-categories">${categories
     .map((c) => {
       const product = pick(c);
       return `<a class="market-category" href="/search?category=${encodeURIComponent(c)}">${product ? `<img src="${image(product.image)}" alt="" width="80" height="80" loading="lazy">` : icon(categoryIcons[c] || "grid", 24)}<span>${esc(c)}</span></a>`;
     })
     .join(
       "",
-    )}</div></section><section class="home-catalog"><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="catalog-more"><a class="btn outline" href="/search">Khám phá thêm</a></div></section><div class="benefits">${[
+    )}</div></section><div class="market-side">${promo(homeProduct, "Nhà cửa & Đời sống", "Đồ xinh cho góc nhỏ của bạn.", "Tìm cảm hứng")}${promo(accessory, "Phụ kiện", "Phụ kiện nhỏ. Trải nghiệm lớn.", "Xem bộ sưu tập")}</div><section class="home-catalog"><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="catalog-more"><a class="btn outline" href="/search">Khám phá thêm</a></div></section><div class="benefits">${[
     ["truck", "Giao hàng tiện lợi", "Theo dõi từng bước hành trình"],
     ["shield", "Thanh toán an tâm", "payOS & thanh toán khi nhận hàng"],
     ["return", "Đổi trả dễ dàng", "Yêu cầu trả hàng trong 7 ngày"],
@@ -1370,6 +1374,8 @@ function go(url, replace = false) {
 }
 async function renderRoute() {
   const version = ++state.route;
+  state.motionCleanup?.();
+  state.motionCleanup = null;
   state.quoteController?.abort();
   state.quoteRevision = (state.quoteRevision || 0) + 1;
   state.quote = null;
@@ -1510,8 +1516,24 @@ async function renderRoute() {
         detail: { path: location.pathname },
       });
       recordRoute(location.pathname, performance.now() - routeStarted);
+      scheduleRouteMotion(version);
     }
   }
+}
+let motionModule;
+function scheduleRouteMotion(version) {
+  if (!/^\/(?:search|product\/[^/]+|shop\/[^/]+)?$/.test(location.pathname) ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches || navigator.connection?.saveData ||
+      /(^|-)2g$/.test(navigator.connection?.effectiveType || ""))
+    return;
+  requestAnimationFrame(() => {
+    if (version !== state.route) return;
+    motionModule ||= import("./motion.js").catch(() => null);
+    void motionModule.then(module => {
+      if (module && version === state.route && !document.hidden)
+        state.motionCleanup = module.mountMotion($("#content"));
+    });
+  });
 }
 function schedulePoll(version, task, delay = 7000) {
   state.timer = setTimeout(async () => {

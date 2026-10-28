@@ -1969,8 +1969,8 @@ dialog::backdrop {
   inset: 0 0 auto;
   z-index: 100;
   padding: 6px 16px;
-  background: var(--accent, #ee542e);
-  color: #fff;
+  background: var(--accent, var(--legacy-color-ee542e));
+  color: var(--surface);
   font-size: 13px;
   text-align: center;
 }
