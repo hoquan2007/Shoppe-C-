@@ -1,13 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "proxy": {
-    "entrypoint": "proxy.js",
-    "matcher": "/api/auth/me"
-  },
   "env": {
     "PORT": "8080"
   },
   "services": {
+    "guest": {
+      "root": "guest-session",
+      "entrypoint": "server.js"
+    },
     "shoppe": {
       "root": ".",
       "runtime": "container",
@@ -28,6 +28,11 @@
     }
   },
   "rewrites": [
+    {
+      "source": "/api/auth/me",
+      "missing": [{ "type": "cookie", "key": "shoppe_session" }],
+      "destination": { "service": "guest" }
+    },
     {
       "source": "/api/(.*)",
       "destination": {

@@ -1,15 +1,51 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import proxy from "../proxy.js";
+import { readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import http from "node:http";
+import { guestSession } from "../guest-session/handler.js";
 import { publicRouteApi } from "../frontend/navigation-intent.js";
 import { createApiClient } from "../frontend/api.js";
 const request = (path = "/api/auth/me?include=cart", options = {}) =>
   new Request("https://shoppec.vercel.app" + path, options);
 const response = () => ({ ok: true, headers: new Headers(), json: async () => ({ products: [] }) });
 
+test("native guest HTTP server preserves HEAD, rejects writes and fails closed on cookies", async () => {
+  const child = spawn(process.execPath, ["guest-session/server.js"], {
+    env: { ...process.env, PORT: "0" }, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
+  });
+  try {
+    const port = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Guest server startup timeout")), 5000);
+      child.once("error", reject);
+      child.stdout.once("data", chunk => { clearTimeout(timer); resolve(JSON.parse(chunk).port); });
+    });
+    const send = (method, cookie = "", path = "/api/auth/me?include=checkout") => new Promise((resolve, reject) => {
+      const req = http.request({ hostname: "127.0.0.1", port, path, method, headers: { cookie } }, res => {
+        let body = "";
+        res.on("data", chunk => body += chunk);
+        res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, body }));
+      });
+      req.on("error", reject); req.end();
+    });
+    const get = await send("GET");
+    assert.equal(get.status, 200);
+    assert.equal(get.headers["cache-control"], "private, no-store");
+    assert.deepEqual(JSON.parse(get.body), {user:null, csrf:"", shop:null, cart_summary:{quantity:0,revision:0}});
+    assert.equal((await send("HEAD")).body, "");
+    for (const method of ["POST", "PUT", "TRACE"]) {
+      const result = await send(method);
+      assert.equal(result.status, 405);
+      assert.equal(result.headers.allow, "GET, HEAD");
+    }
+    assert.equal((await send("GET", "shoppe_session=invalid")).status, 503);
+    assert.equal((await send("GET", "", "/api/cart")).status, 404);
+  } finally { child.kill(); }
+});
+
 test("guest routing preserves no-store contracts and never authenticates cookie holders", async () => {
   for (const include of ["", "cart", "cart-view", "checkout", "unknown"]) {
-    const result = proxy(request("/api/auth/me?include=" + include));
+    const result = guestSession(request("/api/auth/me?include=" + include));
     assert.equal(result.status, 200);
     assert.equal(result.headers.get("cache-control"), "private, no-store");
     assert.equal(result.headers.get("set-cookie"), null);
@@ -19,13 +55,20 @@ test("guest routing preserves no-store contracts and never authenticates cookie 
     assert.equal(!!data.cart_summary, ["cart", "cart-view", "checkout"].includes(include));
   }
   for (const cookie of ["shoppe_session=" + "a".repeat(64), "shoppe_session=expired", "other=1; shoppe_session="]) {
-    const result = proxy(request(undefined, { headers: { cookie } }));
-    assert.equal(result.headers.get("x-middleware-next"), "1");
-    assert.equal(result.headers.get("x-session-source"), null);
+    const result = guestSession(request(undefined, { headers: { cookie } }));
+    assert.equal(result.status, 503);
+    assert.equal((await result.json()).user, undefined);
   }
-  assert.equal(await proxy(request(undefined, { method: "HEAD" })).text(), "");
-  for (const req of [request(undefined, { method: "POST" }), request("/api/cart")])
-    assert.equal(proxy(req).headers.get("x-middleware-next"), "1");
+  assert.equal(await guestSession(request(undefined, { method: "HEAD" })).text(), "");
+  assert.equal(guestSession(request(undefined, { method: "POST" })).status, 405);
+  assert.equal(guestSession(request("/api/cart")).status, 404);
+  const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url)));
+  assert.equal(config.proxy, undefined);
+  assert.deepEqual(config.rewrites[0], {
+    source: "/api/auth/me", missing: [{ type: "cookie", key: "shoppe_session" }],
+    destination: { service: "guest" },
+  });
+  assert.deepEqual(config.rewrites[1], {source: "/api/(.*)",destination:{service:"shoppe"}});
 });
 
 test("intent maps only public pages to the same canonical route reads", () => {

@@ -1,0 +1,6 @@
+{
+  "name": "shoppe-guest-session",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "24.x" }
+}
