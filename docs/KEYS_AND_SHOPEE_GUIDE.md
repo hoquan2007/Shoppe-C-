@@ -25,7 +25,7 @@ Danh sách đầy đủ API ứng dụng: [API_CURRENT.md](API_CURRENT.md). Tên
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET` | Đã cấu hình; bucket `product-images`                 | Chưa cần tạo thêm key cho upload hiện tại                                                                 |
 | `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`  | Đã cấu hình; đọc API được chấp nhận                  | Kiểm tra đúng kênh, đúng tài khoản ngân hàng; đăng ký webhook và hoàn thành một vòng demo có chuyển khoản |
 | `APP_URL`, `APP_ENV`, `CRON_SECRET`                       | Đã cấu hình cho domain hiện tại                      | Cập nhật APP_URL và webhook khi đổi domain; CRON_SECRET không đưa vào frontend                            |
-| `RESEND_API_KEY`, `EMAIL_FROM`                            | **Còn thiếu**                                        | Tạo Resend, xác minh domain gửi email, tạo key có quyền gửi                                               |
+| `RESEND_API_KEY`, `EMAIL_FROM`                            | **Key đã lưu; thiếu sender/domain**                  | Thử provider đã delivered; cần xác minh domain và EMAIL_FROM, xem RESEND_SETUP_2026_10_28.md                                               |
 | Key Shopee                                                | **Chưa cấu hình; connector chưa triển khai**         | Kiểm tra điều kiện/quyền sử dụng dữ liệu ở phần 4 trước khi xin key                                       |
 
 Không cần Supabase anon key cho kiến trúc hiện tại: người dùng đăng nhập bằng hệ thống C++ và frontend gọi API cùng website. Service key chỉ được giữ trên server. Không thêm service key hoặc khóa thanh toán vào biến có tiền tố `VITE_`.
