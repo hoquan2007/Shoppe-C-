@@ -1,0 +1,32 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "shape": "specimen-catalogue",
+  "theme": "brand",
+  "axes": "gallery; split hero; flat fields; variable photos; comparison grid; seller close",
+  "hero": "asymmetric unframed product planes",
+  "nav": "commerce search masthead and mobile bottom navigation",
+  "footer": "quiet dark commerce destinations",
+  "imagery": "existing real catalog photos",
+  "photos": [],
+  "entry": "search and discover",
+  "fingerprint": "split lead / varied product planes / category rail / two collection panels / four-column catalog / seller band",
+  "sections": [
+   "hero",
+   "categories",
+   "collections",
+   "catalog",
+   "benefits",
+   "seller",
+   "footer"
+  ],
+  "signature": "considered everyday products with bounded depth",
+  "waived": [
+   59,
+   78
+  ],
+  "prompt": "Cam ấm, cửa hàng tuyển chọn, chuyển động tinh tế",
+  "date": "2026-10-28"
+ }
+]

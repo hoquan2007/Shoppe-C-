@@ -1,5 +1,5 @@
 /* Hallmark · redesign: full · theme: brand · genre: editorial · shape: specimen catalogue · scope: app · vibe: warm orange considered everyday objects · hero: layered product collection · signature: products at different depths · posture: quiet ground, orange action · v2.0.0 */
-/* Critique: preserve real commerce controls; increase image/type scale, remove boxed repetition, keep motion optional. hero-review: fix · 3 findings · 3 resolved in recapture (varied unframed planes, larger lead photo, compact mobile stage). Finish review pending. */
+/* Critique: preserve real commerce controls; increase image/type scale, remove boxed repetition, keep motion optional. hero-review: subagent, 3 resolved. finish-review: subagent, 1 resolved (inherited empty grid row removed; recapture and DOM confirm one row). Static gates: 0 FAIL, 0 REFLEX, 9 WARN; CUA visual review separate from render tier. */
 /* waive: 59 — a working catalogue uses compact category navigation and repeated product rows, with larger section breaks around editorial collections. */
 /* waive: 78 — catalog and checkout headings serve product comparison and forms; marketing display scale is limited to the hero and collection headings. */
 html, body { overflow-x: clip; scrollbar-color: var(--control-border) var(--bg); }
@@ -73,7 +73,7 @@ p { text-wrap: pretty; }
 .market-category span { font-size: 13px; color: var(--ink); line-height: 1.5; text-align: center; }
 .market-category:hover { background: transparent; }
 .market-category:hover img { transform: translateY(-4px); }
-.market-side { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin: 0 0 88px; }
+.market-side { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: auto; gap: 24px; margin: 0 0 88px; }
 .market-promo { min-height: 258px; padding: 36px; border-radius: var(--radius-lg); background: var(--field-sage); display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr); align-items: center; gap: 16px; overflow: clip; }
 .market-promo:nth-child(2) { background: var(--field-peach); }
 .market-promo h2 { font-size: clamp(25px,2.3vw,34px); line-height: 1.25; max-width: 11ch; }
