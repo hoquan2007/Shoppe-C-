@@ -624,8 +624,35 @@ async function productPage(id) {
 async function shopPage(id) {
   return searchPage(id);
 }
-async function authPage(kind) {
-  if (kind === "forgot" || kind === "register") await ensureMeta(true);
+function emailAvailabilityText(kind, configured) {
+  if (typeof configured !== "boolean") return "Đang kiểm tra dịch vụ gửi email…";
+  if (configured) return "";
+  return "Website chưa cấu hình dịch vụ gửi email. " + (kind === "forgot"
+    ? "Chưa thể gửi liên kết khôi phục mật khẩu."
+    : "Bạn vẫn có thể tạo tài khoản; email xác minh sẽ chưa được gửi.");
+}
+async function syncAuthEmail(version) {
+  const form = $('[data-form="auth"]');
+  const kind = form?.dataset.kind;
+  if (!["register", "forgot"].includes(kind)) return;
+  const notice = $(".email-unavailable");
+  const retry = $('[data-action="retry-email-status"]');
+  try {
+    const meta = await ensureMeta(true);
+    if (version !== state.route || !form.isConnected) return;
+    notice.textContent = emailAvailabilityText(kind, meta.email_configured);
+    notice.hidden = !!meta.email_configured;
+    retry.hidden = true;
+    if (kind === "forgot" && form.getAttribute("aria-busy") !== "true") $("button[type=submit]", form).disabled = !meta.email_configured;
+  } catch {
+    if (version !== state.route || !form.isConnected) return;
+    notice.textContent = "Chưa thể kiểm tra dịch vụ gửi email. Bạn có thể thử lại.";
+    notice.hidden = false;
+    retry.hidden = false;
+    if (kind === "forgot") $("button[type=submit]", form).disabled = true;
+  }
+}
+function authPage(kind) {
   const register = kind === "register",
     forgot = kind === "forgot",
     reset = kind === "reset",
@@ -639,7 +666,7 @@ async function authPage(kind) {
         : verify
           ? "Xác minh email"
           : "Rất vui gặp lại bạn.";
-  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p>${(forgot || register) && !state.meta.email_configured ? '<p class="notice email-unavailable" role="status">Website chưa cấu hình dịch vụ gửi email. ' + (forgot ? 'Chưa thể gửi liên kết khôi phục mật khẩu.' : 'Bạn vẫn có thể tạo tài khoản; email xác minh sẽ chưa được gửi.') + '</p>' : ""}<form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button class="btn full" ${forgot && !state.meta.email_configured ? "disabled" : ""}>${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
+  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p>${forgot || register ? `<p class="notice email-unavailable" role="status" ${state.meta.email_configured === true ? "hidden" : ""}>${emailAvailabilityText(kind, state.meta.email_configured)}</p><button type="button" class="btn outline small" data-action="retry-email-status" hidden>Kiểm tra lại dịch vụ email</button>` : ""}<form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button type="submit" class="btn full" ${forgot && state.meta.email_configured !== true ? "disabled" : ""}>${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
 }
 function field(label, name, value = "", type = "text", extra = "") {
   return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}></label>`;
@@ -1530,6 +1557,7 @@ async function renderRoute() {
       });
       recordRoute(location.pathname, performance.now() - routeStarted);
       scheduleRouteMotion(version);
+      void syncAuthEmail(version);
     }
   }
 }
@@ -1927,6 +1955,8 @@ document.addEventListener("click", async (e) => {
       state.cartContext = (state.cartContext || 0) + 1;
       state.checkoutKey = "";
       go("/");
+    } else if (action === "retry-email-status") {
+      await syncAuthEmail(state.route);
     } else if (action === "resend-verification") {
       await ensureMeta(true);
       if (!state.meta.email_configured) {
@@ -2186,6 +2216,10 @@ document.addEventListener("submit", async (e) => {
   const kind = form.dataset.form,
     data = Object.fromEntries(new FormData(form));
   const button = e.submitter;
+  if (kind === "auth") {
+    if (form.getAttribute("aria-busy") === "true") return;
+    form.setAttribute("aria-busy", "true");
+  }
   if (button) button.disabled = true;
   const errorBox = $(".form-error", form);
   if (errorBox) errorBox.hidden = true;
@@ -2215,9 +2249,11 @@ document.addEventListener("submit", async (e) => {
         if (!next.startsWith("/") || next.startsWith("//")) next = "/";
         go(next);
       } else {
-        toast(type === "register" && (!state.meta.email_configured || result.email_pending)
+        toast(type === "register" && (state.meta.email_configured === false || result.email_pending)
           ? "Đã tạo tài khoản. Dịch vụ gửi email chưa được cấu hình nên thư xác minh chưa được gửi."
-          : result.message || "Thao tác thành công.");
+          : type === "register" && state.meta.email_configured !== true
+            ? "Đã tạo tài khoản. Bạn có thể đăng nhập; trạng thái gửi email chưa được xác nhận."
+            : result.message || "Thao tác thành công.");
         if (["register", "reset", "verify"].includes(type)) go("/login");
       }
     } else if (kind === "review-mail") {
@@ -2423,6 +2459,11 @@ document.addEventListener("submit", async (e) => {
     } else toast(error.message);
   } finally {
     if (button) button.disabled = false;
+    if (kind === "auth") {
+      form.removeAttribute("aria-busy");
+      if (form.dataset.kind === "forgot" && state.meta.email_configured !== true && button)
+        button.disabled = true;
+    }
   }
 });
 window.addEventListener("popstate", renderRoute);

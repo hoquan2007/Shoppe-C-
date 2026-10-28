@@ -120,3 +120,57 @@ test("configured verification enqueues once without claiming delivery or changin
   await expect(page.getByText("Email chưa xác minh.", { exact: false })).toBeVisible();
   expect(sends).toBe(1);
 });
+
+test("a slow email configuration read does not block registration or recovery form paint", async ({ browser }) => {
+  for (const kind of ["register", "forgot"]) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route("**/api/meta", async route => {
+      await held;
+      await route.continue();
+    });
+    await page.goto("/" + kind);
+    await expect(page.locator('[data-form="auth"]')).toBeVisible();
+    await expect(page.locator(".email-unavailable")).toHaveText("Đang kiểm tra dịch vụ gửi email…");
+    const submit = page.locator('[data-form="auth"] button[type=submit]');
+    if (kind === "register") await expect(submit).toBeEnabled();
+    else await expect(submit).toBeDisabled();
+    release();
+    await expect(page.locator(".email-unavailable")).toContainText("Website chưa cấu hình");
+    await context.close();
+  }
+});
+
+test("email configuration can retry and recovery remains single-submit while processing", async ({ page }) => {
+  let checks = 0;
+  await page.route("**/api/meta", async route => {
+    if (++checks === 1) return route.fulfill({ status: 400, json: { message: "fixture metadata unavailable" } });
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), email_configured: true } });
+  });
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  let sends = 0;
+  await page.route("**/api/auth/forgot", async route => {
+    sends++;
+    await held;
+    await route.fulfill({ json: { message: "Nếu email hợp lệ, hướng dẫn sẽ được gửi qua email." } });
+  });
+  await page.goto("/forgot");
+  await expect(page.locator(".email-unavailable")).toContainText("Chưa thể kiểm tra");
+  const submit = page.locator('[data-form="auth"] button[type=submit]');
+  await expect(submit).toBeDisabled();
+  await page.getByRole("button", { name: "Kiểm tra lại dịch vụ email" }).click();
+  await expect(submit).toBeEnabled();
+  await page.getByLabel("Email", { exact: true }).fill("buyer@shoppe.local");
+  await submit.click();
+  await expect.poll(() => sends).toBe(1);
+  await expect(submit).toBeDisabled();
+  await page.getByLabel("Email", { exact: true }).press("Enter");
+  expect(sends).toBe(1);
+  release();
+  await expect(page.locator("#toast")).toContainText("Nếu email hợp lệ");
+  await expect(submit).toBeEnabled();
+});
