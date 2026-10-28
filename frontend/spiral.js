@@ -48,8 +48,8 @@ export function mountSpiral(root) {
   const enter = event => { if (event.pointerType === 'mouse') { hover = true; sync(); } };
   const leave = () => { hover = false; sync(); };
   const focus = event => {
-    focused = true;
     const index = cards.indexOf(event.target.closest('.spiral-card'));
+    focused = index >= 0;
     if (index >= 0) { progress = index; draw(); }
     sync();
   };

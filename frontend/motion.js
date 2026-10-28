@@ -8,7 +8,6 @@ export function mountMotion(root) {
   const media = gsap.matchMedia();
   media.add({
     motion: "(prefers-reduced-motion: no-preference)",
-    desktop: "(min-width: 900px) and (hover: hover) and (pointer: fine)",
   }, context => {
     if (!context.conditions.motion) return;
     const hero = root.querySelector(".market-lead");

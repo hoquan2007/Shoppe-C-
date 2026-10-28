@@ -61,10 +61,16 @@ test("spiral pauses, stops offscreen, restores on preference change and cleans u
   const paused = await card.getAttribute("style");
   await page.waitForTimeout(150);
   expect(await card.getAttribute("style")).toBe(paused);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "Tiếp tục chuyển động" })).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(100);
+  const resizedPaused = await card.getAttribute("style");
+  await page.waitForTimeout(100);
+  expect(await card.getAttribute("style")).toBe(resizedPaused);
   await page.getByRole("button", { name: "Tiếp tục chuyển động" }).click();
-  await page.locator(".market-copy .btn").focus();
   await page.mouse.move(0, 0);
-  await expect.poll(() => card.getAttribute("style")).not.toBe(paused);
+  await expect.poll(() => card.getAttribute("style")).not.toBe(resizedPaused);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator(".footer").scrollIntoViewIfNeeded();
   await page.waitForTimeout(150);
   const offscreen = await card.getAttribute("style");
