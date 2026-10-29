@@ -64,7 +64,7 @@ p { text-wrap: pretty; }
 .market-copy p { max-width: 32ch; margin: 24px 0 28px; font-size: 17px; line-height: 1.7; color: var(--muted); }
 .market-copy .btn { min-height: 52px; padding-inline: 24px; }
 /* Infinite Spiral: static linked collection first; optional motion enhances it. */
-.infinite-spiral { position: relative; min-width: 0; background: var(--bg); border-radius: var(--radius-lg); overflow: clip; }
+.infinite-spiral { position: relative; isolation: isolate; z-index: 0; min-width: 0; background: transparent; overflow: clip; }
 .spiral-stage { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; padding: 32px; min-height: 460px; }
 .spiral-card:nth-child(n+5) { display: none; }
 .spiral-card a { display: flex; flex-direction: column; height: 100%; color: var(--ink); }
@@ -72,7 +72,7 @@ p { text-wrap: pretty; }
 .spiral-card span { font-size: 13px; line-height: 1.5; padding: 8px 12px 12px; }
 .spiral-card a:focus-visible { outline: 2px solid var(--action); outline-offset: 4px; border-radius: 8px; }
 .is-spiraling .spiral-stage { display: block; position: relative; padding: 0; height: 500px; min-height: 0; }
-.is-spiraling .spiral-card:nth-child(n) { display: block; position: absolute; left: 50%; top: 50%; width: 156px; background: var(--bg); border-radius: 12px; overflow: clip; will-change: transform, opacity; }
+.is-spiraling .spiral-card:nth-child(n) { display: block; position: absolute; left: 50%; top: 50%; width: 156px; background: transparent; will-change: transform, opacity; }
 .is-spiraling .spiral-card img { height: 156px; padding: 12px; }
 .is-spiraling .spiral-card span { display: none; }
 @media(max-width:639px) {

@@ -56,9 +56,8 @@ test("spiral keeps moving on hover and focus, stops offscreen and cleans up on n
   await expect(stage).toHaveClass(/is-spiraling/);
   const before = await card.getAttribute("style");
   await expect.poll(() => card.getAttribute("style")).not.toBe(before);
-  const background = await page.locator("body").evaluate(body => getComputedStyle(body).backgroundColor);
-  await expect(stage).toHaveCSS("background-color", background);
-  await expect(card).toHaveCSS("background-color", background);
+  await expect(stage).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(card).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(page.locator(".spiral-toggle")).toHaveCount(0);
   await stage.hover();
   const hovered = await card.getAttribute("style");
@@ -88,6 +87,30 @@ test("spiral keeps moving on hover and focus, stops offscreen and cleans up on n
   await expect(page.locator(".product-card")).toHaveCount(12);
   expect(await oldCard.evaluate(node => ({ connected: node.isConnected, style: node.getAttribute("style") })))
     .toEqual({ connected: false, style: null });
+});
+
+test("spiral products stay behind the sticky header while scrolling", async ({ page }) => {
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const stage = page.locator(".infinite-spiral");
+    await expect(stage).toHaveClass(/is-spiraling/);
+    await stage.evaluate(root => {
+      const header = document.querySelector(".masthead").getBoundingClientRect();
+      window.scrollTo(0, window.scrollY + root.getBoundingClientRect().top - header.bottom + 180);
+    });
+    // Sample the actual overlap: moving cards have z-indices higher than the header.
+    // They must be contained in the hero's own stacking context.
+    const overlap = await stage.evaluate(root => {
+      const header = document.querySelector(".masthead");
+      const head = header.getBoundingClientRect(), rect = root.getBoundingClientRect();
+      const x = (Math.max(head.left, rect.left) + Math.min(head.right, rect.right)) / 2;
+      const y = (Math.max(head.top, rect.top) + Math.min(head.bottom, rect.bottom)) / 2;
+      return { overlaps: rect.top < head.bottom && rect.bottom > head.top,
+        headerOnTop: header.contains(document.elementFromPoint(x, y)) };
+    });
+    expect(overlap).toEqual({ overlaps: true, headerOnTop: true });
+  }
 });
 
 test("clicking moving spiral images opens the product under the pointer", async ({ page }) => {
