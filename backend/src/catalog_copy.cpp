@@ -47,10 +47,7 @@ Json loadCatalogCopy(const std::string &file) {
 Json catalogCopyText(const Json &entry) {
     return {{"name", entry.at("name")},
             {"description", "GIỚI THIỆU\n" + entry.at("introduction").get<std::string>() +
-                                "\n\nSỬ DỤNG VÀ BẢO QUẢN\n" + entry.at("usage").get<std::string>() +
-                                "\n\nLƯU Ý VỀ CATALOG\nSản phẩm mô phỏng phục vụ bài tập, ảnh minh họa "
-                                "từ DummyJSON; không cung cấp hàng thật. Nếu chọn payOS, giao dịch "
-                                "sử dụng tiền thật."}};
+                                "\n\nSỬ DỤNG VÀ BẢO QUẢN\n" + entry.at("usage").get<std::string>()}};
 }
 Json prepareCatalogCopy(const Json &products, const Json &editorial) {
     validateEditorial(editorial);

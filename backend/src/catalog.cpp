@@ -28,6 +28,60 @@ std::set<std::string> existingCatalogIds(Repository &r, const Json &products) {
     return existing;
 }
 } // namespace
+Json storefrontProfile() {
+    return {{"name", "Mộc An Select"},
+            {"description", "Mộc An Select tuyển chọn đồ dùng gia đình, phụ kiện, thời trang và sản phẩm chăm sóc cá nhân cho nhịp sống hiện đại. Thông tin sản phẩm rõ ràng, dễ lựa chọn và được hỗ trợ trực tiếp qua tin nhắn của shop."},
+            {"region", "Miền Nam"},
+            {"location", "TP. Hồ Chí Minh"},
+            {"service_hours", "08:30–21:00, thứ Hai đến Chủ nhật"},
+            {"shipping_note", "Giao hàng toàn quốc. Phí vận chuyển được hiển thị khi đặt hàng."},
+            {"returns_note", "Gửi yêu cầu trả hàng trong 7 ngày sau khi nhận hàng qua mục Đơn hàng. Giữ lại bao bì và hình ảnh sản phẩm để shop hỗ trợ."}};
+}
+Json upgradeStorefrontContent(Repository &r) {
+    const std::string marker = "storefront-content-v1";
+    if (!r.get("settings", marker).is_null())
+        return {{"updated", 0}};
+    int updated = 0;
+    const auto profile = storefrontProfile();
+    for (auto shop : r.list("shops")) {
+        // Match the original generated identity; preserve every seller-authored profile.
+        if (shop.value("name", "") != "Cửa hàng demo" || shop.value("description", "") !=
+            "Sản phẩm mô phỏng từ DummyJSON phục vụ bài tập; không cung cấp hàng thật.")
+            continue;
+        shop.update(profile);
+        r.save("shops", shop);
+        ++updated;
+    }
+    auto editorial = loadCatalogCopy(env("CATALOG_COPY_PATH", "database/catalog-copy.vi.json"));
+    std::map<int, Json> entries;
+    for (const auto &entry : editorial.at("products"))
+        entries.emplace(entry.at("source_id").get<int>(), entry);
+    for (auto product : r.list("products")) {
+        if (!product.value("is_demo", false)) continue;
+        auto sourceId = product.value("source_id", 0);
+        if (!entries.contains(sourceId)) continue;
+        const auto &entry = entries.at(sourceId);
+        if (product.value("image", "") != entry.at("source_image").get<std::string>()) continue;
+        auto description = product.value("description", "");
+        const auto disclosure = description.find("\n\nLƯU Ý VỀ CATALOG\n");
+        const bool legacy = description.rfind("Sản phẩm mô phỏng cho bài tập;", 0) == 0;
+        if (disclosure == std::string::npos && !legacy) continue;
+        // Only replace generated prose. Preserve names that have been edited by a seller.
+        const bool retiredConcept = sourceId == 102 && description.find("catalog bài tập") != std::string::npos;
+        product["description"] = (legacy || retiredConcept) ? catalogCopyText(entry).at("description")
+                                         : Json(description.substr(0, disclosure));
+        auto originalName = entry.at("source_title").get<std::string>();
+        auto series = product.value("demo_series", 0);
+        if (series) originalName += " · Mẫu demo " + std::to_string(series);
+        if (product.value("name", "") == originalName ||
+            (retiredConcept && product.value("name", "") == "Đế sạc không dây AirPower — mẫu ý tưởng"))
+            product["name"] = entry.at("name");
+        r.save("products", product);
+        ++updated;
+    }
+    r.save("settings", {{"id", marker}, {"updated", updated}, {"created_at", now()}});
+    return {{"updated", updated}};
+}
 Json normalizeDemoCatalog(const Json &document) {
     if (!document.is_object() ||
         (document.value("source", "") != "DummyJSON" &&
@@ -82,14 +136,8 @@ Json normalizeDemoCatalog(const Json &document) {
                                1000, static_cast<std::int64_t>(std::round(originalPrice * 25.0)) * 1000))
                          .value();
         auto categoryKey = textField(item, "category", 100);
-        auto name = textField(item, "title", series ? 170 : 200) +
-                    (series ? " · Mẫu demo " + std::to_string(series) : "");
-        auto description =
-            "Sản phẩm mô phỏng cho bài tập; không cung cấp hàng thật. Nếu chọn payOS, "
-            "giao dịch sử dụng tiền thật.\n\n" +
-            (series ? std::string("Mẫu mô phỏng mở rộng do Shoppe tạo. Ảnh DummyJSON chỉ để minh họa; "
-                                  "không phải sản phẩm bổ sung từ API nguồn.")
-                    : textField(item, "description", 8000));
+        auto name = textField(item, "title", 200);
+        auto description = textField(item, "description", 8000);
         // Only use reviewed copy when both the original title and image still match.
         // Provider changes and unknown products retain the existing import behavior.
         if (copyBySource.contains(static_cast<int>(externalId))) {
@@ -135,11 +183,9 @@ Json importDemoCatalog(Repository &r, const Json &user, const Json &document) {
         shop = {
             {"id", randomId()},
             {"owner_id", user.at("id")},
-            {"name", "Cửa hàng demo"},
-            {"description", "Sản phẩm mô phỏng từ DummyJSON phục vụ bài tập; không cung cấp hàng thật."},
-            {"region", "Miền Nam"},
             {"status", "approved"},
             {"created_at", now()}};
+        shop.update(storefrontProfile());
         r.save("shops", shop);
     }
     if (shop.value("status", "") != "approved")

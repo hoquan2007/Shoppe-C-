@@ -427,7 +427,7 @@ footerWide.addEventListener("change", event => {
 });
 function footer() {
   const group = (label, links) => `<details class="footer-group" ${footerWide.matches ? "open" : ""}><summary>${label}<span aria-hidden="true">+</span></summary><div class="footer-links">${links.map(([href, text]) => `<a class="footer-link" href="${href}">${text}</a>`).join("")}</div></details>`;
-  return `<footer class="footer"><div class="wrap"><div class="footer-main"><div class="footer-brand">${logo()}<p>Kết nối những shop bạn tin với những món đồ bạn yêu.</p><span class="footer-reassurance">${icon("shield", 18)} Mua sắm với sự an tâm</span></div><nav class="footer-navigation" aria-label="Điều hướng cuối trang">${group("Khám phá Shoppe", [["/search", "Tất cả sản phẩm"], ["/vouchers", "Mã giảm giá"], ["/seller", "Trở thành người bán"]])}${group("Đồng hành cùng bạn", [["/orders", "Theo dõi đơn hàng"], ["/chat", "Nhắn tin với shop"], ["/account", "Tài khoản của bạn"]])}</nav></div><div class="footer-payment"><div><span>Phương thức thanh toán</span><span class="payment-method">payOS</span><span class="payment-method">COD</span></div><p>Phương thức khả dụng được hiển thị khi thanh toán.</p></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Shoppe. Một dự án học tập về thương mại điện tử.</span><span>Tiếng Việt / VNĐ</span></div></div></footer>`;
+  return `<footer class="footer"><div class="wrap"><div class="footer-main"><div class="footer-brand">${logo()}<p>Kết nối những shop bạn tin với những món đồ bạn yêu.</p><span class="footer-reassurance">${icon("shield", 18)} Mua sắm với sự an tâm</span></div><nav class="footer-navigation" aria-label="Điều hướng cuối trang">${group("Khám phá Shoppe", [["/search", "Tất cả sản phẩm"], ["/vouchers", "Mã giảm giá"], ["/seller", "Trở thành người bán"]])}${group("Đồng hành cùng bạn", [["/orders", "Theo dõi đơn hàng"], ["/chat", "Nhắn tin với shop"], ["/account", "Tài khoản của bạn"]])}</nav></div><div class="footer-payment"><div><span>Phương thức thanh toán</span><span class="payment-method">payOS</span><span class="payment-method">COD</span></div><p>Phương thức khả dụng được hiển thị khi thanh toán.</p></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} Shoppe. Mua sắm mỗi ngày, an tâm trong từng lựa chọn.</span><span>Tiếng Việt / VNĐ</span></div></div></footer>`;
 }
 function shell() {
   const destinations = [
@@ -446,7 +446,7 @@ function shell() {
 function card(p) {
   const variants = p.variants.filter((v) => v.active);
   const price = Math.min(...variants.map((v) => v.price));
-  return `<article class="product-card"><a href="/product/${esc(p.id)}" class="product-image"><span class="product-tag">${esc(p.category)}</span><img src="${image(p.image)}" alt="${esc(p.name)}" loading="lazy" decoding="async" width="400" height="400"></a><button class="favorite" data-action="favorite" data-id="${esc(p.id)}" aria-label="Yêu thích ${esc(p.name)}">${icon("heart", 19)}</button><div class="product-info"><a class="product-shop" href="/shop/${esc(p.shop_id)}">${esc(p.shop?.name || "")}</a><a class="product-name" href="/product/${esc(p.id)}">${esc(p.name)}</a><div class="product-bottom"><span class="price">${Number.isFinite(price) ? money(price) : "Ngừng bán"}</span><span class="rating">${p.review_count ? "★ " + p.rating.toFixed(1) : "Mới"}</span></div><div class="product-meta"><span>${esc(p.shop?.region || "Việt Nam")}</span><span>${variants.reduce((n, v) => n + v.stock, 0) ? "Sẵn hàng" : "Hết hàng"}</span></div></div></article>`;
+  return `<article class="product-card"><a href="/product/${esc(p.id)}" class="product-image"><span class="product-tag">${esc(p.category)}</span><img src="${image(p.image)}" alt="${esc(p.name)}" loading="lazy" decoding="async" width="400" height="400"></a><button class="favorite" data-action="favorite" data-id="${esc(p.id)}" aria-label="Yêu thích ${esc(p.name)}">${icon("heart", 19)}</button><div class="product-info"><a class="product-shop" href="/shop/${esc(p.shop_id)}">${esc(p.shop?.name || "")}</a><a class="product-name" href="/product/${esc(p.id)}">${esc(p.name)}</a><div class="product-bottom"><span class="price">${Number.isFinite(price) ? money(price) : "Ngừng bán"}</span><span class="rating">${p.review_count ? "★ " + p.rating.toFixed(1) : "Mới"}</span></div><div class="product-meta"><span>${esc(p.shop?.location || p.shop?.region || "Việt Nam")}</span><span>${variants.reduce((n, v) => n + v.stock, 0) ? "Sẵn hàng" : "Hết hàng"}</span></div></div></article>`;
 }
 const cards = (products, home = false) =>
   `<div class="products ${home ? "home-products" : ""}">${products.map(card).join("")}</div>`;
@@ -576,8 +576,9 @@ async function searchPage(shopId = "") {
       : "";
   return (
     (shop
-      ? `<div class="panel shop-strip"><div class="avatar">${esc(shop.name[0])}</div><div><h1 style="font-size:24px">${esc(shop.name)}</h1><p class="muted small-text">${esc(shop.description)}</p><small class="muted">${esc(shop.region)}</small></div><button class="btn outline" style="margin-left:auto" data-action="start-chat" data-id="${esc(shop.id)}">${icon("chat", 16)} Nhắn tin</button></div>`
+      ? `<div class="panel shop-strip"><div class="avatar">${esc(shop.name[0])}</div><div><h1 style="font-size:24px">${esc(shop.name)}</h1><p class="muted small-text">${esc(shop.description)}</p><small class="muted">${esc(shop.location || shop.region)}</small></div><button class="btn outline" style="margin-left:auto" data-action="start-chat" data-id="${esc(shop.id)}">${icon("chat", 16)} Nhắn tin</button></div>`
       : "") +
+    (shop ? shopServiceDetails(shop) : "") +
     title(
       params.get("q")
         ? `Kết quả cho “${params.get("q")}”`
@@ -598,6 +599,17 @@ async function searchPage(shopId = "") {
       )}</select></div>${list.length ? cards(list) : empty("Chưa tìm thấy sản phẩm", "Bạn thử từ khóa hoặc khoảng giá khác nhé.")}${paging}</div></div>`
   );
 }
+function shopServiceDetails(shop) {
+  const details = [
+    ["Tư vấn trực tuyến", shop.service_hours],
+    ["Vận chuyển", shop.shipping_note],
+    ["Hỗ trợ trả hàng", shop.returns_note],
+  ].filter(([, value]) => value);
+  if (!details.length) return "";
+  return '<dl class="shop-service-details">' + details.map(([label, value]) =>
+    '<div><dt>' + esc(label) + '</dt><dd>' + esc(value) + '</dd></div>'
+  ).join("") + '</dl>';
+}
 function productCopy(description) {
   const headings = { "GIỚI THIỆU": "Giới thiệu", "SỬ DỤNG VÀ BẢO QUẢN": "Sử dụng và bảo quản", "LƯU Ý VỀ CATALOG": "Thông tin catalog và thanh toán" };
   return String(description || "").split(/\n\s*\n/).filter(Boolean).map(block => {
@@ -616,7 +628,7 @@ async function productPage(id) {
   state.variant = p.variants.find(v => v.active);
   const v = state.variant;
   const visibleReviews = reviews.filter(review => !review.hidden);
-  return `<div class="breadcrumbs"><a href="/">Trang chủ</a><span>/</span><a href="/search?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a><span>/</span><span>${esc(p.name)}</span></div><div class="detail-grid"><div class="detail-photo"><img src="${image(p.image)}" alt="${esc(p.name)}" width="640" height="640" fetchpriority="high"></div><div class="detail-info"><h1>${esc(p.name)}</h1><div class="detail-rating">${p.review_count ? `<span class="detail-rating-score">★ ${p.rating.toFixed(1)}</span><span>${p.review_count} đánh giá</span>` : '<span class="no-reviews">Chưa có đánh giá</span>'}</div><div class="detail-price" id="variant-price">${money(v?.price)}</div><div class="detail-options"><h2 class="variant-title">Phân loại</h2><div class="variants">${p.variants.filter(item => item.active).map((item, i) => `<button class="variant ${i === 0 ? "active" : ""}" data-action="variant" data-id="${esc(item.id)}" aria-pressed="${i === 0}">${esc(item.name)}</button>`).join("")}</div></div><div class="detail-quantity"><label for="product-qty">Số lượng</label><div class="quantity"><button data-action="detail-qty" data-value="-1" aria-label="Giảm số lượng">−</button><input id="product-qty" type="number" min="1" max="99" value="1" aria-label="Số lượng"><button data-action="detail-qty" data-value="1" aria-label="Tăng số lượng">+</button></div><span id="variant-stock">${v?.stock || 0} sản phẩm có sẵn</span></div><div class="detail-actions"><button class="btn" data-action="add-cart" ${!v?.stock ? "disabled" : ""}>${icon("cart", 19)} Thêm vào giỏ</button><button class="btn outline" data-action="buy-now" ${!v?.stock ? "disabled" : ""}>Mua ngay</button></div><div class="detail-benefits"><span>${icon("shield", 17)} Thanh toán an tâm</span><span>${icon("return", 17)} Trả hàng trong 7 ngày</span></div><div class="shop-strip product-seller"><div class="avatar">${esc(p.shop.name[0])}</div><div class="seller-identity"><strong>${esc(p.shop.name)}</strong><p>${esc(p.shop.region)}</p></div><div class="seller-actions"><a href="/shop/${esc(p.shop_id)}">Xem shop</a><button type="button" data-action="start-chat" data-id="${esc(p.shop_id)}">${icon("chat", 17)} Nhắn tin</button></div></div></div></div><div class="product-lower"><section class="product-description"><h2>Thông tin sản phẩm</h2>${productCopy(p.description)}</section><section class="product-reviews" id="product-reviews"><h2>Đánh giá <span>(${p.review_count})</span></h2>${visibleReviews.length ? visibleReviews.map(r => `<article class="review"><div class="row between"><strong>${esc(r.name)}</strong><span class="muted small-text">${date(r.created_at)}</span></div><div class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</div><p>${esc(r.comment)}</p></article>`).join("") : `<div class="review-empty">${icon("chat", 24)}<h3>Chưa có nhận xét</h3><p>Nhận xét từ người mua sẽ xuất hiện tại đây.</p></div>`}${pagination(review_page)}</section></div>`;
+  return `<div class="breadcrumbs"><a href="/">Trang chủ</a><span>/</span><a href="/search?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a><span>/</span><span>${esc(p.name)}</span></div><div class="detail-grid"><div class="detail-photo"><img src="${image(p.image)}" alt="${esc(p.name)}" width="640" height="640" fetchpriority="high"></div><div class="detail-info"><h1>${esc(p.name)}</h1><div class="detail-rating">${p.review_count ? `<span class="detail-rating-score">★ ${p.rating.toFixed(1)}</span><span>${p.review_count} đánh giá</span>` : '<span class="no-reviews">Chưa có đánh giá</span>'}</div><div class="detail-price" id="variant-price">${money(v?.price)}</div><div class="detail-options"><h2 class="variant-title">Phân loại</h2><div class="variants">${p.variants.filter(item => item.active).map((item, i) => `<button class="variant ${i === 0 ? "active" : ""}" data-action="variant" data-id="${esc(item.id)}" aria-pressed="${i === 0}">${esc(item.name)}</button>`).join("")}</div></div><div class="detail-quantity"><label for="product-qty">Số lượng</label><div class="quantity"><button data-action="detail-qty" data-value="-1" aria-label="Giảm số lượng">−</button><input id="product-qty" type="number" min="1" max="99" value="1" aria-label="Số lượng"><button data-action="detail-qty" data-value="1" aria-label="Tăng số lượng">+</button></div><span id="variant-stock">${v?.stock || 0} sản phẩm có sẵn</span></div><div class="detail-actions"><button class="btn" data-action="add-cart" ${!v?.stock ? "disabled" : ""}>${icon("cart", 19)} Thêm vào giỏ</button><button class="btn outline" data-action="buy-now" ${!v?.stock ? "disabled" : ""}>Mua ngay</button></div><div class="detail-benefits"><span>${icon("shield", 17)} Thanh toán an tâm</span><span>${icon("return", 17)} Trả hàng trong 7 ngày</span></div><div class="shop-strip product-seller"><div class="avatar">${esc(p.shop.name[0])}</div><div class="seller-identity"><strong>${esc(p.shop.name)}</strong><p>${esc(p.shop.location || p.shop.region)}</p></div><div class="seller-actions"><a href="/shop/${esc(p.shop_id)}">Xem shop</a><button type="button" data-action="start-chat" data-id="${esc(p.shop_id)}">${icon("chat", 17)} Nhắn tin</button></div></div></div></div><div class="product-lower"><section class="product-description"><h2>Thông tin sản phẩm</h2>${productCopy(p.description)}</section><section class="product-reviews" id="product-reviews"><h2>Đánh giá <span>(${p.review_count})</span></h2>${visibleReviews.length ? visibleReviews.map(r => `<article class="review"><div class="row between"><strong>${esc(r.name)}</strong><span class="muted small-text">${date(r.created_at)}</span></div><div class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</div><p>${esc(r.comment)}</p></article>`).join("") : `<div class="review-empty">${icon("chat", 24)}<h3>Chưa có nhận xét</h3><p>Nhận xét từ người mua sẽ xuất hiện tại đây.</p></div>`}${pagination(review_page)}</section></div>`;
 }
 
 async function shopPage(id) {
@@ -1081,9 +1093,9 @@ async function managementProducts(scope) {
         icon("plus", 16) +
         " Thêm sản phẩm</button>",
     ) +
-    `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : '<button class="btn secondary small" data-action="catalog-api">Lấy sản phẩm demo từ API</button><button class="btn outline small" data-action="load-demo-catalog">Dùng demo đóng gói</button>'}</div>` +
+    `<div class="filters"><a class="btn secondary small" href="/api/${scope}/export?kind=products" download>Xuất CSV</a>${scope === "seller" ? '<button class="btn secondary small" data-action="import-products">Nhập CSV</button>' : '<button class="btn secondary small" data-action="catalog-api">Nhập danh mục từ nguồn dữ liệu</button><button class="btn outline small" data-action="load-demo-catalog">Nhập danh mục có sẵn</button>'}</div>` +
     (catalog
-      ? `<p class="small-text muted">Nguồn demo: DummyJSON và mẫu mô phỏng Shoppe · Thanh toán: payOS/COD. ${catalog.last_sync ? "Đã nhập: " + catalog.last_sync.imported + " sản phẩm mới trong lần gần nhất." : "Chưa nhập qua API trực tiếp."}</p>`
+      ? `<p class="small-text muted">Nguồn danh mục: DummyJSON và bộ sưu tập Shoppe · Thanh toán: payOS/COD. ${catalog.last_sync ? "Đã nhập: " + catalog.last_sync.imported + " sản phẩm mới trong lần gần nhất." : "Chưa nhập qua API trực tiếp."}</p>`
       : "") +
     table(
       ["Sản phẩm", "Giá từ", "Tồn kho", "Trạng thái", "Thao tác"],
@@ -1128,7 +1140,7 @@ async function workspacePage(scope, parts) {
   else if (tab === "settings" && scope === "seller")
     content =
       title("Thông tin shop") +
-      `<form class="panel" data-form="shop-settings">${field("Tên shop", "name", state.shop.name, "text", "required")}${textarea("Giới thiệu", "description", state.shop.description, "required")}${regionField(state.shop.region)}<button class="btn">Lưu thay đổi</button></form>`;
+      `<form class="panel" data-form="shop-settings">${field("Tên shop", "name", state.shop.name, "text", "required")}${textarea("Giới thiệu", "description", state.shop.description, "required")}${regionField(state.shop.region)}${field("Địa điểm gửi hàng", "location", state.shop.location || "", "text", 'maxlength="1000"')}${field("Giờ tư vấn", "service_hours", state.shop.service_hours || "", "text", 'maxlength="1000"')}${textarea("Thông tin vận chuyển", "shipping_note", state.shop.shipping_note || "", 'maxlength="1000"')}${textarea("Hướng dẫn trả hàng", "returns_note", state.shop.returns_note || "", 'maxlength="1000"')}<button class="btn">Lưu thay đổi</button></form>`;
   else if (scope === "admin") content = await adminTab(tab);
   else content = empty("Không tìm thấy trang", "Trang bạn tìm chưa tồn tại.");
   return workspace(content, scope);
@@ -2075,8 +2087,8 @@ document.addEventListener("click", async (e) => {
     } else if (action === "catalog-api") {
       state.catalogPreviewToken = null;
       dialog(
-        "Nạp dữ liệu demo qua API",
-        '<div class="notice">Tối đa 1.000 sản phẩm demo. Khi nguồn DummyJSON không đủ, hệ thống bổ sung bản ghi mô phỏng Shoppe dùng ảnh minh họa và nội dung của cùng mẫu gốc. Không phải hàng thật hoặc dữ liệu Shopee. Nếu chọn payOS, thanh toán sử dụng tiền thật. Giá và tồn kho là dữ liệu mô phỏng; không ghi đè hàng đã có.</div>' +
+        "Nhập danh mục sản phẩm",
+        '<div class="notice">Nhập tối đa 1.000 sản phẩm từ danh mục tham khảo DummyJSON và bộ sưu tập Shoppe. Các bộ sưu tập mở rộng có thể dùng chung ảnh và nội dung gốc. Kiểm tra giá, tồn kho và khả năng cung ứng trước khi mở bán. Sản phẩm đã tồn tại được giữ nguyên.</div>' +
           '<form data-form="catalog-preview">' +
           field(
             "Số sản phẩm muốn xem trước",
@@ -2097,14 +2109,14 @@ document.addEventListener("click", async (e) => {
       state.meta = await api("/meta");
       await renderRoute();
       toast(
-        `Đã nhập ${result.imported} sản phẩm demo mới; giữ nguyên ${result.skipped} sản phẩm đã có.`,
+        `Đã nhập ${result.imported} sản phẩm mới; giữ nguyên ${result.skipped} sản phẩm đã có.`,
       );
     } else if (action === "load-demo-catalog") {
       const result = await post("/admin/catalog/import");
       await refreshUser();
       await renderRoute();
       toast(
-        `Đã nạp ${result.imported} sản phẩm demo; giữ nguyên ${result.skipped} sản phẩm đã có.`,
+        `Đã nạp ${result.imported} sản phẩm; giữ nguyên ${result.skipped} sản phẩm đã có.`,
       );
     } else if (action === "retry-email") {
       await post("/admin/outbox/retry");
@@ -2424,19 +2436,19 @@ document.addEventListener("submit", async (e) => {
     } else if (kind === "catalog-preview") {
       state.catalogPreviewToken = null;
       $("#catalog-preview-result").innerHTML =
-        '<p class="small-text muted">Đang tải dữ liệu demo…</p>';
+        '<p class="small-text muted">Đang tải danh mục sản phẩm…</p>';
       const result = await post("/admin/catalog/preview", {
         limit: Number(data.limit),
       });
       if (!form.isConnected || form.elements.limit.value !== data.limit) return;
       state.catalogPreviewToken = result.preview_token;
       $("#catalog-preview-result").innerHTML =
-        `<div class="notice success">${result.products.length} sản phẩm · ${result.new_products} mới · ${result.existing} đã có · ${result.generated_products || 0} mẫu mô phỏng mở rộng. Bản xem trước có hiệu lực 15 phút.</div>` +
+        `<div class="notice success">${result.products.length} sản phẩm · ${result.new_products} mới · ${result.existing} đã có · ${result.generated_products || 0} mặt hàng trong bộ sưu tập mở rộng. Bản xem trước có hiệu lực 15 phút.</div>` +
         table(
-          ["Tên sản phẩm", "Nguồn", "Danh mục", "Giá demo", "Trạng thái"],
+          ["Tên sản phẩm", "Nguồn", "Danh mục", "Giá bán", "Trạng thái"],
           result.products.map(
             (p) =>
-              `<tr><td>${esc(p.name)}</td><td>${p.source === "ShoppeDemo" ? "Mẫu mô phỏng Shoppe" : "DummyJSON"}</td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${p.exists ? "Giữ nguyên" : "Sẽ thêm"}</td></tr>`,
+              `<tr><td>${esc(p.name)}</td><td>${p.source === "ShoppeDemo" ? "Bộ sưu tập Shoppe" : "DummyJSON"}</td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${p.exists ? "Giữ nguyên" : "Sẽ thêm"}</td></tr>`,
           ),
         ) +
         '<button type="button" class="btn full" data-action="catalog-commit">Nhập bản xem trước vào shop</button>';

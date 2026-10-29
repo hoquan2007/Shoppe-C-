@@ -72,8 +72,8 @@ int main(int argc, char **) {
         if (p["source"] == "ShoppeDemo") {
             ++generated;
             check(p.value("is_demo", false) &&
-                      p.at("description").get<std::string>().find("mô phỏng") != std::string::npos,
-                  "generated provenance remains explicit without a title suffix");
+                      p.at("description").get<std::string>().find("mô phỏng") == std::string::npos,
+                  "provenance remains in metadata while retail prose is professional");
         }
     }
     check(generated == 270, "retain truthful source attribution");
@@ -165,8 +165,8 @@ int main(int argc, char **) {
     check(replay.at("updated") == 0 && replay.at("skipped") == 600, "copy apply is idempotent");
     for (const auto &p : beforeCopy) {
         auto after = r.get("products", p.at("id"));
-        check(after.at("description").get<std::string>().find("không cung cấp hàng thật") != std::string::npos,
-              "copy preserves visible demonstration disclosure");
+        check(after.at("description").get<std::string>().find("LƯU Ý VỀ CATALOG") == std::string::npos,
+              "retail descriptions contain only product information");
         after["name"] = p.at("name");
         after["description"] = p.at("description");
         check(after == p, "copy changes only name and description");
@@ -196,6 +196,26 @@ int main(int argc, char **) {
           "repeat 1000 cannot duplicate products or reset stock");
     check(prepareCatalogCopy(r.list("products"), editorial).at("count") == 1000,
           "editorial maintenance supports the expanded catalog");
+    // Upgrade the original generated profile and prose without touching commercial data.
+    auto oldShop = r.get("shops", imported.at("shop_id"));
+    oldShop["name"] = "Cửa hàng demo";
+    oldShop["description"] = "Sản phẩm mô phỏng từ DummyJSON phục vụ bài tập; không cung cấp hàng thật.";
+    r.save("shops", oldShop);
+    auto oldProduct = r.get("products", normalized[0].at("id"));
+    oldProduct["description"] = "GIỚI THIỆU\nNội dung được giữ lại.\n\nLƯU Ý VỀ CATALOG\nSản phẩm mô phỏng.";
+    oldProduct["name"] = "Tên do người bán biên tập";
+    r.save("products", oldProduct);
+    const auto variantsBeforeUpgrade = r.list("variants");
+    check(upgradeStorefrontContent(r).at("updated").get<int>() >= 2, "upgrade existing generated content");
+    const auto upgradedShop = r.get("shops", oldShop.at("id"));
+    check(upgradedShop.at("name") == "Mộc An Select" && upgradedShop.at("location") == "TP. Hồ Chí Minh",
+          "complete professional shop profile");
+    const auto upgradedProduct = r.get("products", oldProduct.at("id"));
+    check(upgradedProduct.at("name") == oldProduct.at("name") &&
+          upgradedProduct.at("description") == "GIỚI THIỆU\nNội dung được giữ lại.",
+          "retain edited names and product prose");
+    check(r.list("variants") == variantsBeforeUpgrade, "upgrade preserves all prices and inventory");
+    check(upgradeStorefrontContent(r).at("updated") == 0, "upgrade only runs once");
     tx->rollback();
     std::cout
         << "Catalog validation, scoped preview, expiry, replay, price and stock preservation passed.\n";

@@ -107,7 +107,8 @@ test("product/footer layouts fit phone, tablet and desktop and footer disclosure
     }
     await expect(group.locator('a[href="/search"]')).toBeVisible();
     await expect(page.locator(".footer .payment-method")).toHaveCount(2);
-    await expect(page.locator(".footer-bottom")).toContainText("Một dự án học tập");
+    await expect(page.locator(".footer-bottom")).toContainText("Mua sắm mỗi ngày, an tâm trong từng lựa chọn.");
+    await expect(page.locator(".footer-bottom")).not.toContainText(/demo|học tập/i);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   }
 });

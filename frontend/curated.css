@@ -443,6 +443,12 @@ dialog { border-radius: var(--radius-lg); background: var(--surface); }
   .toast { bottom: 90px; font-size: 13px; }
   dialog { padding: 24px; }
 }
+.shop-service-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 0 0 32px; padding: 24px; background: var(--surface, #f4f2ed); }
+.shop-service-details dt { font-weight: 600; margin-bottom: 8px; }
+.shop-service-details dd { margin: 0; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .shop-service-details { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

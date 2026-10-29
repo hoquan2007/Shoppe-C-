@@ -1290,6 +1290,8 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                 page["shop"] = {{"id", shop.at("id")}, {"name", shop.at("name")},
                                 {"description", shop.value("description", "")},
                                 {"region", shop.value("region", "")}};
+                for (const auto key : {"location", "service_hours", "shipping_note", "returns_note"})
+                    page["shop"][key] = shop.value(key, "");
             }
         }
         return page;
@@ -1440,6 +1442,8 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
         shop["name"] = textField(b, "name", 120);
         shop["description"] = textField(b, "description", 2000);
         shop["region"] = textField(b, "region", 100);
+        for (const auto key : {"location", "service_hours", "shipping_note", "returns_note"})
+            if (b.contains(key)) shop[key] = textField(b, key, 1000, false);
         return {{"shop", r.save("shops", shop)}};
     }
     if (path == "/api/seller/products" && method == "GET") {
@@ -2643,6 +2647,7 @@ void Application::seed() {
                    {{"id", "demo_catalog_bootstrap"}, {"result", result}, {"created_at", now()}});
         }
     }
+    upgradeStorefrontContent(r);
     tx->commit();
 }
 } // namespace shoppe
