@@ -48,7 +48,7 @@ test("hero actions and catalog remain usable without horizontal overflow at phon
   }
 });
 
-test("spiral pauses, stops offscreen, restores on preference change and cleans up on navigation", async ({ page }) => {
+test("spiral keeps moving on hover and focus, stops offscreen and cleans up on navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   const stage = page.locator(".infinite-spiral");
@@ -56,20 +56,18 @@ test("spiral pauses, stops offscreen, restores on preference change and cleans u
   await expect(stage).toHaveClass(/is-spiraling/);
   const before = await card.getAttribute("style");
   await expect.poll(() => card.getAttribute("style")).not.toBe(before);
-  await page.getByRole("button", { name: "Tạm dừng chuyển động" }).click();
-  await page.mouse.move(0, 0);
-  const paused = await card.getAttribute("style");
-  await page.waitForTimeout(150);
-  expect(await card.getAttribute("style")).toBe(paused);
+  await expect(stage).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator(".spiral-toggle")).toHaveCount(0);
+  await stage.hover();
+  const hovered = await card.getAttribute("style");
+  await expect.poll(() => card.getAttribute("style")).not.toBe(hovered);
+  await card.locator("a").focus();
+  const focused = await card.getAttribute("style");
+  await expect.poll(() => card.getAttribute("style")).not.toBe(focused);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("button", { name: "Tiếp tục chuyển động" })).toHaveAttribute("aria-pressed", "true");
-  await page.waitForTimeout(100);
-  const resizedPaused = await card.getAttribute("style");
-  await page.waitForTimeout(100);
-  expect(await card.getAttribute("style")).toBe(resizedPaused);
-  await page.getByRole("button", { name: "Tiếp tục chuyển động" }).click();
-  await page.mouse.move(0, 0);
-  await expect.poll(() => card.getAttribute("style")).not.toBe(resizedPaused);
+  await stage.scrollIntoViewIfNeeded();
+  const resized = await card.getAttribute("style");
+  await expect.poll(() => card.getAttribute("style")).not.toBe(resized);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator(".footer").scrollIntoViewIfNeeded();
   await page.waitForTimeout(150);
@@ -88,4 +86,26 @@ test("spiral pauses, stops offscreen, restores on preference change and cleans u
   await expect(page.locator(".product-card")).toHaveCount(12);
   expect(await oldCard.evaluate(node => ({ connected: node.isConnected, style: node.getAttribute("style") })))
     .toEqual({ connected: false, style: null });
+});
+
+test("clicking moving spiral images opens the product under the pointer", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const index of [0, 1, 2]) {
+    await page.goto("/");
+    await expect(page.locator(".infinite-spiral")).toHaveClass(/is-spiraling/);
+    const point = await page.locator(".spiral-card a").nth(index).evaluate(link => {
+      const rect = link.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    });
+    await page.mouse.move(point.x, point.y);
+    const target = await page.evaluate(({ x, y }) => {
+      const link = document.elementFromPoint(x, y)?.closest(".spiral-card a");
+      return link && { href: link.getAttribute("href"), name: link.getAttribute("aria-label") };
+    }, point);
+    expect(target).toBeTruthy();
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page).toHaveURL(new RegExp(`${target.href}$`));
+    await expect(page.locator("h1")).toHaveText(target.name);
+  }
 });
