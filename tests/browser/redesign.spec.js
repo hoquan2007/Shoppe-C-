@@ -56,7 +56,9 @@ test("spiral keeps moving on hover and focus, stops offscreen and cleans up on n
   await expect(stage).toHaveClass(/is-spiraling/);
   const before = await card.getAttribute("style");
   await expect.poll(() => card.getAttribute("style")).not.toBe(before);
-  await expect(stage).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  const background = await page.locator("body").evaluate(body => getComputedStyle(body).backgroundColor);
+  await expect(stage).toHaveCSS("background-color", background);
+  await expect(card).toHaveCSS("background-color", background);
   await expect(page.locator(".spiral-toggle")).toHaveCount(0);
   await stage.hover();
   const hovered = await card.getAttribute("style");
