@@ -122,7 +122,14 @@ export function createApiClient({
             ...(options.body ? { body: JSON.stringify(options.body) } : {}),
           },
         );
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          throw Object.assign(new Error("Máy chủ tạm thời chưa trả về dữ liệu hợp lệ. Bạn thử lại nhé."), {
+            status: response.ok ? 502 : response.status,
+          });
+        }
         if (!response.ok || data.error) {
           const error = new Error(
             data.error?.message || "Không thể hoàn tất yêu cầu.",
@@ -161,6 +168,8 @@ export function createApiClient({
         if (error.name === "AbortError") {
           error = new Error("Kết nối quá thời gian chờ. Bạn thử lại nhé.");
           error.status = 504;
+        } else if (error instanceof TypeError && !error.status) {
+          error = Object.assign(new Error("Chưa thể kết nối máy chủ. Bạn kiểm tra kết nối rồi thử lại nhé."), { status: 503 });
         }
         if (
           attempt ||

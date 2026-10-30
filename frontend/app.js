@@ -2,12 +2,15 @@ import "./style.css";
 import "./redesign.css";
 import "./fonts.css";
 import "./curated.css";
-import { recordRoute, recordApi } from "./performance.js";
+import "./loading.css";
+import { recordRoute, recordApi, recordReadiness } from "./performance.js";
 import { createApiClient } from "./api.js";
 import { createCartWriter, readSettledCart, createCartBootstrap } from "./cart-state.js";
 import { createGoogleSession } from "./google-session.js";
 import { afterPaint } from "./render-scheduling.js";
 import { installNavigationIntent } from "./navigation-intent.js";
+import { renderHome, updateHome } from "./home-view.js";
+import workspaceStylesUrl from "./workspace.css?url";
 
 const state = {
   user: null,
@@ -450,46 +453,17 @@ function card(p) {
 }
 const cards = (products, home = false) =>
   `<div class="products ${home ? "home-products" : ""}">${products.map(card).join("")}</div>`;
-async function home() {
+async function home(version) {
   const { products, meta, category_previews } = await api("/home");
+  if (version !== state.route) throw new DOMException("Aborted", "AbortError");
   state.products = products;
   state.meta = meta;
   state.metaPromise = Promise.resolve(meta);
   state.metaUntil = freshUntil("/home");
-  const categories = meta.categories || [];
-  const pick = (category) => category_previews[category] || products[0];
-  const featured = pick("Điện tử"),
-    homeProduct = pick("Nhà cửa & Đời sống"),
-    accessory = pick("Phụ kiện");
-  const heroTitle =
-    meta.settings?.banner_title || "Một chút mới. Thêm nhiều vui.";
-  const stageProducts = [featured, homeProduct, accessory, pick("Thời trang"), ...products]
-    .filter((product, index, list) => product && list.findIndex(item => item?.id === product.id) === index).slice(0, 8);
-  const featureImage = `<div class="infinite-spiral" data-speed="0.32" data-depth="140" data-spacing="66" data-cards-per-turn="6" data-perspective="1000"><div class="spiral-stage" role="list" aria-label="Bộ sưu tập sản phẩm">${stageProducts.map((product, index) =>
-    `<div class="spiral-card" role="listitem"><a href="/product/${esc(product.id)}" aria-label="${esc(product.name)}" title="${esc(product.name)}"><img src="${image(product.image)}" alt="" width="180" height="150" decoding="async" ${index === 0 ? 'fetchpriority="high"' : 'loading="eager"'}><span>${esc(product.name)}</span></a></div>`
-  ).join("")}</div></div>`;
-  const promo = (product, category, heading, text) =>
-    `<a class="market-promo" href="/search?category=${encodeURIComponent(category)}"><div><h2>${heading}</h2><span>${text}</span></div>${product ? `<img src="${image(product.image)}" alt="${esc(product.name)}" width="200" height="200">` : ""}</a>`;
-  return `<section class="market-hero"><div class="market-lead"><div class="market-copy"><h1>${esc(heroTitle)}</h1><p>${esc(meta.settings?.banner_subtitle || "Khám phá những món đồ bạn yêu, từ những shop bạn tin.")}</p><a class="btn" href="/search">Khám phá ngay</a></div>${featureImage}</div></section><section class="category-section"><div class="section-head"><div><h2>Bạn muốn tìm gì?</h2><p>Mọi điều bạn cần, ở ngay đây.</p></div><a href="/search">Tất cả danh mục</a></div><div class="market-categories">${categories
-    .map((c) => {
-      const product = pick(c);
-      return `<a class="market-category" href="/search?category=${encodeURIComponent(c)}">${product ? `<img src="${image(product.image)}" alt="" width="80" height="80" loading="lazy">` : icon(categoryIcons[c] || "grid", 24)}<span>${esc(c)}</span></a>`;
-    })
-    .join(
-      "",
-    )}</div></section><div class="market-side">${promo(homeProduct, "Nhà cửa & Đời sống", "Đồ xinh cho góc nhỏ của bạn.", "Tìm cảm hứng")}${promo(accessory, "Phụ kiện", "Phụ kiện nhỏ. Trải nghiệm lớn.", "Xem bộ sưu tập")}</div><section class="home-catalog"><div class="section-head catalog-head"><div><h2>Dành riêng cho hôm nay</h2><p>Một vài gợi ý, biết đâu là món bạn đang tìm.</p></div><div class="discovery"><button class="chip active" data-action="home-filter" data-value="all">Gợi ý cho bạn</button><button class="chip" data-action="home-filter" data-value="new">Mới nhất</button><button class="chip" data-action="home-filter" data-value="price">Giá dễ yêu</button></div></div><div id="home-products">${products.length ? cards(products.slice(0, 12), true) : empty("Chưa có sản phẩm", "Các shop sẽ sớm mang những món đồ mới đến đây.", "/seller", "Mở shop của bạn")}</div><div class="catalog-more"><a class="btn outline" href="/search">Khám phá thêm</a></div></section><div class="benefits">${[
-    ["truck", "Giao hàng tiện lợi", "Theo dõi từng bước hành trình"],
-    ["shield", "Thanh toán an tâm", "payOS & thanh toán khi nhận hàng"],
-    ["return", "Đổi trả dễ dàng", "Yêu cầu trả hàng trong 7 ngày"],
-    ["chat", "Luôn có người lắng nghe", "Kết nối trực tiếp cùng shop"],
-  ]
-    .map(
-      ([i, h, p]) =>
-        `<div class="benefit">${icon(i, 23)}<div><strong>${h}</strong><small>${p}</small></div></div>`,
-    )
-    .join(
-      "",
-    )}</div><section class="newsletter"><div><h3>Shop nhỏ của bạn. Cơ hội lớn mỗi ngày.</h3><p>Mang sản phẩm của bạn đến với những người đang tìm kiếm.</p></div><a class="btn" href="/seller">Bắt đầu bán hàng</a></section>`;
+  return homeContent({ products, meta, category_previews });
+}
+function homeContent(data, pending = false) {
+  return renderHome(data, { esc, image, cards, empty, icon }, pending);
 }
 function pagination(page) {
   if (!page.pages || page.pages < 2) return "";
@@ -1421,9 +1395,35 @@ function go(url, replace = false) {
   history[replace ? "replaceState" : "pushState"]({}, "", url);
   renderRoute();
 }
+let workspaceStyles;
+function ensureWorkspaceStyles() {
+  workspaceStyles ||= new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    const done = error => {
+      clearTimeout(timer);
+      link.onload = link.onerror = null;
+      if (error) {
+        link.remove();
+        workspaceStyles = null;
+        reject(new Error("Chưa tải được giao diện quản lý. Bạn thử lại nhé."));
+      } else resolve();
+    };
+    const timer = setTimeout(() => done(true), 12000);
+    link.rel = "stylesheet";
+    link.href = workspaceStylesUrl;
+    link.onload = () => done(false);
+    link.onerror = () => done(true);
+    document.head.append(link);
+  });
+  return workspaceStyles;
+}
 async function renderRoute() {
   closeHeaderMenu();
   const version = ++state.route;
+  const parts = location.pathname.split("/").filter(Boolean);
+  const isHome = !parts.length;
+  const routeStarted = performance.now();
+  clearTimeout(state.loadingTimer);
   state.motionCleanup?.();
   state.motionCleanup = null;
   state.quoteController?.abort();
@@ -1444,15 +1444,42 @@ async function renderRoute() {
         '<div id="route-progress" class="route-progress" role="status">Đang cập nhật…</div>',
       );
   }
+  if (isHome) {
+    const pending = homeContent(undefined, true);
+    if ($("#content [data-home-view]")) updateHome($("#content"), pending);
+    else $("#content").innerHTML = pending;
+    $("[data-home-view]").setAttribute("data-home-pending", "");
+    $("#home-products").setAttribute("aria-busy", "true");
+    if ($("#route-progress")) $("#route-progress").hidden = true;
+    window.scrollTo(0, 0);
+    void afterPaint().then(() => {
+      if (version === state.route) recordReadiness("shell", "/", routeStarted);
+    });
+  }
   $("#content").setAttribute("aria-busy", "true");
   // The old view remains visible while loading, but must not accept actions
   // for a route that is no longer current. Header navigation stays available.
-  $("#content").inert = true;
-  const routeStarted = performance.now();
+  // Home is a new, usable frame with no purchasable data yet, not the old route.
+  $("#content").inert = !isHome;
+  const loadingTimer = state.loadingTimer = setTimeout(() => {
+    if (version !== state.route) return;
+    const message = "Kết nối chậm hơn dự kiến. Bạn vẫn có thể mở trang khác.";
+    if ($("#route-progress")) {
+      $("#route-progress").textContent = message;
+      $("#route-progress").hidden = false;
+    }
+    if ($(".home-load-status")) $(".home-load-status").textContent = message;
+  }, 2000);
   const paintReady = hadView ? afterPaint() : Promise.resolve();
-  const parts = location.pathname.split("/").filter(Boolean);
   let content = "";
+  let succeeded = false;
+  let stylesReady;
   try {
+    if (["seller", "admin"].includes(parts[0])) {
+      stylesReady = ensureWorkspaceStyles();
+      // Fetch data in parallel; the original promise is awaited before committing UI.
+      void stylesReady.catch(() => {});
+    }
     const authRoute = [
       "login",
       "register",
@@ -1474,7 +1501,7 @@ async function renderRoute() {
       )
         throw state.sessionError;
     }
-    if (!parts.length) content = await home();
+    if (!parts.length) content = await home(version);
     else if (parts[0] === "search") content = await searchPage();
     else if (parts[0] === "product") content = await productPage(parts[1]);
     else if (parts[0] === "shop") content = await shopPage(parts[1]);
@@ -1516,10 +1543,14 @@ async function renderRoute() {
         "Trang này chưa có ở đây",
         "Cùng quay về và khám phá những điều mới nhé.",
       );
-    await paintReady;
+    await Promise.all([paintReady, stylesReady]);
     if (version !== state.route) return;
-    $("#content").innerHTML = content;
-    window.scrollTo(0, 0);
+    if (isHome) updateHome($("#content"), content);
+    else {
+      $("#content").innerHTML = content;
+      window.scrollTo(0, 0);
+    }
+    recordReadiness("data", location.pathname, routeStarted);
     if (["login", "register", "account"].includes(parts[0])) {
       void mountAuthExtras(version, parts[0] === "account");
     }
@@ -1539,6 +1570,7 @@ async function renderRoute() {
         if (version === state.route && checkout.status !== state.payment.status)
           await renderRoute();
       });
+    succeeded = true;
   } catch (e) {
     if (version !== state.route || e.name === "AbortError") return;
     if (e.status === 401 && state.user) {
@@ -1552,10 +1584,17 @@ async function renderRoute() {
       go("/login");
       return;
     }
-    $("#content").innerHTML =
-      `<div class="page-title"></div>${empty("Chưa thể mở trang", e.message, "/", "Về trang chủ")}`;
+    const failure = `<section class="load-error" role="alert"><${isHome ? "h3" : "h1"}>${isHome ? "Chưa tải được sản phẩm" : "Chưa thể mở trang"}</${isHome ? "h3" : "h1"}><p>${esc(e.message)}</p><div class="load-error-actions"><button type="button" class="btn" data-action="retry-route">Thử lại</button><a class="btn outline" href="${isHome ? "/search" : "/"}">${isHome ? "Khám phá sản phẩm" : "Về trang chủ"}</a></div></section>`;
+    if (isHome && $("#home-products")) {
+      $("#home-products").innerHTML = failure;
+      $("#home-products").removeAttribute("aria-busy");
+      $(".home-load-status").textContent = "Chưa tải được bộ sưu tập. Bạn có thể thử lại bên dưới.";
+      $("[data-home-view]").removeAttribute("data-home-pending");
+    } else $("#content").innerHTML = failure;
   } finally {
+    clearTimeout(loadingTimer);
     if (version === state.route) {
+      state.loadingTimer = null;
       if ($("#content")) $("#content").inert = false;
       $("#content")?.removeAttribute("aria-busy");
       $("#route-progress")?.remove();
@@ -1566,7 +1605,10 @@ async function renderRoute() {
         detail: { path: location.pathname },
       });
       recordRoute(location.pathname, performance.now() - routeStarted);
-      scheduleRouteMotion(version);
+      if (succeeded) {
+        recordReadiness("ready", location.pathname, routeStarted);
+        scheduleRouteMotion(version);
+      }
       void syncAuthEmail(version);
     }
   }
@@ -1875,7 +1917,19 @@ document.addEventListener("click", async (e) => {
   if (button.disabled) return;
   if (action !== "cart-qty") button.disabled = true;
   try {
-    if (action === "toggle-filters") {
+    if (action === "retry-route") {
+      if (state.sessionError) {
+        state.sessionError = null;
+        const route = location.pathname + location.search;
+        const include = location.pathname === "/cart" ? "cart-view" :
+          location.pathname === "/checkout" ? "checkout" : "cart";
+        state.sessionReady = refreshUser({ include, route }).then(() => {
+          refreshHeader();
+          cartBadge();
+        }).catch(error => { state.sessionError = error; });
+      }
+      await renderRoute();
+    } else if (action === "toggle-filters") {
       const panel = button.closest(".filter-panel");
       const open = panel.classList.toggle("is-open");
       button.setAttribute("aria-expanded", String(open));

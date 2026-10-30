@@ -6,6 +6,7 @@ import http2 from 'node:http2';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { parseArgs, parseEnv } from 'node:util';
 import { execFileSync } from 'node:child_process';
+import { dirname } from 'node:path';
 
 const { values } = parseArgs({ options: {
   base: { type: 'string', default: 'https://shoppec.vercel.app' },
@@ -14,6 +15,7 @@ const { values } = parseArgs({ options: {
   output: { type: 'string', default: 'artifacts/latency-probe.json' },
   credentials: { type: 'string' }, label: { type: 'string', default: 'manual' },
   'transport-test': { type: 'boolean', default: false },
+  origin: { type: 'boolean', default: false },
 } });
 const base = new URL(values.base);
 if (base.pathname !== '/' || base.search || base.hash || base.username || base.password)
@@ -28,6 +30,8 @@ if (values.credentials && base.hostname !== 'shoppec.vercel.app' && !['127.0.0.1
 const transport = base.protocol === 'https:' ? https : http;
 const agent = new transport.Agent({ keepAlive: true, maxSockets: 1 });
 let h2, cookie = '', csrf = '', loggedIn = false, phase = 'initial';
+let readOrdinal = 0;
+const probeGeneration = Date.now().toString(36);
 const rows = [];
 const elapsed = start => +(performance.now() - start).toFixed(3);
 const safePath = path => path === '/api/live?connection=close' ? path : path.split('?')[0];
@@ -35,6 +39,7 @@ function rowFor(path, mode, start, headerAt, headers, status, bytes, phases) {
   return { phase, path: safePath(path), mode, status, totalMs: elapsed(start), ttfbMs: +(headerAt - start).toFixed(3),
     bodyMs: +(performance.now() - headerAt).toFixed(3), bytes, ...phases,
     cache: headers['x-vercel-cache'] || null, age: headers.age || null,
+    cacheControl: headers['cache-control'] || null, sessionSource: headers['x-session-source'] || null,
     appRequest: headers['x-request-id'] || null, platformRequest: headers['x-vercel-id'] || null,
     instance: headers['x-app-instance'] || null, instanceAgeMs: headers['x-app-age-ms'] || null,
     serverTiming: headers['server-timing'] || null };
@@ -42,6 +47,9 @@ function rowFor(path, mode, start, headerAt, headers, status, bytes, phases) {
 async function request(path, mode = 'h1-reuse', method = 'GET', body) {
   const start = performance.now(), chunks = [];
   const payload = body === undefined ? undefined : JSON.stringify(body);
+  // Explicit synthetic origin samples. Never bust session/private or static URLs.
+  const originRead = values.origin && phase === 'measured' && method === 'GET' && /^\/api\/(home|meta|products)(?:[/?]|$)/.test(path);
+  const networkPath = originRead ? path + (path.includes('?') ? '&' : '?') + '_fresh=probe-' + probeGeneration + '-' + (++readOrdinal) : path;
   const publicRead = method === 'GET' && (path === '/' || /^\/api\/(products|home|meta|live|health)(?:[/?]|$)/.test(path));
   const headers = { 'accept-encoding': 'identity', ...(!publicRead && cookie ? { cookie } : {}),
     ...(!publicRead && csrf ? { 'x-csrf-token': csrf } : {}), ...(payload ? { 'content-type': 'application/json', origin: base.origin } : {}) };
@@ -62,7 +70,7 @@ async function request(path, mode = 'h1-reuse', method = 'GET', body) {
           h2 = http2.connect(base.origin);
           h2.on('error', () => {});
         }
-        const req = h2.request({ ':path': path, ':method': method, ...headers });
+        const req = h2.request({ ':path': networkPath, ':method': method, ...headers });
         let responseHeaders, headerAt;
         const deadline = setTimeout(() => { req.close(http2.constants.NGHTTP2_CANCEL); reject(new Error('timeout')); }, 20000);
         req.on('close', () => clearTimeout(deadline));
@@ -72,7 +80,7 @@ async function request(path, mode = 'h1-reuse', method = 'GET', body) {
         req.on('error', reject); req.end(payload);
       } else {
         let headerAt, dnsAt, tcpAt, tlsAt;
-        const req = transport.request(new URL(path, base), { method, headers, agent: mode === 'h1-new' ? false : agent }, res => {
+        const req = transport.request(new URL(networkPath, base), { method, headers, agent: mode === 'h1-new' ? false : agent }, res => {
           headerAt = performance.now();
           res.on('data', b => chunks.push(b)); res.on('error', reject);
           res.on('end', () => finish(res.headers, res.statusCode, headerAt, {
@@ -100,10 +108,11 @@ async function request(path, mode = 'h1-reuse', method = 'GET', body) {
     throw error;
   }
 }
-function summary() {
+function summary(separateCache = false) {
   const measured = rows.filter(r => r.phase === 'measured');
-  return Object.fromEntries([...new Set(measured.map(r => `${r.mode} ${r.path}`))].map(key => {
-    const group = measured.filter(r => `${r.mode} ${r.path}` === key), ok = group.filter(r => r.status === 200);
+  const keyOf = row => `${row.mode} ${row.path}` + (separateCache ? ` ${row.cache || 'unknown'}` : '');
+  return Object.fromEntries([...new Set(measured.map(keyOf))].map(key => {
+    const group = measured.filter(r => keyOf(r) === key), ok = group.filter(r => r.status === 200);
     const sorted = ok.map(r => r.totalMs).sort((a,b) => a-b);
     const median = sorted.length ? (sorted[Math.floor((sorted.length-1)/2)] + sorted[Math.ceil((sorted.length-1)/2)])/2 : null;
     return [key, { n: group.length, successes: ok.length, errors: group.length-ok.length, medianMs: median,
@@ -123,7 +132,7 @@ try {
     loggedIn = true;
   }
   const paths = values['transport-test'] ? ['/', '/api/live', '/api/live?connection=close', '/api/auth/me?include=cart'] :
-    ['/', '/api/live', '/api/health', '/api/products?include=meta',
+    ['/', '/api/live', '/api/health', '/api/home', '/api/products?include=meta',
       '/api/auth/me?include=cart', ...(loggedIn ? ['/api/cart', '/api/checkout/context'] : [])];
   // Deterministic seeded shuffle of complete mode/endpoint blocks reduces order bias.
   let seed = 28102026;
@@ -147,8 +156,9 @@ finally {
   let source; try { source = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch {}
   const report = { at: new Date().toISOString(), label: values.label, runnerSource: source, base: base.origin,
     scope: 'Sequential controlled lab; response bodies, cookies, CSRF and credentials are not stored. First origin read is not automatically cold. Private context may be empty; not buyer checkout readiness.',
-    samples, modes, transportTest: values['transport-test'], seed: 28102026, failure: failure || null, groups: summary(), rows };
-  await mkdir(new URL('../artifacts/', import.meta.url), { recursive: true });
+    samples, modes, transportTest: values['transport-test'], syntheticOriginReads: values.origin,
+    seed: 28102026, failure: failure || null, groups: summary(), cacheGroups: summary(true), rows };
+  await mkdir(dirname(values.output), { recursive: true });
   await writeFile(values.output, JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ output: values.output, failure: report.failure, groups: report.groups }, null, 2));
   if (failure || rows.some(r => r.status !== 200)) process.exitCode = 1;

@@ -13,7 +13,12 @@ COPY cmake/ cmake/
 COPY backend/ backend/
 COPY tests/ tests/
 COPY database/ database/
-RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSHOPPE_POSTGRES=ON && cmake --build build -j2 && ctest --test-dir build --output-on-failure
+RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSHOPPE_POSTGRES=ON && cmake --build build -j2 && ctest --test-dir build --output-on-failure \
+    && stat -c 'shoppe binary before strip: %s bytes' build/shoppe \
+    && strip --strip-unneeded build/shoppe \
+    && stat -c 'shoppe binary after strip: %s bytes' build/shoppe \
+    && APP_ENV=test SQLITE_PATH=/tmp/strip-smoke.db SCHEMA_PATH=database/schema.sql build/shoppe --initialize \
+    && rm -f /tmp/strip-smoke.db /tmp/strip-smoke.db-shm /tmp/strip-smoke.db-wal
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 libsqlite3-0 libpq5 ca-certificates && rm -rf /var/lib/apt/lists/* && useradd -m app

@@ -1092,129 +1092,6 @@ textarea:focus {
   margin-top: 8px;
   font-size: 12px;
 }
-.content-with-aside {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 24px;
-  margin: 28px 0;
-}
-.aside {
-  min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 22px 15px;
-  height: fit-content;
-}
-.aside h3 {
-  font-size: 14px;
-  padding: 0 10px 17px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 12px;
-}
-.aside a {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 11px 12px;
-  font-size: 12px;
-  color: var(--legacy-color-7d8872);
-  border-radius: 6px;
-  margin-bottom: 3px;
-}
-.aside a.active {
-  background: var(--legacy-color-fbede5);
-  color: var(--orange);
-  font-weight: 600;
-}
-.aside a:hover {
-  background: var(--legacy-color-f7f7f0);
-}
-.aside a svg {
-  width: 17px;
-  height: 17px;
-}
-.workspace {
-  min-width: 0;
-}
-.workspace .page-title {
-  margin-top: 0;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 22px;
-}
-.stat {
-  padding: 20px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-.stat small {
-  font-size: 10px;
-  color: var(--legacy-color-8e9982);
-}
-.stat strong {
-  display: block;
-  font-size: 25px;
-  font-weight: 650;
-  letter-spacing: -0.7px;
-  margin: 8px 0;
-}
-.stat span {
-  font-size: 10px;
-  color: var(--legacy-color-899b7b);
-}
-.table-wrap {
-  overflow: auto;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  text-align: left;
-  white-space: nowrap;
-}
-th {
-  background: var(--legacy-color-f7f7f2);
-  color: var(--legacy-color-909a85);
-  font-weight: 500;
-  font-size: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
-}
-td {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--legacy-color-f0f0e7);
-  vertical-align: middle;
-}
-tr:last-child td {
-  border: 0;
-}
-.table-image {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 300px;
-  min-width: 220px;
-}
-.table-image img {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 5px;
-  background: var(--legacy-color-eee);
-}
-.table-image div {
-  white-space: normal;
-}
 .badge {
   font-size: 10px;
   border-radius: 4px;
@@ -1649,19 +1526,6 @@ dialog .close {
   color: var(--legacy-color-8b967d);
   margin-top: 5px;
 }
-.progress-bar {
-  height: 7px;
-  background: var(--legacy-color-eceee4);
-  border-radius: 6px;
-  margin-top: 13px;
-  overflow: hidden;
-}
-.progress-bar > span {
-  display: block;
-  height: 100%;
-  background: var(--legacy-color-9eb38c);
-  border-radius: 6px;
-}
 .sort-select {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1792,9 +1656,6 @@ dialog .close {
   .benefit small {
     font-size: 8px;
   }
-  .stat-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .cart-layout,
   .checkout-layout {
     grid-template-columns: 1fr 290px;
@@ -1804,10 +1665,6 @@ dialog .close {
   }
   .head-main .brand {
     font-size: 28px;
-  }
-  .content-with-aside {
-    grid-template-columns: 190px 1fr;
-    gap: 18px;
   }
 }
 @media (max-width: 760px) {
@@ -2070,39 +1927,6 @@ dialog .close {
   .detail-photo {
     max-height: 450px;
   }
-  .content-with-aside {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-  }
-  .aside {
-    display: flex;
-    overflow: auto;
-    white-space: nowrap;
-    gap: 6px;
-    padding: 9px;
-  }
-  .aside h3 {
-    display: none;
-  }
-  .aside a {
-    flex-shrink: 0;
-    padding: 9px;
-    font-size: 10px;
-    margin: 0;
-  }
-  .aside a svg {
-    width: 15px;
-    height: 15px;
-  }
-  .stat-grid {
-    gap: 10px;
-  }
-  .stat {
-    padding: 16px;
-  }
-  .stat strong {
-    font-size: 23px;
-  }
   .panel {
     padding: 20px;
   }
@@ -2199,9 +2023,6 @@ dialog .close {
   }
   .variant-editor .field {
     font-size: 10px;
-  }
-  .table-wrap {
-    font-size: 11px;
   }
   .filters {
     gap: 6px;

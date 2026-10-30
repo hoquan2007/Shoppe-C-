@@ -2,6 +2,30 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canonicalApiPath, createApiClient } from "../frontend/api.js";
 
+test("an HTML gateway failure preserves status and retries a read within its budget", async () => {
+  let calls = 0;
+  const { api } = createApiClient({ state: {}, fetcher: async () => {
+    calls++;
+    if (calls === 1) return { ok: false, status: 503, json: async () => { throw new SyntaxError("HTML gateway body"); } };
+    return response({ products: [] });
+  }});
+  assert.deepEqual(await api("/products"), { products: [] });
+  assert.equal(calls, 2);
+});
+
+test("non-JSON mutations are not repeated and network failures use actionable messages", async () => {
+  let calls = 0;
+  const invalid = createApiClient({ state: {}, fetcher: async () => {
+    calls++;
+    return { ok: false, status: 502, json: async () => { throw new SyntaxError("HTML body"); } };
+  }});
+  await assert.rejects(invalid.api("/cart", { method: "PUT", body: { items: [] } }), error =>
+    error.status === 502 && /dữ liệu hợp lệ/.test(error.message));
+  assert.equal(calls, 1);
+  const offline = createApiClient({ state: {}, fetcher: async () => { throw new TypeError("Failed to fetch"); }});
+  await assert.rejects(offline.api("/products"), error => error.status === 503 && /kết nối/.test(error.message));
+});
+
 const response = (
   data = { products: [{ id: "public" }] },
   status = 200,

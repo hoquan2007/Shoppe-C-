@@ -112,3 +112,14 @@ export function recordRoute(path, duration) {
         }),
     );
 }
+
+// Bounded local measurements separate usable static content from actual data.
+// They do not upload telemetry, query strings, product IDs or account details.
+export function recordReadiness(phase, path, started) {
+  const route = "/" + (path.split("/")[1] || "home");
+  const name = "shoppe:readiness:" + phase;
+  const detail = { phase, route, sinceNavigationMs: performance.now() };
+  performance.clearMeasures(name);
+  const entry = performance.measure(name, { start: started, end: performance.now(), detail });
+  if (debug) console.info("[shoppe:readiness] " + JSON.stringify({ ...detail, duration: entry.duration }));
+}
