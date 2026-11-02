@@ -1,4 +1,5 @@
 #include "application.h"
+#include "account_mail.h"
 #include "security.h"
 #include <iostream>
 #include <mutex>
@@ -8,6 +9,12 @@
 using namespace shoppe;
 int main() {
     try {
+        const auto preview = passwordResetMail("https://example.test/reset?token=fixture&source=\"test\"");
+        if (preview.at("subject") != "Shoppe | Hướng dẫn đặt lại mật khẩu" ||
+            preview.at("text").get<std::string>().find("1 giờ") == std::string::npos ||
+            preview.at("html").get<std::string>().find("&amp;source=&quot;test&quot;") == std::string::npos ||
+            preview.at("html").get<std::string>().find("Đặt lại mật khẩu</a>") == std::string::npos)
+            throw std::runtime_error("reset email must include accessible text, expiry, CTA and escaped HTML");
         Database db("", ":memory:", "database/schema.sql");
         const auto origin = env("APP_URL", "http://localhost:5173");
         {
@@ -29,6 +36,11 @@ int main() {
                     {"attempts", name == "retry-expired" ? 1 : 0}, {"created_at", 1},
                     {"subject", "Fixture"},
                     {"text", name == "notification" ? "Order notification" : origin + "/" + purpose + "?token=" + name}});
+                if (name == "valid-reset") {
+                    auto mail = r.get("outbox", name);
+                    mail.update(passwordResetMail(origin + "/reset?token=" + name));
+                    r.save("outbox", mail);
+                }
             }
             tx->commit();
         }
@@ -65,6 +77,28 @@ int main() {
                 throw std::runtime_error("cancellation must preserve history without a send attempt");
         }
         tx->commit();
+        {
+            Application app(db);
+            httplib::Request request;
+            request.method = "POST";
+            request.path = "/api/auth/forgot";
+            request.set_header("Origin", origin);
+            request.body = Json{{"email", "owner@example.test"}}.dump();
+            httplib::Response response;
+            app.handle(request, response);
+            if (response.status != 200) throw std::runtime_error(response.body);
+            auto checkTx = db.begin(true);
+            Repository checkRepo(*checkTx);
+            bool found = false;
+            for (const auto &mail : checkRepo.list("outbox", "status = ?", {"queued"})) {
+                if (mail.value("subject", "") == "Shoppe | Hướng dẫn đặt lại mật khẩu") {
+                    found = mail.value("html", "").find("Đặt lại mật khẩu</a>") != std::string::npos &&
+                            mail.value("text", "").find("Kính gửi Quý khách") != std::string::npos;
+                }
+            }
+            checkTx->commit();
+            if (!found) throw std::runtime_error("forgot endpoint did not queue the professional multipart email");
+        }
         std::cout << "Mail link expiry, replacement, consumption, ownership, retry and cancellation passed\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';

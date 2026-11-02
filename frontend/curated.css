@@ -451,6 +451,37 @@ dialog { border-radius: var(--radius-lg); background: var(--surface); }
 @media (max-width: 639px) {
   .field input, .field select, .field textarea { font-size: 16px; }
 }
+.recovery-panel { max-width: 720px; margin: 32px auto 64px; padding: 48px 56px 32px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.recovery-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; color: var(--action); }
+.recovery-heading p { margin: 0; font-size: 14px; font-weight: 600; }
+.recovery-panel h1 { margin: 0 0 20px; font-size: clamp(30px, 3vw, 40px); line-height: 1.15; letter-spacing: -.035em; }
+.recovery-panel h1:focus { outline: none; }
+.recovery-intro { margin: 0 0 12px; font-size: 17px; line-height: 1.65; }
+.recovery-address { display: block; overflow-wrap: anywhere; font-weight: 600; }
+.recovery-discreet { margin: 0; color: var(--muted); line-height: 1.7; font-size: 14px; }
+.recovery-guidance { margin: 28px 0; padding: 24px; background: var(--bg); border-radius: 12px; }
+.recovery-guidance h2 { margin: 0 0 12px; font-size: 17px; line-height: 1.5; letter-spacing: -.015em; }
+.recovery-guidance p { margin: 0; font-size: 14px; line-height: 1.8; }
+.recovery-guidance dl { display: grid; gap: 14px; margin: 20px 0; }
+.recovery-guidance dl div { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; font-size: 13px; line-height: 1.7; }
+.recovery-guidance dt { color: var(--muted); }
+.recovery-guidance dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.recovery-guidance dd span { display: block; font-weight: 400; }
+.recovery-actions { display: grid; gap: 12px; }
+.recovery-actions .btn { min-height: 48px; }
+.recovery-resend { display: grid; gap: 10px; }
+.recovery-resend .btn:disabled { opacity: .65; }
+.recovery-wait { margin: 0; font-size: 12px; line-height: 1.6; color: var(--muted); text-align: center; }
+.recovery-edit { justify-self: center; padding: 10px 0; color: var(--action); font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.recovery-security { display: flex; align-items: flex-start; gap: 10px; margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.7; color: var(--muted); }
+.recovery-security svg { flex-shrink: 0; margin-top: 2px; }
+@media (max-width: 639px) {
+  .recovery-panel { margin: 8px auto 32px; padding: 28px 20px 24px; border-radius: 18px; }
+  .recovery-heading { margin-bottom: 24px; gap: 12px; }
+  .recovery-heading svg { width: 36px; height: 36px; }
+  .recovery-guidance { margin: 24px 0; padding: 20px 16px; }
+  .recovery-guidance dl div { grid-template-columns: 1fr; gap: 2px; }
+}
 .shop-service-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 0 0 32px; padding: 24px; background: var(--surface, #f4f2ed); }
 .shop-service-details dt { font-weight: 600; margin-bottom: 8px; }
 .shop-service-details dd { margin: 0; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }

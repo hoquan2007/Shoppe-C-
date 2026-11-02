@@ -1,4 +1,5 @@
 #include "application.h"
+#include "account_mail.h"
 #include "request_log.h"
 #include "trace_path.h"
 #include "catalog.h"
@@ -343,11 +344,12 @@ void audit(Repository &r, const Json &u, const std::string &action, const std::s
                      {"created_at", now()}});
 }
 void queueMail(Repository &r, const std::string &uid, const std::string &title,
-               const std::string &message) {
+               const std::string &message, const std::string &html = "") {
     r.save("outbox", {{"id", randomId()},
                       {"user_id", uid},
                       {"subject", title},
                       {"text", message},
+                      {"html", html},
                       {"status", "queued"},
                       {"attempts", 0},
                       {"created_at", now()}});
@@ -1255,9 +1257,12 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
                                     {"user_id", user["id"]},
                                     {"purpose", purpose},
                                     {"expires_at", now() + 3600}});
-            queueMail(r, user["id"], "Yêu cầu tài khoản Shoppe",
-                      appUrl_ + (std::string(purpose) == "reset" ? "/reset?token=" : "/verify?token=") +
-                          t);
+            const auto link = appUrl_ + (std::string(purpose) == "reset" ? "/reset?token=" : "/verify?token=") + t;
+            if (std::string(purpose) == "reset") {
+                const auto content = passwordResetMail(link);
+                queueMail(r, user["id"], content.at("subject"), content.at("text"), content.at("html"));
+            } else
+                queueMail(r, user["id"], "Xác minh email Shoppe", link);
         }
         return {{"message", "Nếu email hợp lệ, hướng dẫn sẽ được gửi qua email."}};
     }
@@ -2298,6 +2303,7 @@ Json Application::route(Repository &r, const httplib::Request &req, httplib::Res
             auto page = pageList(r, "outbox", req);
             for (auto item : page.at("items")) {
                 item.erase("text");
+                item.erase("html");
                 list.push_back(item);
             }
             page["outbox"] = list;
@@ -2521,6 +2527,8 @@ bool Application::processMail() {
                          {"to", Json::array({user["email"]})},
                          {"subject", mail["subject"]},
                          {"text", mail["text"]}};
+            if (!mail.value("html", "").empty())
+                payload["html"] = mail.at("html");
             auto response = client.Post("/emails",
                                         {{"Authorization", "Bearer " + env("RESEND_API_KEY")},
                                          {"Idempotency-Key", mail.at("id")}},

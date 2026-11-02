@@ -173,6 +173,7 @@ test("email configuration can retry and recovery remains single-submit while pro
   await page.getByLabel("Email", { exact: true }).press("Enter");
   expect(sends).toBe(1);
   release();
-  await expect(page.locator("#toast")).toContainText("Nếu email hợp lệ");
-  await expect(submit).toBeEnabled();
+  await expect(page).toHaveURL(/\/forgot\/sent$/);
+  await expect(page.getByRole("heading", { name: "Vui lòng kiểm tra email" })).toBeVisible();
+  await expect(page.locator("[data-recovery-resend]")).toBeDisabled();
 });

@@ -641,6 +641,7 @@ async function syncAuthEmail(version) {
   const kind = form?.dataset.kind;
   if (!["register", "forgot"].includes(kind)) return;
   const notice = $(".email-unavailable");
+  if (!notice) return;
   const retry = $('[data-action="retry-email-status"]');
   try {
     const meta = await ensureMeta(true);
@@ -660,7 +661,52 @@ async function syncAuthEmail(version) {
 function authLinkUnavailable(kind, message) {
   return `<section class="auth-link-error" role="alert"><p>${esc(message)}</p><p>Yêu cầu liên kết mới để tiếp tục ${kind === "reset" ? "đặt lại mật khẩu" : "xác minh email"}.</p><a class="btn full" href="${kind === "reset" ? "/forgot" : "/account"}">${kind === "reset" ? "Yêu cầu liên kết mới" : "Đăng nhập để gửi lại email"}</a><p class="footnote"><a href="/login">Quay về đăng nhập</a></p></section>`;
 }
+function recoveryRequest() {
+  if (state.recoveryRequest) return state.recoveryRequest;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("shoppe:recovery"));
+    if (typeof saved?.email === "string" && saved.email.length <= 254 &&
+        Number.isFinite(saved.requestedAt) && Date.now() - saved.requestedAt < 3600000)
+      return state.recoveryRequest = saved;
+  } catch {}
+  return null;
+}
+function recoveryConfirmation() {
+  const request = recoveryRequest();
+  return `<section class="recovery-panel" aria-labelledby="recovery-title">
+    <div class="recovery-heading">${icon("mail", 44)}<p>Khôi phục tài khoản Shoppe</p></div>
+    <h1 id="recovery-title" tabindex="-1">Vui lòng kiểm tra email</h1>
+    <p class="recovery-intro">${request ? `Yêu cầu khôi phục mật khẩu đã được tiếp nhận cho <strong class="recovery-address">${esc(request.email)}</strong>` : "Mở hộp thư của địa chỉ email bạn vừa sử dụng để yêu cầu khôi phục mật khẩu."}</p>
+    <p class="recovery-discreet">Nếu địa chỉ này liên kết với tài khoản Shoppe, bạn sẽ nhận được thư hướng dẫn trong ít phút.</p>
+    <div class="recovery-guidance">
+      <h2>Tìm hướng dẫn trong hộp thư của bạn</h2>
+      <p>Kiểm tra <strong>Hộp thư đến</strong>. Nếu chưa thấy thư, hãy xem thêm mục <strong>Thư rác / Spam</strong> và <strong>Quảng cáo</strong>.</p>
+      <dl><div><dt>Người gửi</dt><dd>Shoppe <span>no-reply@mail.hnquan.io.vn</span></dd></div><div><dt>Tiêu đề</dt><dd>Shoppe | Hướng dẫn đặt lại mật khẩu</dd></div></dl>
+      <p>Trong email, chọn <strong>Đặt lại mật khẩu</strong> để tiếp tục. Liên kết có hiệu lực trong <strong>1 giờ</strong> kể từ lúc yêu cầu được tạo và chỉ dùng một lần.</p>
+    </div>
+    <div class="recovery-actions"><a class="btn full" href="/login">Quay về đăng nhập ${icon("arrow", 17)}</a>
+      ${request ? `<form data-form="auth" data-kind="forgot" class="recovery-resend"><input type="hidden" name="email" value="${esc(request.email)}"><div class="form-error" role="alert" hidden></div><button type="submit" class="btn outline full" data-recovery-resend disabled>Gửi lại hướng dẫn</button><p class="recovery-wait" data-recovery-wait role="status">Vui lòng chờ trước khi gửi lại.</p></form>` : ""}
+      <a class="recovery-edit" href="/forgot">${request ? "Nhập sai địa chỉ? Sử dụng email khác" : "Yêu cầu hướng dẫn mới"}</a>
+    </div>
+    <p class="recovery-security">${icon("shield", 17)}<span>Chỉ sử dụng liên kết trong email mới nhất và không chia sẻ liên kết với người khác.</span></p>
+  </section>`;
+}
+function syncRecoveryConfirmation() {
+  clearTimeout(state.recoveryTimer);
+  const button = $('[data-recovery-resend]');
+  if (!button) return;
+  const request = recoveryRequest();
+  const remaining = Math.max(0, Math.ceil((request.requestedAt + 60000 - Date.now()) / 1000));
+  const busy = button.form.getAttribute("aria-busy") === "true";
+  button.disabled = busy || remaining > 0;
+  button.textContent = remaining ? `Gửi lại hướng dẫn sau ${remaining}s` : "Gửi lại hướng dẫn";
+  $('[data-recovery-wait]').textContent = remaining
+    ? "Email có thể cần ít phút để đến hộp thư của bạn."
+    : "Chưa nhận được thư? Bạn có thể yêu cầu gửi lại. Chỉ liên kết mới nhất còn hiệu lực.";
+  if (remaining) state.recoveryTimer = setTimeout(syncRecoveryConfirmation, 1000);
+}
 function authPage(kind) {
+  if (kind === "forgot" && location.pathname === "/forgot/sent") return recoveryConfirmation();
   const register = kind === "register",
     forgot = kind === "forgot",
     reset = kind === "reset",
@@ -1636,6 +1682,8 @@ async function renderRoute() {
         scheduleRouteMotion(version);
       }
       void syncAuthEmail(version);
+      syncRecoveryConfirmation();
+      if (location.pathname === "/forgot/sent") $("#recovery-title")?.focus({ preventScroll: true });
     }
   }
 }
@@ -2357,6 +2405,13 @@ document.addEventListener("submit", async (e) => {
         if (!next.startsWith("/") || next.startsWith("//")) next = "/";
         go(next);
       } else {
+        if (type === "forgot") {
+          if (!form.isConnected) return;
+          state.recoveryRequest = { email: data.email.trim(), requestedAt: Date.now() };
+          try { sessionStorage.setItem("shoppe:recovery", JSON.stringify(state.recoveryRequest)); } catch {}
+          go("/forgot/sent");
+          return;
+        }
         toast(type === "register" && (state.meta.email_configured === false || result.email_pending)
           ? "Đã tạo tài khoản. Dịch vụ gửi email chưa được cấu hình nên thư xác minh chưa được gửi."
           : type === "register" && state.meta.email_configured !== true
