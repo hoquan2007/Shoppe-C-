@@ -2469,6 +2469,30 @@ bool Application::processMail() {
                 tx->commit();
                 return false;
             }
+            // Account links can expire, be consumed, or be replaced while queued.
+            // Check on every attempt, including recovery of an abandoned send lease.
+            const auto message = mail.value("text", "");
+            for (const auto &purpose : {std::string("reset"), std::string("verify")}) {
+                const auto marker = "/" + purpose + "?token=";
+                const auto position = message.find(marker);
+                if (position == std::string::npos)
+                    continue;
+                const auto start = position + marker.size();
+                const auto end = message.find_first_of(" \t\r\n&#", start);
+                const auto rawToken = message.substr(start, end == std::string::npos ? end : end - start);
+                const auto token = r.get("email_tokens", sha256(rawToken));
+                if (token.is_null() || token.value("purpose", "") != purpose ||
+                    token.value("user_id", "") != mail.value("user_id", "") ||
+                    token.value("expires_at", 0LL) < now()) {
+                    mail["status"] = "cancelled";
+                    mail["cancelled_reason"] = "account_link_expired_or_invalidated";
+                    mail["cancelled_at"] = now();
+                    mail["updated_at"] = now();
+                    r.save("outbox", mail);
+                    tx->commit();
+                    return true;
+                }
+            }
             if (mail.value("attempts", 0) >= 3) {
                 // A crash after the final send must not leave an eternal 'sending' lease.
                 // Delivery may have happened; expose it for explicit review rather than resend automatically.
