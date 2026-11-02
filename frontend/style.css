@@ -860,7 +860,7 @@ textarea:focus {
   border-radius: 10px;
   color: var(--legacy-color-87917f);
 }
-.empty svg {
+.empty > svg {
   width: 42px;
   height: 42px;
   color: var(--legacy-color-a5ae9a);

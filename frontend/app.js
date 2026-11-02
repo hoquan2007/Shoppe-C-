@@ -146,8 +146,8 @@ const image = (p) =>
   );
 const title = (h, p = "", action = "") =>
   `<div class="page-title row between"><div><h1>${esc(h)}</h1>${p ? `<p>${esc(p)}</p>` : ""}</div>${action}</div>`;
-const empty = (h, p, link = "/", text = "Khám phá sản phẩm") =>
-  `<div class="empty">${icon("bag", 42)}<h3>${esc(h)}</h3><p>${esc(p)}</p><a class="btn outline" href="${esc(link)}">${esc(text)} ${icon("arrow", 15)}</a></div>`;
+const empty = (h, p, link = "/", text = "Khám phá sản phẩm", { page = false, action = "" } = {}) =>
+  `<div class="empty">${icon("bag", 42)}<${page ? "h1" : "h3"}>${esc(h)}</${page ? "h1" : "h3"}><p>${esc(p)}</p>${action || `<a class="btn outline" href="${esc(link)}">${esc(text)} ${icon("arrow", 15)}</a>`}</div>`;
 function toast(message) {
   const el = $("#toast");
   el.textContent = message;
@@ -270,15 +270,25 @@ function loadGoogleScript() {
     });
   return googleScript;
 }
+let googleButtonCleanup;
 async function mountGoogleSignIn(version) {
+  googleButtonCleanup?.();
   const container = $("#google-signin");
   if (!container) return;
   const status = $("#google-status"),
     error = $("#google-error"),
     retry = $("#google-retry");
-  const current = () => version === state.route && container.isConnected;
+  const current = () => version === state.route && container.isConnected && googleButtonCleanup === cleanup;
+  let observer, frame;
+  const cleanup = () => {
+    observer?.disconnect();
+    cancelAnimationFrame(frame);
+    if (googleButtonCleanup === cleanup) googleButtonCleanup = null;
+  };
+  googleButtonCleanup = cleanup;
   const failed = (e) => {
     if (!current()) return;
+    cleanup();
     container.replaceChildren();
     status.hidden = true;
     error.textContent = e.message;
@@ -322,17 +332,28 @@ async function mountGoogleSignIn(version) {
       }
     });
     if (!current()) return;
-    window.google.accounts.id.renderButton(container, {
-      theme: "outline",
-      size: "large",
-      text: "continue_with",
-      shape: "rectangular",
-      locale: "vi",
-      width: Math.min(
-        360,
-        Math.max(200, Math.floor(container.getBoundingClientRect().width)),
-      ),
+    let renderedWidth = 0;
+    const renderButton = () => {
+      if (!current()) return cleanup();
+      const width = Math.min(400, Math.floor(container.getBoundingClientRect().width));
+      if (width <= 0 || width === renderedWidth) return;
+      try {
+        container.replaceChildren();
+        window.google.accounts.id.renderButton(container, {
+          theme: "outline", size: "large", text: "continue_with",
+          shape: "rectangular", locale: "vi", width,
+        });
+        renderedWidth = width;
+      } catch (e) {
+        failed(e);
+      }
+    };
+    observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(renderButton);
     });
+    observer.observe(container);
+    renderButton();
     status.hidden = true;
   } catch (e) {
     if (e.code === "google_document_restart") {
@@ -602,7 +623,7 @@ async function productPage(id) {
   state.variant = p.variants.find(v => v.active);
   const v = state.variant;
   const visibleReviews = reviews.filter(review => !review.hidden);
-  return `<div class="breadcrumbs"><a href="/">Trang chủ</a><span>/</span><a href="/search?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a><span>/</span><span>${esc(p.name)}</span></div><div class="detail-grid"><div class="detail-photo"><img src="${image(p.image)}" alt="${esc(p.name)}" width="640" height="640" fetchpriority="high"></div><div class="detail-info"><h1>${esc(p.name)}</h1><div class="detail-rating">${p.review_count ? `<span class="detail-rating-score">★ ${p.rating.toFixed(1)}</span><span>${p.review_count} đánh giá</span>` : '<span class="no-reviews">Chưa có đánh giá</span>'}</div><div class="detail-price" id="variant-price">${money(v?.price)}</div><div class="detail-options"><h2 class="variant-title">Phân loại</h2><div class="variants">${p.variants.filter(item => item.active).map((item, i) => `<button class="variant ${i === 0 ? "active" : ""}" data-action="variant" data-id="${esc(item.id)}" aria-pressed="${i === 0}">${esc(item.name)}</button>`).join("")}</div></div><div class="detail-quantity"><label for="product-qty">Số lượng</label><div class="quantity"><button data-action="detail-qty" data-value="-1" aria-label="Giảm số lượng">−</button><input id="product-qty" type="number" min="1" max="99" value="1" aria-label="Số lượng"><button data-action="detail-qty" data-value="1" aria-label="Tăng số lượng">+</button></div><span id="variant-stock">${v?.stock || 0} sản phẩm có sẵn</span></div><div class="detail-actions"><button class="btn" data-action="add-cart" ${!v?.stock ? "disabled" : ""}>${icon("cart", 19)} Thêm vào giỏ</button><button class="btn outline" data-action="buy-now" ${!v?.stock ? "disabled" : ""}>Mua ngay</button></div><div class="detail-benefits"><span>${icon("shield", 17)} Thanh toán an tâm</span><span>${icon("return", 17)} Trả hàng trong 7 ngày</span></div><div class="shop-strip product-seller"><div class="avatar">${esc(p.shop.name[0])}</div><div class="seller-identity"><strong>${esc(p.shop.name)}</strong><p>${esc(p.shop.location || p.shop.region)}</p></div><div class="seller-actions"><a href="/shop/${esc(p.shop_id)}">Xem shop</a><button type="button" data-action="start-chat" data-id="${esc(p.shop_id)}">${icon("chat", 17)} Nhắn tin</button></div></div></div></div><div class="product-lower"><section class="product-description"><h2>Thông tin sản phẩm</h2>${productCopy(p.description)}</section><section class="product-reviews" id="product-reviews"><h2>Đánh giá <span>(${p.review_count})</span></h2>${visibleReviews.length ? visibleReviews.map(r => `<article class="review"><div class="row between"><strong>${esc(r.name)}</strong><span class="muted small-text">${date(r.created_at)}</span></div><div class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</div><p>${esc(r.comment)}</p></article>`).join("") : `<div class="review-empty">${icon("chat", 24)}<h3>Chưa có nhận xét</h3><p>Nhận xét từ người mua sẽ xuất hiện tại đây.</p></div>`}${pagination(review_page)}</section></div>`;
+  return `<nav class="breadcrumbs" aria-label="Đường dẫn trang"><a href="/">Trang chủ</a><span aria-hidden="true">/</span><a href="/search?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a><span class="breadcrumb-current-separator" aria-hidden="true">/</span><span aria-current="page">${esc(p.name)}</span></nav><div class="detail-grid"><div class="detail-photo"><img src="${image(p.image)}" alt="${esc(p.name)}" width="640" height="640" fetchpriority="high"></div><div class="detail-info"><h1>${esc(p.name)}</h1><div class="detail-rating">${p.review_count ? `<span class="detail-rating-score">★ ${p.rating.toFixed(1)}</span><span>${p.review_count} đánh giá</span>` : '<span class="no-reviews">Chưa có đánh giá</span>'}</div><div class="detail-price" id="variant-price">${money(v?.price)}</div><div class="detail-options"><h2 class="variant-title">Phân loại</h2><div class="variants">${p.variants.filter(item => item.active).map((item, i) => `<button class="variant ${i === 0 ? "active" : ""}" data-action="variant" data-id="${esc(item.id)}" aria-pressed="${i === 0}">${esc(item.name)}</button>`).join("")}</div></div><div class="detail-quantity"><label for="product-qty">Số lượng</label><div class="quantity"><button data-action="detail-qty" data-value="-1" aria-label="Giảm số lượng">−</button><input id="product-qty" type="number" min="1" max="99" value="1" aria-label="Số lượng"><button data-action="detail-qty" data-value="1" aria-label="Tăng số lượng">+</button></div><span id="variant-stock">${v?.stock || 0} sản phẩm có sẵn</span></div><div class="detail-actions"><button class="btn" data-action="add-cart" ${!v?.stock ? "disabled" : ""}>${icon("cart", 19)} Thêm vào giỏ</button><button class="btn outline" data-action="buy-now" ${!v?.stock ? "disabled" : ""}>Mua ngay</button></div><div class="detail-benefits"><span>${icon("shield", 17)} Thanh toán an tâm</span><span>${icon("return", 17)} Trả hàng trong 7 ngày</span></div><div class="shop-strip product-seller"><div class="avatar">${esc(p.shop.name[0])}</div><div class="seller-identity"><strong>${esc(p.shop.name)}</strong><p>${esc(p.shop.location || p.shop.region)}</p></div><div class="seller-actions"><a href="/shop/${esc(p.shop_id)}">Xem shop</a><button type="button" data-action="start-chat" data-id="${esc(p.shop_id)}">${icon("chat", 17)} Nhắn tin</button></div></div></div></div><div class="product-lower"><section class="product-description"><h2>Thông tin sản phẩm</h2>${productCopy(p.description)}</section><section class="product-reviews" id="product-reviews"><h2>Đánh giá <span>(${p.review_count})</span></h2>${visibleReviews.length ? visibleReviews.map(r => `<article class="review"><div class="row between"><strong>${esc(r.name)}</strong><span class="muted small-text">${date(r.created_at)}</span></div><div class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</div><p>${esc(r.comment)}</p></article>`).join("") : `<div class="review-empty">${icon("chat", 24)}<h3>Chưa có nhận xét</h3><p>Nhận xét từ người mua sẽ xuất hiện tại đây.</p></div>`}${pagination(review_page)}</section></div>`;
 }
 
 async function shopPage(id) {
@@ -636,21 +657,24 @@ async function syncAuthEmail(version) {
     if (kind === "forgot") $("button[type=submit]", form).disabled = true;
   }
 }
+function authLinkUnavailable(kind, message) {
+  return `<section class="auth-link-error" role="alert"><p>${esc(message)}</p><p>Yêu cầu liên kết mới để tiếp tục ${kind === "reset" ? "đặt lại mật khẩu" : "xác minh email"}.</p><a class="btn full" href="${kind === "reset" ? "/forgot" : "/account"}">${kind === "reset" ? "Yêu cầu liên kết mới" : "Đăng nhập để gửi lại email"}</a><p class="footnote"><a href="/login">Quay về đăng nhập</a></p></section>`;
+}
 function authPage(kind) {
   const register = kind === "register",
     forgot = kind === "forgot",
     reset = kind === "reset",
     verify = kind === "verify";
-  const h = register
-    ? "Xin chào bạn mới!"
-    : forgot
-      ? "Quên mật khẩu?"
-      : reset
-        ? "Mật khẩu mới"
-        : verify
-          ? "Xác minh email"
-          : "Rất vui gặp lại bạn.";
-  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2 style="margin-top:20px">Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${register ? "Tạo tài khoản để bắt đầu hành trình mua sắm." : forgot ? "Nhập email để nhận hướng dẫn khôi phục." : verify ? "Xác nhận địa chỉ email của bạn." : "Những điều thú vị đang chờ bạn."}</p>${forgot || register ? `<p class="notice email-unavailable" role="status" ${state.meta.email_configured === true ? "hidden" : ""}>${emailAvailabilityText(kind, state.meta.email_configured)}</p><button type="button" class="btn outline small" data-action="retry-email-status" hidden>Kiểm tra lại dịch vụ email</button>` : ""}<form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button type="submit" class="btn full" ${forgot && state.meta.email_configured !== true ? "disabled" : ""}>${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p></div></div>`;
+  const copy = {
+    login: ["Rất vui gặp lại bạn.", "Những điều thú vị đang chờ bạn."],
+    register: ["Xin chào bạn mới!", "Tạo tài khoản để bắt đầu hành trình mua sắm."],
+    forgot: ["Quên mật khẩu?", "Nhập email để nhận hướng dẫn khôi phục."],
+    reset: ["Mật khẩu mới", "Đặt mật khẩu mới có ít nhất 12 ký tự để bảo vệ tài khoản."],
+    verify: ["Xác minh email", "Xác nhận địa chỉ email của bạn."],
+  };
+  const [h, subtitle] = copy[kind];
+  const missingToken = (reset || verify) && !new URLSearchParams(location.search).get("token")?.trim();
+  return `<div class="auth-wrap"><div class="auth-art"><p class="auth-welcome">Chào bạn đến Shoppe</p><h2>Mỗi món đồ.<br>Một niềm vui mới.</h2><p>Một nơi nhỏ để khám phá những điều bạn yêu.</p><img src="/assets/hero.svg" alt="Bộ sưu tập Shoppe"></div><div class="auth-form"><h1>${h}</h1><p>${subtitle}</p>${missingToken ? authLinkUnavailable(kind, "Liên kết không hợp lệ hoặc thiếu mã xác nhận.") : `${forgot || register ? `<p class="notice email-unavailable" role="status" ${state.meta.email_configured === true ? "hidden" : ""}>${emailAvailabilityText(kind, state.meta.email_configured)}</p><button type="button" class="btn outline small" data-action="retry-email-status" hidden>Kiểm tra lại dịch vụ email</button>` : ""}<form data-form="auth" data-kind="${kind}">${register ? field("Họ và tên", "name", "", "text", 'required maxlength="100" autocomplete="name"') : ""}${!reset && !verify ? field("Email", "email", "", "email", 'required autocomplete="email"') : ""}${!forgot && !verify ? field(reset ? "Mật khẩu mới" : "Mật khẩu", "password", "", "password", `required ${register || reset ? 'minlength="12"' : ""} maxlength="128" autocomplete="${register || reset ? "new-password" : "current-password"}"`) : ""}${register || reset ? '<p class="small-text muted" style="margin:-7px 0 20px">Sử dụng ít nhất 12 ký tự để bảo vệ tài khoản.</p>' : ""}${!register && !forgot && !reset && !verify ? '<div style="text-align:right;margin:-6px 0 18px"><a class="small-text muted" href="/forgot">Quên mật khẩu?</a></div>' : ""}<div class="form-error" hidden></div><button type="submit" class="btn full" ${forgot && state.meta.email_configured !== true ? "disabled" : ""}>${register ? "Tạo tài khoản" : forgot ? "Gửi hướng dẫn" : reset ? "Đặt lại mật khẩu" : verify ? "Xác minh email" : "Đăng nhập"} ${icon("arrow", 15)}</button></form><p class="footnote">${register ? 'Đã có tài khoản? <a href="/login">Đăng nhập</a>' : forgot || reset || verify ? '<a href="/login">Quay về đăng nhập</a>' : 'Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>'}</p>`}</div></div>`;
 }
 function field(label, name, value = "", type = "text", extra = "") {
   return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}></label>`;
@@ -944,7 +968,7 @@ async function vouchersPage(scope = "") {
         : vouchers;
   return (
     title(
-      "Ưu đãi dành cho bạn",
+      scope === "seller" ? "Voucher của shop" : scope === "admin" ? "Voucher toàn sàn" : "Ưu đãi dành cho bạn",
       scope
         ? "Tạo và quản lý mã giảm giá."
         : "Chọn một ưu đãi nhỏ, để niềm vui thêm lớn.",
@@ -952,7 +976,7 @@ async function vouchersPage(scope = "") {
         ? `<button class="btn" data-action="new-voucher" data-scope="${scope}">${icon("plus", 16)} Tạo voucher</button>`
         : "",
     ) +
-    `<div class="grid-3">${list.map((v) => `<article class="panel"><div class="row" style="gap:15px"><div class="category-icon">${icon("ticket", 24)}</div><div><h3 style="margin:0">${v.type === "percent" ? v.value + "%" : money(v.value)} giảm giá</h3><span class="small-text muted">Đơn từ ${money(v.minimum)}</span></div></div><div class="notice"><strong>${esc(v.code)}</strong> · ${v.shop_id ? "Voucher của shop" : "Voucher toàn sàn"}</div><p class="small-text muted">Giảm tối đa ${money(v.max_discount)}<br>Đến ${date(v.ends_at)}</p><div class="row" style="margin-top:18px"><button class="btn outline small" data-action="copy-voucher" data-value="${esc(v.code)}">Sao chép mã</button>${scope ? `<button class="btn danger small" data-action="delete-voucher" data-id="${esc(v.id)}">Ngừng áp dụng</button>` : ""}</div></article>`).join("") || empty("Chưa có voucher", "Các ưu đãi mới sẽ xuất hiện tại đây.")}</div>` +
+    `<div class="grid-3">${list.map((v) => `<article class="panel"><div class="row" style="gap:15px"><div class="category-icon">${icon("ticket", 24)}</div><div><h3 style="margin:0">${v.type === "percent" ? v.value + "%" : money(v.value)} giảm giá</h3><span class="small-text muted">Đơn từ ${money(v.minimum)}</span></div></div><div class="notice"><strong>${esc(v.code)}</strong> · ${v.shop_id ? "Voucher của shop" : "Voucher toàn sàn"}</div><p class="small-text muted">Giảm tối đa ${money(v.max_discount)}<br>Đến ${date(v.ends_at)}</p><div class="row" style="margin-top:18px"><button class="btn outline small" data-action="copy-voucher" data-value="${esc(v.code)}">Sao chép mã</button>${scope ? `<button class="btn danger small" data-action="delete-voucher" data-id="${esc(v.id)}">Ngừng áp dụng</button>` : ""}</div></article>`).join("") || empty("Chưa có voucher", scope ? "Tạo mã giảm giá đầu tiên để bắt đầu chương trình ưu đãi." : "Các ưu đãi mới sẽ xuất hiện tại đây.", "/search", "Khám phá sản phẩm", { action: scope ? `<button type="button" class="btn" data-action="new-voucher" data-scope="${scope}">${icon("plus", 16)} Tạo voucher</button>` : "" })}</div>` +
     pagination(page)
   );
 }
@@ -1430,6 +1454,7 @@ async function renderRoute() {
   state.quoteRevision = (state.quoteRevision || 0) + 1;
   state.quote = null;
   googleSession.detach();
+  googleButtonCleanup?.();
   const hadView = !!$("#content h1");
   document.body.dataset.page = location.pathname.split("/")[1] || "home";
   clearTimeout(state.timer);
@@ -1542,6 +1567,7 @@ async function renderRoute() {
       content = empty(
         "Trang này chưa có ở đây",
         "Cùng quay về và khám phá những điều mới nhé.",
+        "/", "Về trang chủ", { page: true },
       );
     await Promise.all([paintReady, stylesReady]);
     if (version !== state.route) return;
@@ -2309,7 +2335,21 @@ document.addEventListener("submit", async (e) => {
       const body = { ...data };
       if (type === "verify" || type === "reset")
         body.token = new URLSearchParams(location.search).get("token") || "";
-      const result = await post("/auth/" + type, body);
+      let result;
+      try {
+        result = await post("/auth/" + type, body);
+      } catch (error) {
+        if (["reset", "verify"].includes(type) &&
+            ["expired_token", "not_found", "password_changed"].includes(error.code)) {
+          if (form.isConnected) {
+            form.parentElement.querySelector(":scope > .footnote")?.remove();
+            form.outerHTML = authLinkUnavailable(type,
+              "Liên kết không hợp lệ, đã hết hạn hoặc đã được sử dụng.");
+          }
+          return;
+        }
+        throw error;
+      }
       if (type === "login") {
         acceptSession(result);
         void refreshCart().catch(() => {});
