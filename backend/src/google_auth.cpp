@@ -118,7 +118,12 @@ GoogleIdentity verifyGoogleTokenWithCertificates(const std::string &credential,
         validateEmail(email);
         auto name = textField(payload, "name", 100, false);
         if (name.empty()) name = email.substr(0, email.find('@'));
-        return {payload.at("sub").get<std::string>(), email, name};
+        // Only signed Google claims can authorize linking an existing email account.
+        // Verified third-party email alone does not prove current mailbox ownership.
+        const bool authoritative = email.ends_with("@gmail.com") ||
+                                   (payload.contains("hd") && payload["hd"].is_string() &&
+                                    !payload["hd"].get<std::string>().empty());
+        return {payload.at("sub").get<std::string>(), email, name, authoritative};
     } catch (const Error &) { invalidToken(); }
     catch (...) { invalidToken(); }
     return {};

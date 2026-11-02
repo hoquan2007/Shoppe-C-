@@ -23,7 +23,7 @@
 4. Với GIS callback JavaScript này, **không cần Authorized redirect URI hoặc callback Supabase**. Không cần Google Client Secret/API key/service account key.
 5. Kiểm tra Branding/Audience. Nếu Console yêu cầu test users trong chế độ Testing, thêm các email demo. Chỉ dùng quyền cơ bản openid/email/profile.
 6. Save; chờ cấu hình được áp dụng, mở lại [đăng nhập local](http://localhost:18231/login) trong Chrome/Edge thông thường nếu trình duyệt nhúng chặn popup/Google login.
-7. Tài khoản Google chưa có trên web: bấm nút Google để tạo tài khoản buyer. Nếu email đã tồn tại: đăng nhập email/mật khẩu → **Tài khoản của tôi** → liên kết Google cùng email. Vai trò seller/admin giữ theo dữ liệu C++.
+7. Tài khoản Google chưa có trên web: bấm nút Google để tạo tài khoản buyer. Nếu email đã tồn tại và token Google đã xác minh là Gmail hoặc Google Workspace (có claim `hd`), hệ thống tự liên kết và đăng nhập vào tài khoản hiện có, giữ nguyên ID, mật khẩu và quyền seller/admin. Email bên thứ ba không có `hd` vẫn cần đăng nhập email/mật khẩu → **Tài khoản của tôi** → liên kết Google cùng email. Tài khoản bị khóa hoặc đã liên kết với Google `sub` khác không được tự liên kết. Những lần đăng nhập sau nhận diện bằng `sub`, không dựa vào email.
 8. Sau khi đã duyệt giao diện và cho phép triển khai, mới thêm `GOOGLE_CLIENT_ID` vào server env Vercel và deploy bản mới. Migration 0003 sẽ chạy qua migration runner C++ như các migration hiện có; chưa áp dụng trên Production ở lần này.
 
 Không coi nút hiện lên là đã nghiệm thu đăng nhập thật. Cần hoàn thành chọn tài khoản Google → về web → thấy tài khoản → tải lại vẫn đăng nhập → đăng xuất → thử lại. Chưa kiểm thử hoàn chỉnh bằng tài khoản Google thật của chủ dự án.
