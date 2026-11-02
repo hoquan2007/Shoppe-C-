@@ -5,6 +5,7 @@
 namespace shoppe {
 struct GoogleIdentity {
     std::string subject, email, name;
+    bool emailAuthoritative = false;
 };
 using GoogleVerifier = std::function<GoogleIdentity(const std::string &, const std::string &)>;
 bool googleReady();

@@ -995,7 +995,7 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
                                 "Google này đã liên kết với tài khoản khác.");
             } else {
                 auto existing = repo.one("users", "email = ?", {identity.email});
-                if (user.is_null() && !existing.is_null())
+                if (user.is_null() && !existing.is_null() && !identity.emailAuthoritative)
                     throw Error(409, "google_link_required",
                                 "Email đã có tài khoản. Hãy đăng nhập bằng mật khẩu, rồi liên kết "
                                 "Google trong Tài khoản của tôi.");
@@ -1008,6 +1008,13 @@ void Application::handle(const httplib::Request &req, httplib::Response &res) {
                             409, "google_link_conflict",
                             "Hãy chọn Google cùng email với tài khoản đang đăng nhập và chưa liên kết.");
                     account = user;
+                } else if (!existing.is_null()) {
+                    activeUser(existing);
+                    if (!repo.one("auth_identities", "user_id = ? AND provider = ?",
+                                  {existing.at("id"), "google"}).is_null())
+                        throw Error(409, "google_link_conflict",
+                                    "Tài khoản đã liên kết với một tài khoản Google khác.");
+                    account = existing;
                 } else {
                     account = {{"id", randomId()},   {"email", identity.email}, {"name", identity.name},
                                {"role", "buyer"},    {"active", true},          {"verified", true},

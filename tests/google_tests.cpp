@@ -61,6 +61,18 @@ void cryptography() {
     auto token = sign(claims);
     auto identity = verifyGoogleTokenWithCertificates(token, client, nonce, keys);
     check(identity.subject == "123456789" && identity.email == "fixture@example.test", "valid signed identity and normalized email");
+    check(!identity.emailAuthoritative, "third-party email cannot authorize automatic linking");
+    auto gmailClaims = claims; gmailClaims["email"] = "Fixture@Gmail.com";
+    check(verifyGoogleTokenWithCertificates(sign(gmailClaims), client, nonce, keys).emailAuthoritative,
+          "signed verified Gmail authorizes automatic linking");
+    auto workspaceClaims = claims; workspaceClaims["hd"] = "example.test";
+    check(verifyGoogleTokenWithCertificates(sign(workspaceClaims), client, nonce, keys).emailAuthoritative,
+          "signed Workspace hosted domain authorizes automatic linking");
+    workspaceClaims["hd"] = "";
+    check(!verifyGoogleTokenWithCertificates(sign(workspaceClaims), client, nonce, keys).emailAuthoritative,
+          "empty hosted domain cannot authorize automatic linking");
+    gmailClaims["email_verified"] = false;
+    rejects([&] { verifyGoogleTokenWithCertificates(sign(gmailClaims), client, nonce, keys); }, "unverified Gmail rejected");
     rejects([&] { verifyGoogleTokenWithCertificates(token, "other.apps.googleusercontent.com", nonce, keys); }, "wrong audience");
     rejects([&] { verifyGoogleTokenWithCertificates(token, client, std::string(64, 'b'), keys); }, "wrong nonce");
     rejects([&] { verifyGoogleTokenWithCertificates(token, client, nonce, Json::object()); }, "unknown kid");
@@ -158,6 +170,41 @@ void applicationFlow() {
     nonceCookie = challenge(adminCookie, "fixture-csrf");
     auto linked = login(adminCookie + "; " + nonceCookie, "fixture-csrf");
     check(linked.status == 200 && Json::parse(linked.body)["user"]["role"] == "admin", "explicit linking preserves role");
+    {
+        auto tx = db.begin(); Repository r(*tx);
+        r.save("users", {{"id", "gmail-admin"}, {"email", "fixture@gmail.com"}, {"name", "Existing Admin"},
+                         {"role", "admin"}, {"active", true}, {"verified", false},
+                         {"password_hash", "unchanged-password-hash"}});
+        r.save("users", {{"id", "disabled-gmail"}, {"email", "disabled@gmail.com"},
+                         {"role", "buyer"}, {"active", false}});
+        tx->commit();
+    }
+    identity = {"gmail-subject", "fixture@gmail.com", "Google Name", true};
+    auto automatic = login(challenge());
+    check(automatic.status == 200, "verified Gmail signs into existing account without password");
+    auto automaticBody = Json::parse(automatic.body);
+    check(automaticBody["user"]["id"] == "gmail-admin" && automaticBody["user"]["role"] == "admin" &&
+          automaticBody["user"]["verified"] == true, "automatic linking preserves account and admin role");
+    check(Json::parse(request("GET", "/api/auth/me", {}, cookie(automatic, "shoppe_session")).body)["user"]["id"] == "gmail-admin",
+          "automatic linking issues usable session");
+    {
+        auto tx = db.begin(); Repository r(*tx);
+        check(r.get("users", "gmail-admin")["password_hash"] == "unchanged-password-hash", "automatic linking preserves password");
+        check(r.get("auth_identities", sha256("google:gmail-subject"))["user_id"] == "gmail-admin", "Google subject persisted");
+        tx->commit();
+    }
+    identity.subject = "different-google-subject";
+    check(login(challenge()).status == 409, "different Google subject cannot replace linked identity");
+    identity = {"gmail-subject", "changed@gmail.com", "Google Name", true};
+    check(Json::parse(login(challenge()).body)["user"]["id"] == "gmail-admin", "later sign-ins use stable subject");
+    identity = {"disabled-subject", "disabled@gmail.com", "Disabled", true};
+    check(login(challenge()).status == 403, "disabled account cannot be automatically linked");
+    {
+        auto tx = db.begin(); Repository r(*tx);
+        check(r.get("auth_identities", sha256("google:disabled-subject")).is_null(), "failed linking leaves no identity");
+        tx->commit();
+    }
+    identity = {"456", "admin@example.test", "Google Admin"};
     {
         auto tx = db.begin(); Repository r(*tx); auto u = r.get("users", "admin-fixture");
         u["active"] = false; r.save("users", u); tx->commit();
